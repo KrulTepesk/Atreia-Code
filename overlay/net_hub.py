@@ -1,6 +1,7 @@
 """Uma única leitura do tráfego do jogo, dividida entre quem precisa dela.
 
-O medidor de DPS, o farm de pet (abates automáticos) e os chefes de campo (mortes automáticas) usam o
+O medidor de DPS, o farm de pet (abates automáticos), os chefes de campo (mortes automáticas) e os sons de
+abate/assistência no PvP usam o
 mesmo DpsReader. Cada um "pede" a leitura (acquire) e "devolve" (release); ela só para quando ninguém
 mais precisa.
 """
@@ -15,6 +16,7 @@ class NetHub(QObject):
     kill = Signal(object)             # dict do world_live (um monstro morreu)
     soul = Signal(object)             # {"pet": id, "n": quantidade}: você ganhou alma de pet
     world = Signal(object)            # id do mapa atual (str) quando muda
+    pvp = Signal(object)              # {"kind": "kill"|"assist", "victim": nome, ...}: abate/assistência sua em jogador
     running_changed = Signal(bool)
 
     def __init__(self):
@@ -104,6 +106,8 @@ class NetHub(QObject):
                 self.soul.emit(ev)
             elif kind == "world":
                 self.world.emit(ev["world"])
+            elif kind == "pvp":
+                self.pvp.emit(ev)
 
     def world_state(self):
         if self.reader is None:

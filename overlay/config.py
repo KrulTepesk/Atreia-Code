@@ -40,20 +40,11 @@ DEFAULTS = {
         "pos": None,
     },
     "pvp": {
-        "visible": True,
-        "enabled": False,
-        "reference": "",
-        "region": None,          # [x, y, w, h] em pixels físicos, ou None = monitor inteiro
-        "monitor": 1,            # índice do monitor do jogo (1 = principal no mss)
-        "threshold": 0.80,
-        "cooldown": 3.0,
-        "interval_ms": 250,
+        "auto": True,            # liga sozinho ao abrir (se tiver Npcap e administrador)
         "sound": "sounds/kill.wav",
         "volume": 80,
-        "kills": 0,
-        "opacity": 0.85,
-        "pos": None,
     },
+    "pvp_assist": {"sound": "sounds/assist.wav", "volume": 70},
     "map": {
         "world": "1010",
         "filters": {c[0]: True for c in CATEGORIES},

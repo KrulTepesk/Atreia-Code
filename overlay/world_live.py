@@ -7,6 +7,10 @@
   pontos de nascimento de cada monstro (data/mobs.json), o ponto mais perto diz quem era. Os mesmos pontos
   dizem em qual mapa você está.
 
+- PvP: quando um jogador morre (HP 0 / 0x8d04), quem levou o abate vem na 0x8d04. Se foi você,
+  é abate; se você bateu nele nos últimos segundos e outro levou, é assistência. Sem crédito no pacote, vale
+  o último golpe.
+
 Coordenadas: no tráfego o eixo Y é invertido em relação ao mobs.json → guardamos sempre (x, -y).
 """
 import json
@@ -21,6 +25,9 @@ CELL = 4000.0            # grade para achar o ponto de nascimento mais perto rá
 MATCH = 2500.0           # monstro andando: aceita até essa distância do ponto de nascimento
 BOSS_MATCH = 5000.0      # chefes andam mais (e têm 1 ponto só)
 CREDIT_WAIT = 3.0
+PVP_WAIT = 1.0           # jogador morto: espera o crédito do abate (chega junto, mas dá uma folga)
+ASSIST_WINDOW = 15.0     # bateu no jogador até 15 s antes da morte e outro levou o abate = assistência
+LAST_HIT_WINDOW = 3.0    # sem crédito no pacote: o último golpe (até 3 s antes) decide
 BOSS_HP = 3_000_000      # acima disso é chefe (monstros comuns ficam bem abaixo)        # espera o "quem levou o abate" até 3 s depois do HP zerar
 
 
@@ -34,6 +41,27 @@ def varint(b, i):
         if c < 0x80:
             return v, i
 
+
+
+def parse_credit(b):
+    """0x8d04 -> (morto, template, id do matador, nome do matador) ou None.
+
+    morto | template u32 (0 = jogador/invocação) | matador | servidor u16 | tam | nome | tam | legião | ...
+    Tudo zero depois do morto = ninguém levou o abate.
+    """
+    try:
+        eid, i = varint(b, 0)
+        tpl = struct.unpack_from("<I", b, i)[0]
+        killer, j = varint(b, i + 4)
+        if not killer:
+            return eid, tpl, None, ""
+        j += 2                                  # servidor (u16: 7e 05, 66 09...)
+        n = b[j]
+        if n == 0 or n > 40 or j + 1 + n > len(b):
+            return eid, tpl, None, ""
+        return eid, tpl, killer, b[j + 1:j + 1 + n].decode("utf-8", "replace")
+    except (IndexError, struct.error):
+        return None
 
 def _xyz(b, i):
     if i + 12 > len(b):
@@ -118,6 +146,13 @@ class WorldTracker:
         self.world_t = 0
         self.events = []         # [(tipo, dict)]
         self._last_guess = 0
+        # PvP
+        self.hits = {}           # alvo -> {atacante: hora do último golpe com dano}
+        self.last_hit = {}       # alvo -> (atacante, hora)
+        self.pdead = {}          # jogador -> hora da morte (aguardando crédito)
+        self.pcredit = {}        # jogador -> (id do matador, nome)
+        self.pdone = {}          # jogador -> hora em que a morte já foi tratada (evita repetir)
+        self._last_prune = 0
 
     # ------------------------------------------------------------ mensagens
     def handle(self, op, b, now=None):
@@ -153,23 +188,25 @@ class WorldTracker:
                     hp = struct.unpack_from("<I", b, i + 3)[0]
                     if hp > self.maxhp.get(eid, 0):
                         self.maxhp[eid] = hp
-                    if hp == 0 and eid not in self.done and not self._is_player(eid):
-                        self.dead.setdefault(eid, now)
+                    if hp == 0:
+                        if self._is_player(eid):
+                            self._player_died(eid, now)
+                        elif eid not in self.done:
+                            self.dead.setdefault(eid, now)
             elif op == 0x8D04:
-                eid, _ = varint(b, 0)
-                k = b.find(b"\x7e\x05")
-                if k > 0:
-                    j = k - 1                                   # o id do matador vem logo antes de 7e 05
-                    while j > 0 and b[j - 1] >= 0x80:
-                        j -= 1
-                    killer, _ = varint(b, j)
-                    n = b[k + 2] if k + 2 < len(b) else 0
-                    name = b[k + 3:k + 3 + n].decode("utf-8", "replace")
-                    if eid in self.dead or ((eid in self.pos or eid in self.maxhp) and not self._is_player(eid)):
-                        self.credit[eid] = (killer, name)
-                        self.dead.setdefault(eid, now)
-                elif eid in self.dead:
-                    self.credit.setdefault(eid, (None, ""))
+                c = parse_credit(b)
+                if c:
+                    eid, tpl, killer, name = c
+                    if self._is_player(eid) or eid in self.pdead:
+                        self._player_died(eid, now)
+                        if killer:
+                            self.pcredit[eid] = (killer, name)
+                    elif killer:
+                        if eid in self.dead or eid in self.pos or eid in self.maxhp:
+                            self.credit[eid] = (killer, name)
+                            self.dead.setdefault(eid, now)
+                    elif eid in self.dead:
+                        self.credit.setdefault(eid, (None, ""))
             elif op == 0x900D:
                 # alma de pet obtida: n | n × (id do pet u32, quantidade u32)   (ex.: 01 2a040000 01000000)
                 n = b[0]
@@ -186,7 +223,58 @@ class WorldTracker:
         self.poll(now)
 
     def _is_player(self, eid):
-        return eid in self.r.cls or eid == self.r.find_self()
+        return eid in self.r.cls or eid in self.r.names or eid == self.r.find_self()
+
+    # ------------------------------------------------------------ PvP
+    def on_damage(self, atk, tgt, now=None):
+        """Chamado pelo leitor a cada golpe com dano (não cura)."""
+        now = now or time.time()
+        self.hits.setdefault(tgt, {})[atk] = now
+        self.last_hit[tgt] = (atk, now)
+
+    def _player_died(self, eid, now):
+        if now - self.pdone.get(eid, -99) < 10:
+            return
+        self.pdead.setdefault(eid, now)
+
+    def _finish_pvp(self, eid, now):
+        t = self.pdead.pop(eid)
+        killer, kname = self.pcredit.pop(eid, (None, ""))
+        self.pdone[eid] = t
+        me = self.r.find_self()
+        sname = (self.r.self_name or "").lower()
+        if eid == me or (me is None and sname and self.r.names.get(eid, "").lower() == sname):
+            return                                   # foi você que morreu
+        if me is not None and eid in self.r.group(me):
+            return                                   # alguém do seu grupo
+        mine = killer is not None and (killer == me or (sname and kname.lower() == sname))
+        kind = None
+        if mine:
+            kind = "kill"
+        elif killer is None:
+            last = self.last_hit.get(eid)
+            if last and me is not None and last[0] == me and t - last[1] <= LAST_HIT_WINDOW:
+                kind = "kill"
+        if kind is None and me is not None:
+            hit = self.hits.get(eid, {}).get(me)
+            if hit is not None and t - hit <= ASSIST_WINDOW:
+                kind = "assist"
+        self.hits.pop(eid, None)
+        self.last_hit.pop(eid, None)
+        if kind:
+            self.events.append(("pvp", {"kind": kind, "t": t, "victim_id": eid,
+                                        "victim": self.r.names.get(eid, ""), "killer": kname}))
+
+    def _prune(self, now):
+        for tgt in list(self.hits):
+            d = self.hits[tgt]
+            for a in [a for a, t in d.items() if now - t > ASSIST_WINDOW * 2]:
+                del d[a]
+            if not d:
+                del self.hits[tgt]
+                self.last_hit.pop(tgt, None)
+        for eid in [e for e, t in self.pdone.items() if now - t > 60]:
+            del self.pdone[eid]
 
     # ------------------------------------------------------------ periodicamente
     def poll(self, now=None):
@@ -194,6 +282,12 @@ class WorldTracker:
         for eid, t in list(self.dead.items()):
             if eid in self.credit or now - t >= CREDIT_WAIT:
                 self._finish(eid, now)
+        for eid, t in list(self.pdead.items()):
+            if eid in self.pcredit or now - t >= PVP_WAIT:
+                self._finish_pvp(eid, now)
+        if now - self._last_prune > 5:
+            self._last_prune = now
+            self._prune(now)
         if now - self._last_guess > 4:
             self._last_guess = now
             self._guess_world(now)

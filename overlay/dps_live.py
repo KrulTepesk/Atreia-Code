@@ -461,6 +461,8 @@ class DpsReader(QThread):
                     self.session.add_heal(now, atk, tgt, dmg, skill)
                     return
                 self.harmed.add((atk, tgt))
+                if self.world is not None:
+                    self.world.on_damage(atk, tgt, now)
                 if c:
                     self.enemies.add(tgt)                  # quem leva dano de jogador é inimigo/monstro
                 self._unlink(atk, tgt)

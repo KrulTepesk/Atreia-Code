@@ -17,6 +17,8 @@ Não lê a memória do jogo nem mexe em arquivos dele.
   em que ele renasce, com mini-mapa do local (ou marque "Morreu agora").
 - **Medidor de DPS (experimental, desligado por padrão)** — lê o tráfego do jogo pelo Npcap; mostra
   dano, DPS, crítico, dupla chance, cura, a classe de cada jogador e o detalhe por habilidade; mostra a luta atual ou a sessão inteira.
+- **PvP** — um som quando você mata um jogador e outro quando dá assistência (você bateu e outro levou o
+  abate); os dois sons e volumes podem ser trocados. Automático, pela mesma leitura do tráfego do medidor de DPS.
 - Vários monitores, travar/destravar overlays, português, inglês e espanhol.
 
 ## Instalar (usuário comum)

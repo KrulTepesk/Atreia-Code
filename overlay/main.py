@@ -1,6 +1,7 @@
 """Meta Overlay — painel de controle, ícone na bandeja e janelas de overlay."""
 import os
 import sys
+import time
 
 # Coordenadas em pixels reais (necessário para a captura de tela do PvP bater com a posição na tela)
 os.environ.setdefault("QT_ENABLE_HIGHDPI_SCALING", "0")
@@ -27,7 +28,7 @@ from field_bosses import FieldBossManager, FieldBossTab
 from net_hub import NetHub
 from hotkeys import Hotkeys
 from map_window import MapWindow
-from pvp import PvpWidget, ReferenceDialog, RegionSelector
+from pvp import RegionSelector
 from shugo import ShugoWidget
 
 
@@ -117,7 +118,6 @@ class ControlPanel(QWidget):
         self.resize(min(860, int(avail.width() * 0.75)), min(600, int(avail.height() * 0.75)))
 
         self.shugo = ShugoWidget()
-        self.pvp = PvpWidget()
         self.map = None
         self.selector = None
 
@@ -127,9 +127,6 @@ class ControlPanel(QWidget):
         tabs = self.tabs = theme.NavTabs("Meta Overlay", "Ferramentas para Aion 2")
         tabs.addTab(self.tab_general(), "Geral", "general", "Idioma, monitores e trava dos overlays.")
         tabs.addTab(self.tab_shugo(), "Shugo", "shugo", "Aviso antes do Festival do Shugo começar.")
-        # aba PvP fora por enquanto (será refeita); o widget continua existindo para não quebrar nada
-        self._pvp_page = self.tab_pvp()
-        self._pvp_page.hide()
         tabs.addTab(self.tab_map(), "Mapa", "map", "Coletáveis, mobs e o minimapa do Alt+M com os recursos por cima.")
         self.dps_tab = DpsTab(self.hub)
         self.farm_tab = FarmTab(self)
@@ -141,6 +138,7 @@ class ControlPanel(QWidget):
         tabs.insertTab(3, FieldBossTab(self.field_bosses), "Chefes de campo", "crown",
                        "Quando cada field boss renasce, com aviso e mapa do local.")
         tabs.addTab(self.dps_tab, "DPS (experimental)", "dps", "Medidor de dano seu e do seu grupo, lido do tráfego do jogo.")
+        tabs.addTab(self.tab_pvp(), "PvP", "pvp", "Um som quando você mata um jogador e outro quando dá assistência.")
         # trava dos overlays sempre à mão, no rodapé do menu
         self.lock_pill = QPushButton()
         self.lock_pill.setObjectName("LockPill")
@@ -160,12 +158,15 @@ class ControlPanel(QWidget):
         if minimap.mm_cfg()["enabled"]:
             self.set_minimap(True)
 
-        # o PvP não tem painel na tela: só toca o som (o detector roda escondido)
         # o Shugo não fica na tela: o aviso aparece sozinho 5 e 1 minuto antes
         self.shugo.restore_position()
         self.shugo.set_locked(cfg.get("locked", False))
         self.events.set_locked(cfg.get("locked", False))
-        # som de abate no PvP desligado enquanto a aba está fora
+        # sons de abate/assistência no PvP: lidos do tráfego do jogo, ligam sozinhos
+        self.hub.pvp.connect(self.on_pvp)
+        self.hub.running_changed.connect(lambda _on: self.refresh_pvp())
+        if cfg["pvp"].get("auto", True) and self.hub.requirements()[0]:
+            QTimer.singleShot(3000, lambda: (self.hub.acquire("pvp"), self.refresh_pvp()))
 
         self.tray = QSystemTrayIcon(make_icon(), self)
         menu = QMenu()
@@ -337,65 +338,61 @@ class ControlPanel(QWidget):
     def tab_pvp(self):
         w = QWidget()
         lay = QVBoxLayout(w)
-        info = QLabel("Toca um som quando você mata alguém. Não aparece nada na tela, é só o som. "
-                      "Funciona reconhecendo a mensagem de abate do jogo: só olha a tela (como o OBS), "
-                      "não lê memória, pacotes nem arquivos do jogo.")
+        info = QLabel("Tudo automático: usa a mesma leitura do jogo do medidor de DPS. Não precisa marcar nada na tela.")
         info.setWordWrap(True)
         lay.addWidget(info)
 
-        box = QGroupBox("1. Imagem de referência da mensagem de abate")
+        box0 = QGroupBox("Leitura do jogo")
+        v0 = QVBoxLayout(box0)
+        self.pvp_status = QLabel("")
+        self.pvp_status.setWordWrap(True)
+        self.pvp_status.setTextFormat(Qt.RichText)
+        v0.addWidget(self.pvp_status)
+        row = QHBoxLayout()
+        self.pvp_btn = theme.primary(QPushButton("Ligar"))
+        self.pvp_btn.clicked.connect(self.toggle_pvp)
+        self.pvp_npcap = QPushButton("Instalar Npcap")
+        self.pvp_npcap.clicked.connect(lambda: self.dps_tab.install_npcap())
+        self.pvp_admin = QPushButton("Abrir como administrador")
+        self.pvp_admin.clicked.connect(lambda: self.dps_tab.reopen_admin())
+        auto = QCheckBox("Ligar sozinho ao abrir o programa")
+        auto.setChecked(cfg["pvp"].get("auto", True))
+        auto.toggled.connect(lambda on: (cfg["pvp"].__setitem__("auto", on), save()))
+        for b in (self.pvp_btn, self.pvp_npcap, self.pvp_admin):
+            row.addWidget(b)
+        row.addStretch()
+        row.addWidget(auto)
+        v0.addLayout(row)
+        lay.addWidget(box0)
+
+        box = QGroupBox("Abate")
         v = QVBoxLayout(box)
-        self.ref_label = QLabel()
-        v.addWidget(self.ref_label)
-        b = QPushButton("Definir referência a partir de um print...")
-        b.clicked.connect(self.define_reference)
-        v.addWidget(b)
+        lk = QLabel("Você levou o abate do jogador.")
+        lk.setStyleSheet(f"color:{theme.MUTED}")
+        v.addWidget(lk)
+        v.addWidget(SoundRow("pvp"))
         lay.addWidget(box)
 
-        box2 = QGroupBox("2. Onde procurar")
-        f = QFormLayout(box2)
-        self.region_label = QLabel()
-        row = QHBoxLayout()
-        bsel = QPushButton("Marcar área na tela...")
-        bsel.clicked.connect(self.select_region)
-        bclr = QPushButton("Usar monitor inteiro")
-        bclr.clicked.connect(self.clear_region)
-        row.addWidget(bsel)
-        row.addWidget(bclr)
-        f.addRow("Área:", self.region_label)
-        f.addRow("", row)
-        self.game_monitor = QComboBox()
-        for i, (name, _s) in enumerate(screen_names(), 1):
-            self.game_monitor.addItem(name, i)
-        self.game_monitor.setCurrentIndex(max(0, cfg["pvp"].get("monitor", 1) - 1))
-        self.game_monitor.currentIndexChanged.connect(
-            lambda i: (cfg["pvp"].__setitem__("monitor", i + 1), save(), self.restart_pvp()))
-        f.addRow("Monitor do jogo:", self.game_monitor)
-        f.addRow(QLabel("Marcar uma área pequena deixa a detecção mais leve e mais precisa."))
+        box2 = QGroupBox("Assistência")
+        v2 = QVBoxLayout(box2)
+        la = QLabel("Você bateu no jogador nos últimos 15 segundos e outro levou o abate.")
+        la.setWordWrap(True)
+        la.setStyleSheet(f"color:{theme.MUTED}")
+        v2.addWidget(la)
+        v2.addWidget(SoundRow("pvp_assist"))
         lay.addWidget(box2)
 
-        box3 = QGroupBox("3. Ajustes")
-        f3 = QFormLayout(box3)
-        thr = QDoubleSpinBox()
-        thr.setRange(0.5, 0.99)
-        thr.setSingleStep(0.01)
-        thr.setValue(cfg["pvp"].get("threshold", 0.8))
-        thr.valueChanged.connect(lambda v: (cfg["pvp"].__setitem__("threshold", v), save()))
-        f3.addRow("Precisão (0.80 padrão):", thr)
-        self.score_label = QLabel("—")
-        f3.addRow("Semelhança agora:", self.score_label)
-        f3.addRow("Som:", SoundRow("pvp"))
+        box3 = QGroupBox("Nesta sessão")
+        v3 = QVBoxLayout(box3)
+        self.pvp_count = QLabel("")
+        self.pvp_last = QLabel("")
+        self.pvp_last.setStyleSheet(f"color:{theme.MUTED}")
+        v3.addWidget(self.pvp_count)
+        v3.addWidget(self.pvp_last)
         lay.addWidget(box3)
-
-        row = QHBoxLayout()
-        self.pvp_on = QCheckBox("Ativar detecção de abates")
-        self.pvp_on.setChecked(cfg["pvp"].get("enabled", False))
-        self.pvp_on.toggled.connect(self.set_pvp)
-        row.addWidget(self.pvp_on)
-        row.addStretch()
-        lay.addLayout(row)
         lay.addStretch()
-        self.refresh_pvp_labels()
+        self.pvp_n = {"kill": 0, "assist": 0}
+        self.refresh_pvp()
         return w
 
     def tab_map(self):
@@ -427,6 +424,14 @@ class ControlPanel(QWidget):
         row.addStretch()
         row.addWidget(self.mm_on)
         f.addRow(row)
+        self.game_monitor = QComboBox()
+        for i, (name, _s) in enumerate(screen_names(), 1):
+            self.game_monitor.addItem(name, i)
+        mon = minimap.mm_cfg().get("monitor") or cfg.get("pvp", {}).get("monitor", 1)
+        self.game_monitor.setCurrentIndex(max(0, min(self.game_monitor.count() - 1, mon - 1)))
+        self.game_monitor.currentIndexChanged.connect(
+            lambda i: (minimap.mm_cfg().__setitem__("monitor", i + 1), save()))
+        f.addRow("Monitor do jogo:", self.game_monitor)
         self.mm_status = QLabel("")
         self.mm_status.setWordWrap(True)
         f.addRow("Status:", self.mm_status)
@@ -584,55 +589,48 @@ class ControlPanel(QWidget):
         save()
         widget.setWindowOpacity(val / 100)
 
-    def define_reference(self):
-        if ReferenceDialog(self).exec():
-            self.refresh_pvp_labels()
-            self.restart_pvp()
-
-    def select_region(self):
-        idx = self.game_monitor.currentIndex()
-        screens = QGuiApplication.screens()
-        screen = screens[idx] if idx < len(screens) else QGuiApplication.primaryScreen()
-        self.selector = RegionSelector(screen)
-        self.selector.chosen.connect(self.region_chosen)
-        self.selector.show()
-        self.selector.activateWindow()
-
-    def region_chosen(self, r):
-        cfg["pvp"]["region"] = r
-        save()
-        self.refresh_pvp_labels()
-        self.restart_pvp()
-
-    def clear_region(self):
-        cfg["pvp"]["region"] = None
-        save()
-        self.refresh_pvp_labels()
-        self.restart_pvp()
-
-    def refresh_pvp_labels(self):
-        ref = cfg["pvp"].get("reference")
-        self.ref_label.setText(T("Referência salva: {f}").format(f=os.path.basename(ref)) if ref and os.path.exists(ref)
-                               else T("Nenhuma referência definida ainda."))
-        r = cfg["pvp"].get("region")
-        self.region_label.setText(f"{r[2]}x{r[3]} ({r[0]}, {r[1]})" if r else T("Monitor inteiro"))
-
-    def set_pvp(self, on):
-        cfg["pvp"]["enabled"] = on
-        save()
-        if on:
-            if not self.pvp.start():
-                QMessageBox.information(self, "PvP", "Defina primeiro a imagem de referência da mensagem de abate.")
-                self.pvp_on.setChecked(False)
-                return
-            self.pvp.watcher.score.connect(lambda s: self.score_label.setText(f"{s:.2f}"))
+    # ------------------------------------------------------------ PvP
+    def refresh_pvp(self):
+        ok, falta = self.hub.requirements()
+        self.pvp_npcap.setVisible("Npcap" in falta)
+        self.pvp_admin.setVisible("administrador" in falta)
+        self.pvp_btn.setEnabled(ok)
+        if self.hub.running and "pvp" in self.hub.users:
+            self.pvp_btn.setText(T("Desligar"))
+            who = cfg.get("dps", {}).get("char_name") or T("procurando o seu personagem (costuma aparecer quando você toma dano)…")
+            self.pvp_status.setText(f"<span style='color:#5ee39a'>●</span> <b>{T('Lendo o jogo')}</b> — "
+                                    f"{T('personagem')}: {who}")
         else:
-            self.pvp.stop()
-            self.score_label.setText("—")
+            self.pvp_btn.setText(T("Ligar"))
+            if ok:
+                self.pvp_status.setText(f"<span style='color:#9b9282'>○</span> {T('Desligado.')}")
+            else:
+                faltam = (" " + T("e") + " ").join(T(x) for x in falta)
+                self.pvp_status.setText("<span style='color:#f0883e'>○</span> " +
+                                        T("Para tocar os sons falta: {f}.").format(f=faltam))
+        self.pvp_count.setText(T("{k} abates · {a} assistências").format(k=self.pvp_n["kill"], a=self.pvp_n["assist"]))
+        if not getattr(self, "_pvp_last_txt", ""):
+            self.pvp_last.setText(T("Nenhum ainda."))
 
-    def restart_pvp(self):
-        if cfg["pvp"].get("enabled"):
-            self.set_pvp(True)
+    def toggle_pvp(self):
+        if self.hub.running and "pvp" in self.hub.users:
+            self.hub.release("pvp")
+        else:
+            self.hub.acquire("pvp")
+        self.refresh_pvp()
+
+    def on_pvp(self, ev):
+        if "pvp" not in self.hub.users:
+            return
+        kind = ev.get("kind")
+        sec = "pvp" if kind == "kill" else "pvp_assist"
+        sounds_player.play(cfg[sec]["sound"], cfg[sec].get("volume", 80))
+        self.pvp_n[kind] = self.pvp_n.get(kind, 0) + 1
+        who = ev.get("victim") or T("um jogador")
+        when = time.strftime("%H:%M:%S", time.localtime(ev.get("t") or time.time()))
+        self._pvp_last_txt = (T("Último: abate em {n}") if kind == "kill" else T("Último: assistência em {n}")).format(n=who) + f"  ({when})"
+        self.pvp_last.setText(self._pvp_last_txt)
+        self.refresh_pvp()
 
     def show_panel(self):
         self.show()
@@ -647,7 +645,6 @@ class ControlPanel(QWidget):
     def quit(self):
         self.dps_tab.shutdown()
         self.hub.stop()
-        self.pvp.stop()
         self.minimap.stop()
         self.farm_tab.shutdown()
         self.hotkeys.clear()
