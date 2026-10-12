@@ -7,8 +7,6 @@ saida/
 .venv/
 __pycache__/
 *.pyc
-# dados brutos usados só para gerar overlay/data (não vão para o repositório)
-/data/
 # ícones de habilidade: baixados ao gerar o instalador
 overlay/skill_icons/
 # capturas de rede (contêm o tráfego da sua sessão)
