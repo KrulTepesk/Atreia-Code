@@ -16,8 +16,11 @@ Não lê a memória do jogo nem mexe em arquivos dele.
 - Vários monitores, travar/destravar overlays, português e inglês.
 
 ## Instalar (usuário comum)
-Baixe o `AtreiaCode-Setup.exe` na aba **Releases** e instale. O Npcap só é necessário para o DPS
-(o instalador oferece instalar).
+**[⬇ Baixar o AtreiaCode-Setup.exe](https://github.com/KrulTepesk/Atreia-Code/releases/latest/download/AtreiaCode-Setup.exe)**
+— abra e instale. Não precisa de Python nem de baixar o código.
+O Npcap só é necessário para o DPS (o instalador oferece instalar).
+
+> O botão verde **Code → Download ZIP** é o código-fonte, para quem quer montar o programa.
 
 ## Gerar o instalador
 No Windows, rode `CRIAR_INSTALADOR.bat`. Ele baixa o que faltar (Python, bibliotecas, Inno Setup,

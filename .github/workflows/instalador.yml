@@ -1,8 +1,12 @@
-# Alternativa: o GitHub monta o instalador sozinho (aba Actions > "Gerar instalador" > Run workflow).
+# Monta o AtreiaCode-Setup.exe e publica em Releases sozinho sempre que o programa muda no main.
+# Link fixo para baixar a versão mais nova:
+#   https://github.com/KrulTepesk/Atreia-Code/releases/latest/download/AtreiaCode-Setup.exe
 name: Gerar instalador
 on:
   workflow_dispatch:
   push:
+    branches: [main]
+    paths: ["overlay/**", "build_tools/**", "requirements.txt", ".github/workflows/instalador.yml"]
     tags: ["v*"]
 permissions:
   contents: write
@@ -18,12 +22,19 @@ jobs:
       - run: python -m pip install pillow && python build_tools/baixar_icones.py
       - run: python -m PyInstaller --noconfirm --distpath dist --workpath build_tools/_work build_tools/AtreiaCode.spec
       - run: choco install innosetup -y --no-progress
-      - run: '& "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" build_tools\instalador.iss'
+      - run: '& "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" /DAppVersion=1.0.${{ github.run_number }} build_tools\instalador.iss'
       - uses: actions/upload-artifact@v4
         with:
           name: AtreiaCode-Setup
           path: saida/AtreiaCode-Setup.exe
-      - if: startsWith(github.ref, 'refs/tags/')
-        uses: softprops/action-gh-release@v2
+      - uses: softprops/action-gh-release@v2
         with:
+          tag_name: v1.0.${{ github.run_number }}
+          name: Atreia Code 1.0.${{ github.run_number }}
+          target_commitish: ${{ github.sha }}
+          make_latest: "true"
           files: saida/AtreiaCode-Setup.exe
+          body: |
+            **Como instalar:** baixe o `AtreiaCode-Setup.exe` abaixo, abra e siga as telas.
+            Não precisa de Python nem de nada além do instalador.
+            O Npcap só é necessário para o medidor de DPS (o instalador oferece instalar).

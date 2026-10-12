@@ -1,6 +1,8 @@
 ﻿; Inno Setup: transforma dist\AtreiaCode no instalador AtreiaCode-Setup.exe
 #define AppName "Atreia Code"
-#define AppVersion "1.0.0"
+#ifndef AppVersion
+  #define AppVersion "1.0.0"
+#endif
 #define AppExe "AtreiaCode.exe"
 ; nome antigo do programa (para atualizar quem já tinha instalado)
 #define OldExe "Aion2Overlay.exe"
