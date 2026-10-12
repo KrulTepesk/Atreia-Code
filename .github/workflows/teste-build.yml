@@ -1,0 +1,20 @@
+# Testa o CRIAR_INSTALADOR num Windows limpo, do jeito que roda no PC de quem baixa o projeto
+# (força o caminho do Python portátil, sem usar o Python que já vem na máquina do GitHub).
+name: Testar CRIAR_INSTALADOR
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ["build_tools/**", "requirements.txt", ".github/workflows/teste-build.yml"]
+jobs:
+  build-local:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Rodar build_tools\build.ps1
+        shell: powershell
+        env:
+          ATREIA_FORCE_PORTABLE_PY: "1"
+        run: |
+          powershell -NoProfile -ExecutionPolicy Bypass -File build_tools\build.ps1
+          if (-not (Test-Path saida\AtreiaCode-Setup.exe) -and -not (Test-Path saida\AtreiaCode-Portatil.zip)) { throw "nada foi gerado" }

@@ -14,8 +14,9 @@ function Step($t) { Write-Host ""; Write-Host "==> $t" -ForegroundColor Yellow }
 Step "Procurando Python"
 $py = $null
 $local = Join-Path $Tools "_python\python.exe"
+$force = [bool]$env:ATREIA_FORCE_PORTABLE_PY      # usado no teste automático do GitHub
 if (Test-Path $local) { $py = $local }
-if (-not $py) {
+if (-not $py -and -not $force) {
     foreach ($v in "3.12", "3.13", "3.11") {
         try {
             $p = & py "-$v" -c "import sys; print(sys.executable)" 2>$null
@@ -23,15 +24,39 @@ if (-not $py) {
         } catch {}
     }
 }
+if (-not $py -and -not $force) {
+    # "python" no PATH (ignora o atalho falso da Microsoft Store, que fica em WindowsApps)
+    try {
+        $cmd = Get-Command python -ErrorAction SilentlyContinue
+        if ($cmd -and $cmd.Source -notlike "*WindowsApps*") {
+            $ver = & $cmd.Source -c "import sys; print(sys.version_info[0]*100+sys.version_info[1])" 2>$null
+            if ($LASTEXITCODE -eq 0 -and [int]$ver -ge 311 -and [int]$ver -le 313) { $py = $cmd.Source }
+        }
+    } catch {}
+}
 if (-not $py) {
+    # Python "portátil": o pacote oficial em .zip (NuGet do python.org). Não usa instalador,
+    # então não conflita com Python que já exista no PC e não pede administrador.
     Step "Baixando Python 3.12 (só para montar o programa; fica em build_tools\_python)"
-    $inst = Join-Path $env:TEMP "python-3.12.7-amd64.exe"
-    Invoke-WebRequest "https://www.python.org/ftp/python/3.12.7/python-3.12.7-amd64.exe" -OutFile $inst
+    $zip = Join-Path $env:TEMP "python-3.12.7.zip"
+    $tmp = Join-Path $env:TEMP "python-3.12.7-pkg"
+    $ok = $false
+    foreach ($url in "https://www.nuget.org/api/v2/package/python/3.12.7",
+                     "https://globalcdn.nuget.org/packages/python.3.12.7.nupkg") {
+        try {
+            Invoke-WebRequest $url -OutFile $zip -UseBasicParsing
+            if ((Get-Item $zip).Length -gt 5MB) { $ok = $true; break }
+        } catch {}
+    }
+    if (-not $ok) { throw "Não deu para baixar o Python. Confira a internet e tente de novo." }
+    if (Test-Path $tmp) { Remove-Item $tmp -Recurse -Force }
+    Expand-Archive $zip -DestinationPath $tmp -Force
     $target = Join-Path $Tools "_python"
-    Start-Process $inst -Wait -ArgumentList "/quiet", "InstallAllUsers=0", "TargetDir=`"$target`"", `
-        "Include_launcher=0", "Include_test=0", "Shortcuts=0", "AssociateFiles=0", "PrependPath=0"
+    if (Test-Path $target) { Remove-Item $target -Recurse -Force }
+    Move-Item (Join-Path $tmp "tools") $target
     $py = $local
     if (-not (Test-Path $py)) { throw "A instalação do Python falhou." }
+    try { & $py -m ensurepip --upgrade *> $null } catch {}
 }
 Write-Host "Python: $py"
 
