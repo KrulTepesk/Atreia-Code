@@ -54,9 +54,10 @@ class Matcher:
             xy = np.float32([k.pt for k in kp]) / FEAT_SCALE   # em pixels da imagem de fundo original
             self.maps[wid] = (xy, fl, bx, by, bs)
 
-    def locate(self, gray, prefer=None):
-        """Retorna (wid, A, inliers): A leva pixel do minimapa -> coordenada de cena (x, -y do mundo)."""
-        kp, des = self.sift.detectAndCompute(gray, None)
+    def locate(self, gray, prefer=None, mask=None):
+        """Retorna (wid, A, inliers): A leva pixel do minimapa -> coordenada de cena (x, -y do mundo).
+        mask: áreas com 0 são ignoradas (onde o próprio overlay desenhou ícones)."""
+        kp, des = self.sift.detectAndCompute(gray, mask)
         if des is None or len(kp) < 12:
             return None
         order = sorted(self.maps, key=lambda w: w != prefer)
@@ -83,6 +84,8 @@ class Matcher:
 class MinimapWorker(QThread):
     located = Signal(object)        # (wid, A, inliers) ou None
     status = Signal(str)
+
+    marks = []      # [(x, y, raio)] dos ícones desenhados pelo overlay (atualizado a cada desenho)
 
     def __init__(self, backgrounds, prefer):
         super().__init__()
@@ -120,8 +123,16 @@ class MinimapWorker(QThread):
                     time.sleep(1.0)
                     continue
                 gray = cv2.cvtColor(shot, cv2.COLOR_BGRA2GRAY)
+                # o print inclui os ícones que o overlay desenhou: tapa esses pontos para não confundir
+                mask = None
+                marks = self.marks
+                if marks:
+                    mask = np.full(gray.shape, 255, np.uint8)
+                    for mx, my, mr in marks:
+                        cv2.circle(mask, (int(mx), int(my)), int(mr), 0, -1)
+                        cv2.rectangle(mask, (int(mx - 26), int(my + mr - 4)), (int(mx + 26), int(my + mr + 16)), 0, -1)
                 try:
-                    res = m.locate(gray, self.prefer)
+                    res = m.locate(gray, self.prefer, mask)
                 except Exception as e:
                     self.status.emit(str(e))
                     res = None
@@ -167,14 +178,16 @@ class MinimapOverlay(QWidget):
         self.last_ok = 0
         self.hits = []                    # [(chave, px, py)] dos ícones visíveis, para o clique
         self.capture_safe = True
+        self.marks = []
+        self.on_marks = None              # avisa o reconhecimento onde estão os ícones desenhados
         self.tick = QTimer(self)          # redesenha a contagem mesmo se o reconhecimento pausar
         self.tick.timeout.connect(self.update)
         self.tick.start(1000)
 
     def showEvent(self, e):
         super().showEvent(e)
-        # Windows antigo sem essa opção: desenha pontinhos (cobrem bem menos o mapa que os ícones)
-        self.capture_safe = exclude_from_capture(self)
+        # não usa SetWindowDisplayAffinity: em alguns PCs ela some com a janela transparente da tela.
+        # O reconhecimento ignora os pontos onde o overlay desenhou (máscara no MinimapWorker).
 
     def set_clickable(self, on):
         vis = self.isVisible()
@@ -236,6 +249,10 @@ class MinimapOverlay(QWidget):
             icons.draw_resource(p, QPointF(px, py), icons.material(mat, isize), isize, left, total,
                                 fallback=col.name())
         p.end()
+        r = isize / 2 + 5
+        self.marks = [(px, py, r) for _k, px, py in self.hits]
+        if self.on_marks:
+            self.on_marks(self.marks)
 
     def _hit(self, pos):
         import respawn
@@ -333,6 +350,8 @@ class MinimapController:
         self.overlay.place()
         self.overlay.show()
         self.worker = MinimapWorker(bgs, cfg.get("map", {}).get("world"))
+        w = self.worker
+        self.overlay.on_marks = lambda marks: setattr(w, "marks", marks)
         self.worker.located.connect(self._located)
         self.worker.status.connect(self.on_status)
         self.worker.start()
@@ -343,7 +362,11 @@ class MinimapController:
         if res:
             wid, A, n = res
             cx, cy = A @ np.array([self.overlay.width() / 2, self.overlay.height() / 2, 1])
-            self.on_status(T("Localizado: {r} ({n} pontos)").format(r=N(self.region_at(wid, cx, -cy)), n=n))
+            k = len(self.overlay.hits)
+            txt = T("Localizado: {r} ({n} pontos)").format(r=N(self.region_at(wid, cx, -cy)), n=n)
+            txt += " · " + (T("{k} recursos desenhados").format(k=k) if k else
+                            T("nenhum recurso nesta parte — confira os filtros do mapa"))
+            self.on_status(txt)
         elif time.time() - self.overlay.last_ok > 3:
             self.on_status(T("Procurando... (abra o mapa com Alt+M)"))
 

@@ -289,4 +289,5 @@ EN = {
     'Mostrar as habilidades abaixo do medidor (clique num jogador para ver as dele)': 'Show skills below the meter (click a player to see theirs)',
     "Não deu para ler a tela agora; tentando de novo...": "Could not read the screen right now; trying again...",
     "Marque só o quadro do mapa (sem as barras de opacidade e os botões, se der). Hoje o reconhecimento funciona em Verteron e Altgard, que são os mapas com imagem de fundo; os outros passam a funcionar quando ganharem imagem de fundo.": "Select just the map frame (without the opacity bars and buttons, if possible). Recognition currently works in Verteron and Altgard, the maps with a background image; the others will work once they get one.",
+    "{k} recursos desenhados": "{k} resources drawn", "nenhum recurso nesta parte — confira os filtros do mapa": "no resources here — check the map filters",
 }
