@@ -199,7 +199,8 @@ class LocationPopup(OverlayWindow):
         if kind == "boss":
             import icons
             marker = icons.world_boss(34)
-        self.pix = render_minimap(world, coords, self.W - 4, self.H - 66, marker)
+        self.pix = render_minimap(world, coords, self.W - 4, self.H - 66, marker,
+                                  min_span=70000 if len(points) == 1 else 30000)
         self.kind, self.title, self.sub = kind, title, sub
         self._hide_at = datetime.now() + timedelta(seconds=seconds)
         self.show()
@@ -394,7 +395,7 @@ class EventsTab(QWidget):
 
         note = QLabel("Se algum horário estiver diferente no seu servidor, use o ajuste de relógio na aba Shugo. "
                       "Os chefes de campo comuns não têm horário fixo — renascem um tempo depois de mortos — "
-                      "por isso não entram aqui.")
+                      "por isso ficam na aba Chefes de campo.")
         note.setWordWrap(True)
         note.setStyleSheet("color:#9b9282;")
         lay.addWidget(note)

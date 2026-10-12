@@ -19,7 +19,7 @@ from PySide6.QtWidgets import (QCheckBox, QComboBox, QFormLayout, QGroupBox, QHB
 
 from i18n import T
 from config import APP_DIR, cfg, save
-from dps_live import GAME_PORT, DpsReader
+from dps_live import GAME_PORT
 from dps_meter import CLASSES, DpsMeter, SkillPanel
 
 CAPTURE_DIR = os.path.join(APP_DIR, "capturas")
@@ -151,8 +151,9 @@ class CaptureThread(QThread):
 
 
 class DpsTab(QWidget):
-    def __init__(self):
+    def __init__(self, hub):
         super().__init__()
+        self.hub = hub
         d = cfg.setdefault("dps", {})
         d.setdefault("enabled", False)
         d.setdefault("char_name", "")
@@ -161,7 +162,6 @@ class DpsTab(QWidget):
         d.setdefault("mode", "party")
         d.setdefault("show_skills", True)
         self.thread = None
-        self.reader = None
         self.current = None
         self.marks_file = None
         self.t0 = None
@@ -173,6 +173,9 @@ class DpsTab(QWidget):
         self.meter.row_clicked.connect(self.select_row)
         self.meter.reset_requested.connect(self.reset_fight)
         self._hide_overlays()
+        hub.updated.connect(lambda snap: self.on_live(snap) if self.reader else None)
+        hub.status.connect(self.on_live_status)
+        hub.running_changed.connect(self._hub_running)
 
         outer = QVBoxLayout(self)
         outer.setContentsMargins(0, 0, 0, 0)
@@ -347,9 +350,9 @@ class DpsTab(QWidget):
     def save_char_name(self):
         cfg["dps"]["char_name"] = self.char_name.text().strip()
         save()
-        if self.reader:
-            self.reader.self_name = cfg["dps"]["char_name"]
-            self.reader.self_id = None
+        if self.hub.reader:
+            self.hub.reader.self_name = cfg["dps"]["char_name"]
+            self.hub.reader.self_id = None
 
     def _show_overlays(self):
         self.meter.show()
@@ -408,23 +411,28 @@ class DpsTab(QWidget):
         self.skills.setWindowOpacity(v / 100)
         self.meter.setWindowOpacity(v / 100)
 
+    @property
+    def reader(self):
+        """A leitura do jogo, se o medidor estiver ligado (ela é dividida com o farm e os chefes de campo)."""
+        return self.hub.reader if "dps" in self.hub.users else None
+
+    def _hub_running(self, on):
+        if not on and hasattr(self, "btn_live"):
+            self.btn_live.setText(T("▶ Iniciar medidor"))
+            self._hide_overlays()
+
     def toggle_live(self):
         if self.reader:
-            self.reader.stop()
-            self.reader = None
+            self.hub.release("dps")
             self._hide_overlays()
             self.btn_live.setText(T("▶ Iniciar medidor"))
             self.live_status.setText(T("Medidor parado."))
             return
-        if not (npcap_installed() and is_admin()):
+        if self.hub.acquire("dps"):
             self.live_status.setText(T("Precisa do Npcap e de abrir o overlay como administrador (veja acima)."))
             return
-        self.reader = DpsReader(game_server_hosts())
-        self.reader.self_name = cfg["dps"].get("char_name", "")
-        self.reader.mode = cfg["dps"].get("mode", "party")
-        self.reader.updated.connect(self.on_live)
-        self.reader.status.connect(self.on_live_status)
-        self.reader.start()
+        self.hub.reader.mode = cfg["dps"].get("mode", "party")
+        self.live_status.setText(T("Lendo o tráfego do jogo... bata em algo para começar."))
         self.btn_live.setText(T("■ Parar medidor"))
         if cfg["dps"].get("show_meter", True):
             self.meter.restore_position()
@@ -438,11 +446,8 @@ class DpsTab(QWidget):
             self.live_status.setText(msg[6:].strip())          # erro passageiro: o medidor continua
         else:
             self.live_status.setText(f"{T('Erro:')} {msg}")
-            if self.reader:
-                r, self.reader = self.reader, None
-                r.stop()                                       # garante que a captura parou de verdade
-                self.btn_live.setText(T("▶ Iniciar medidor"))
-                self._hide_overlays()
+            self.btn_live.setText(T("▶ Iniciar medidor"))      # o NetHub já parou a captura
+            self._hide_overlays()
 
     def on_live(self, snap):
         rows = []
@@ -473,8 +478,10 @@ class DpsTab(QWidget):
 
     def shutdown(self):
         if self.reader:
-            self.reader.stop()
-            self.reader = None
+            self.hub.release("dps")
+            self._hide_overlays()
+            if hasattr(self, "btn_live"):
+                self.btn_live.setText(T("▶ Iniciar medidor"))
         if self.thread:
             self.toggle_record()
 

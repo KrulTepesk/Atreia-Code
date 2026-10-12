@@ -1,0 +1,1065 @@
+{
+"source": "Tempos do servidor coreano (thegameswiki.com, valores reduzidos desde 17/12/2025); no seu servidor podem ser outros — dá para mudar na aba.",
+"bosses": [
+{
+"world": "1010",
+"name": "Kernon do Oeste",
+"minutes": 30,
+"points": [
+[
+-94204,
+43535
+]
+]
+},
+{
+"world": "1010",
+"name": "Neikel do Leste",
+"minutes": 30,
+"points": [
+[
+-57517,
+85173
+]
+]
+},
+{
+"world": "1010",
+"name": "Kutar Putrefato",
+"minutes": 30,
+"points": [
+[
+-27290,
+80782
+]
+]
+},
+{
+"world": "1010",
+"name": "Korin em Flor",
+"minutes": 60,
+"points": [
+[
+-34622,
+36461
+]
+]
+},
+{
+"world": "1010",
+"name": "Soldado de Escolta Teegant",
+"minutes": 90,
+"points": [
+[
+18601,
+205
+]
+]
+},
+{
+"world": "1010",
+"name": "Combatente Insano Kusan",
+"minutes": 120,
+"points": [
+[
+-18107,
+10451
+]
+]
+},
+{
+"world": "1010",
+"name": "Sacerdote-Mor Garshim",
+"minutes": 120,
+"points": [
+[
+-27017,
+-19935
+]
+]
+},
+{
+"world": "1010",
+"name": "Presa Sangrenta Pnyn",
+"minutes": 180,
+"points": [
+[
+-58488,
+-55832
+]
+]
+},
+{
+"world": "1010",
+"name": "Saursus Furiosa",
+"minutes": 180,
+"points": [
+[
+-57863,
+-82629
+]
+]
+},
+{
+"world": "1010",
+"name": "Erudito Aulla",
+"minutes": 120,
+"points": [
+[
+-46187,
+-99792
+]
+]
+},
+{
+"world": "1010",
+"name": "Perseguidor Taulo",
+"minutes": 120,
+"points": [
+[
+-63800,
+-118621
+]
+]
+},
+{
+"world": "1010",
+"name": "Guerreiro da Floresta Aullamu",
+"minutes": 240,
+"points": [
+[
+-25718,
+-132156
+]
+]
+},
+{
+"world": "1010",
+"name": "Apóstata Layla",
+"minutes": 180,
+"points": [
+[
+18723,
+-95025
+]
+]
+},
+{
+"world": "1010",
+"name": "Lawa dos Tentáculos Negros",
+"minutes": 240,
+"points": [
+[
+98412,
+-74390
+]
+]
+},
+{
+"world": "1010",
+"name": "Centurião Demiros",
+"minutes": 240,
+"points": [
+[
+124957,
+-11064
+]
+]
+},
+{
+"world": "1010",
+"name": "Ansas Divino",
+"minutes": 360,
+"points": [
+[
+143395,
+-35371
+]
+]
+},
+{
+"world": "1010",
+"name": "Gestor de Colheita Moshav",
+"minutes": 180,
+"points": [
+[
+117274,
+96444
+]
+]
+},
+{
+"world": "1010",
+"name": "K’nash, Arma de Vigilância",
+"minutes": 240,
+"points": [
+[
+130818,
+78338
+]
+]
+},
+{
+"world": "1010",
+"name": "Pesquisador Setram",
+"minutes": 360,
+"points": [
+[
+159231,
+130981
+]
+]
+},
+{
+"world": "1010",
+"name": "Kasia do Sonho Ilusório",
+"minutes": 360,
+"points": [
+[
+84130,
+-178452
+]
+]
+},
+{
+"world": "1010",
+"name": "Dartan do Silêncio",
+"minutes": 360,
+"points": [
+[
+14627,
+-141980
+]
+]
+},
+{
+"world": "1010",
+"name": "Dominador das Almas Kashapa",
+"minutes": 360,
+"points": [
+[
+138089,
+-71986
+]
+]
+},
+{
+"world": "1010",
+"name": "Brigadeiro Lagta",
+"minutes": 720,
+"points": [
+[
+72491,
+66806
+]
+]
+},
+{
+"world": "1010",
+"name": "Gartua da Eternidade",
+"minutes": 720,
+"points": [
+[
+-219621,
+-243711
+]
+]
+},
+{
+"world": "1110",
+"name": "Danar Derretido",
+"minutes": 30,
+"points": [
+[
+-79655,
+74913
+]
+]
+},
+{
+"world": "1110",
+"name": "Guerreiro Negro Aed",
+"minutes": 30,
+"points": [
+[
+-152945,
+113071
+]
+]
+},
+{
+"world": "1110",
+"name": "Rajit Fiel",
+"minutes": 30,
+"points": [
+[
+-170253,
+17688
+]
+]
+},
+{
+"world": "1110",
+"name": "Berserker Vargor",
+"minutes": 60,
+"points": [
+[
+-179952,
+4813
+]
+]
+},
+{
+"world": "1110",
+"name": "Guerreiro Sanguinário Lannar",
+"minutes": 90,
+"points": [
+[
+-34000,
+-41050
+]
+]
+},
+{
+"world": "1110",
+"name": "Predador Garsan",
+"minutes": 120,
+"points": [
+[
+-3697,
+-41042
+]
+]
+},
+{
+"world": "1110",
+"name": "Trid Enganadora",
+"minutes": 120,
+"points": [
+[
+18965,
+33343
+]
+]
+},
+{
+"world": "1110",
+"name": "Kelpina da Onda Azul",
+"minutes": 120,
+"points": [
+[
+22380,
+70980
+]
+]
+},
+{
+"world": "1110",
+"name": "Assessor Resana",
+"minutes": 180,
+"points": [
+[
+65036,
+180552
+]
+]
+},
+{
+"world": "1110",
+"name": "Supervisor Geral Nutah",
+"minutes": 120,
+"points": [
+[
+62629,
+144426
+]
+]
+},
+{
+"world": "1110",
+"name": "Capitão de Operações Especiais Linx",
+"minutes": 180,
+"points": [
+[
+142792,
+111184
+]
+]
+},
+{
+"world": "1110",
+"name": "Profanador Newbold",
+"minutes": 240,
+"points": [
+[
+198909,
+117642
+]
+]
+},
+{
+"world": "1110",
+"name": "Arconte da Alma Perdida Axios",
+"minutes": 240,
+"points": [
+[
+164579,
+63932
+]
+]
+},
+{
+"world": "1110",
+"name": "Hardirun Envenenado",
+"minutes": 180,
+"points": [
+[
+126913,
+-32185
+]
+]
+},
+{
+"world": "1110",
+"name": "Carrasco Barthien",
+"minutes": 240,
+"points": [
+[
+123597,
+-96521
+]
+]
+},
+{
+"world": "1110",
+"name": "Arma de Guerra Drakan Guruta",
+"minutes": 360,
+"points": [
+[
+180791,
+-117339
+]
+]
+},
+{
+"world": "1110",
+"name": "Veterano Shujakan",
+"minutes": 180,
+"points": [
+[
+108458,
+-161280
+]
+]
+},
+{
+"world": "1110",
+"name": "Visionário Karuka",
+"minutes": 240,
+"points": [
+[
+69841,
+-157163
+]
+]
+},
+{
+"world": "1110",
+"name": "Vishwada da Escuridão",
+"minutes": 360,
+"points": [
+[
+-5096,
+-157792
+]
+]
+},
+{
+"world": "1110",
+"name": "Shylak Afiado",
+"minutes": 360,
+"points": [
+[
+148455,
+-177722
+]
+]
+},
+{
+"world": "1110",
+"name": "Dartan do Silêncio",
+"minutes": 360,
+"points": [
+[
+119635,
+108526
+]
+]
+},
+{
+"world": "1110",
+"name": "Dominador das Almas Kashapa",
+"minutes": 360,
+"points": [
+[
+147735,
+-72495
+]
+]
+},
+{
+"world": "1110",
+"name": "Brigadeiro Lagta",
+"minutes": 720,
+"points": [
+[
+-24415,
+-156144
+]
+]
+},
+{
+"world": "1110",
+"name": "Gartua Imortal",
+"minutes": 720,
+"points": [
+[
+-199307,
+-227277
+]
+]
+},
+{
+"world": "1011",
+"name": "Batagon Indomável",
+"minutes": null,
+"points": [
+[
+30830,
+13995
+]
+]
+},
+{
+"world": "1011",
+"name": "Carrasco Varkash",
+"minutes": null,
+"points": [
+[
+-119982,
+12861
+]
+]
+},
+{
+"world": "1011",
+"name": "Digunaka",
+"minutes": null,
+"points": [
+[
+42089,
+165693
+],
+[
+42080,
+169055
+]
+]
+},
+{
+"world": "1011",
+"name": "Dvahn Fanático",
+"minutes": null,
+"points": [
+[
+-109552,
+147286
+]
+]
+},
+{
+"world": "1011",
+"name": "Iguetis da Ganância",
+"minutes": null,
+"points": [
+[
+-5579,
+99183
+]
+]
+},
+{
+"world": "1011",
+"name": "K'tima, Primeira Cobaia",
+"minutes": null,
+"points": [
+[
+80568,
+23411
+]
+]
+},
+{
+"world": "1011",
+"name": "Karkoti, Subcomandante da Terceira Unidade",
+"minutes": null,
+"points": [
+[
+47722,
+116523
+]
+]
+},
+{
+"world": "1011",
+"name": "Lamphus da Agonia",
+"minutes": null,
+"points": [
+[
+-14990,
+9929
+]
+]
+},
+{
+"world": "1011",
+"name": "Líder Hernon",
+"minutes": null,
+"points": [
+[
+-29824,
+149463
+]
+]
+},
+{
+"world": "1011",
+"name": "Meltim da Raiz Podre",
+"minutes": null,
+"points": [
+[
+-75038,
+7095
+]
+]
+},
+{
+"world": "1011",
+"name": "Mino Três Chifres",
+"minutes": null,
+"points": [
+[
+-38554,
+49965
+]
+]
+},
+{
+"world": "1011",
+"name": "Moratya Sinistro",
+"minutes": null,
+"points": [
+[
+33016,
+-26660
+]
+]
+},
+{
+"world": "1011",
+"name": "Narat Asceta",
+"minutes": null,
+"points": [
+[
+-44570,
+139430
+]
+]
+},
+{
+"world": "1011",
+"name": "Nihogg Cego",
+"minutes": null,
+"points": [
+[
+48427,
+19241
+]
+]
+},
+{
+"world": "1011",
+"name": "Pesquisador Lunático Sellutey",
+"minutes": null,
+"points": [
+[
+-131505,
+31706
+]
+]
+},
+{
+"world": "1011",
+"name": "Saqueador Paitron",
+"minutes": null,
+"points": [
+[
+38618,
+75157
+]
+]
+},
+{
+"world": "1011",
+"name": "Subcomandante Vivajra",
+"minutes": null,
+"points": [
+[
+67082,
+-6307
+]
+]
+},
+{
+"world": "1011",
+"name": "Superbia, Fera Sagrada da Vida",
+"minutes": null,
+"points": [
+[
+-12157,
+74827
+]
+]
+},
+{
+"world": "1011",
+"name": "Taneetch Buscador da Verdade",
+"minutes": null,
+"points": [
+[
+120253,
+97642
+]
+]
+},
+{
+"world": "1011",
+"name": "Verenom Aglomerado",
+"minutes": null,
+"points": [
+[
+-95467,
+116438
+]
+]
+},
+{
+"world": "1011",
+"name": "Vigor, Antigo Chefe",
+"minutes": null,
+"points": [
+[
+-93574,
+158021
+]
+]
+},
+{
+"world": "1011",
+"name": "Xanag Veloz",
+"minutes": null,
+"points": [
+[
+63810,
+87830
+]
+]
+},
+{
+"world": "1011",
+"name": "Zvein das Asas Cortadas",
+"minutes": null,
+"points": [
+[
+-106981,
+69450
+]
+]
+},
+{
+"world": "1111",
+"name": "Antakhara Exterminador",
+"minutes": null,
+"points": [
+[
+-119529,
+179484
+]
+]
+},
+{
+"world": "1111",
+"name": "Aprisionador Kalahanta",
+"minutes": null,
+"points": [
+[
+-52213,
+196576
+]
+]
+},
+{
+"world": "1111",
+"name": "Balakh, Fera Colossal Predadora",
+"minutes": null,
+"points": [
+[
+-107347,
+172345
+]
+]
+},
+{
+"world": "1111",
+"name": "Batu do Coração de Lava",
+"minutes": null,
+"points": [
+[
+31128,
+71915
+]
+]
+},
+{
+"world": "1111",
+"name": "Capitão da Vigilância Dharvata",
+"minutes": null,
+"points": [
+[
+-213552,
+66688
+]
+]
+},
+{
+"world": "1111",
+"name": "Dinakra",
+"minutes": null,
+"points": [
+[
+-223931,
+-7611
+]
+]
+},
+{
+"world": "1111",
+"name": "Espectro Retornado Alegos",
+"minutes": null,
+"points": [
+[
+-127755,
+201318
+]
+]
+},
+{
+"world": "1111",
+"name": "Fioh das Asas da Flama Infernal",
+"minutes": null,
+"points": [
+[
+-9854,
+93971
+]
+]
+},
+{
+"world": "1111",
+"name": "Glacia das Nuvens Azuis",
+"minutes": null,
+"points": [
+[
+-167365,
+106702
+]
+]
+},
+{
+"world": "1111",
+"name": "Harkhan da Armadura Gélida",
+"minutes": null,
+"points": [
+[
+-128042,
+95515
+]
+]
+},
+{
+"world": "1111",
+"name": "Meganodh Árbitro",
+"minutes": null,
+"points": [
+[
+7939,
+131598
+]
+]
+},
+{
+"world": "1111",
+"name": "Minasara, Comandante da Terceira Unidade",
+"minutes": null,
+"points": [
+[
+-193415,
+43855
+]
+]
+},
+{
+"world": "1111",
+"name": "Pargon, Andarilho das Fronteiras",
+"minutes": null,
+"points": [
+[
+-63789,
+179754
+]
+]
+},
+{
+"world": "1111",
+"name": "Patalajya, o Flagelado",
+"minutes": null,
+"points": [
+[
+-144425,
+87723
+]
+]
+},
+{
+"world": "1111",
+"name": "Pulke",
+"minutes": null,
+"points": [
+[
+-20995,
+147280
+]
+]
+},
+{
+"world": "1111",
+"name": "Renulf, Nevasca Carmesim",
+"minutes": null,
+"points": [
+[
+-121738,
+135097
+]
+]
+},
+{
+"world": "1111",
+"name": "Steinun Completamente Aberrante",
+"minutes": null,
+"points": [
+[
+-165582,
+153067
+]
+]
+},
+{
+"world": "1111",
+"name": "Subcomandante Sarvakha",
+"minutes": null,
+"points": [
+[
+-47039,
+120972
+]
+]
+},
+{
+"world": "1111",
+"name": "Ugravahu Dilacerador",
+"minutes": null,
+"points": [
+[
+44820,
+116933
+]
+]
+},
+{
+"world": "1111",
+"name": "Vajradant Esmagador",
+"minutes": null,
+"points": [
+[
+-113977,
+137385
+]
+]
+},
+{
+"world": "1111",
+"name": "Verant Inquisidor de Elite",
+"minutes": null,
+"points": [
+[
+18425,
+95214
+]
+]
+},
+{
+"world": "1111",
+"name": "Vigia Louco Bulagan",
+"minutes": null,
+"points": [
+[
+35301,
+35946
+]
+]
+},
+{
+"world": "1111",
+"name": "Vigilante dos Registros Varnaksha",
+"minutes": null,
+"points": [
+[
+-183091,
+42892
+]
+]
+},
+{
+"world": "1111",
+"name": "Vulcanarch Grymnir",
+"minutes": null,
+"points": [
+[
+-24144,
+11314
+]
+]
+},
+{
+"world": "20",
+"name": "Rei dos Espíritos Argo",
+"minutes": 1440,
+"points": [
+[
+61218,
+-29738
+]
+]
+}
+]
+}

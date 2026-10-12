@@ -348,6 +348,13 @@ def draw_glyph(p, name, r, color):
         path.quadTo(P(0.25, 0.78), P(0.2, 0.5))
         path.closeSubpath()
         p.drawPath(path)
+    elif name == "crown":           # coroa (chefes de campo)
+        path = QPainterPath(P(0.14, 0.78))
+        for fx, fy in ((0.14, 0.3), (0.34, 0.52), (0.5, 0.2), (0.66, 0.52), (0.86, 0.3), (0.86, 0.78)):
+            path.lineTo(P(fx, fy))
+        path.closeSubpath()
+        p.drawPath(path)
+        p.drawLine(P(0.2, 0.66), P(0.8, 0.66))
     elif name == "lock":            # cadeado
         p.drawRoundedRect(QRectF(P(0.2, 0.45), P(0.8, 0.88)), w * 0.08, w * 0.08)
         p.drawArc(QRectF(P(0.32, 0.14), P(0.68, 0.6)), 0, 180 * 16)

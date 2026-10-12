@@ -22,7 +22,9 @@ import sounds_player
 from config import cfg, save
 from dps_capture import DpsTab
 from events import EventScheduler, EventsTab
-from farm import HOTKEYS, FarmTab
+from farm import FarmTab
+from field_bosses import FieldBossManager, FieldBossTab
+from net_hub import NetHub
 from hotkeys import Hotkeys
 from map_window import MapWindow
 from pvp import PvpWidget, ReferenceDialog, RegionSelector
@@ -104,18 +106,22 @@ class ControlPanel(QWidget):
         self.selector = None
 
         self.minimap = minimap.MinimapController()
+        self.hub = NetHub()                 # leitura do jogo dividida entre DPS, farm e chefes de campo
         self._lock_icons = {False: theme.glyph_icon("unlock"), True: theme.glyph_icon("lock")}
         tabs = self.tabs = theme.NavTabs("Meta Overlay", "Ferramentas para Aion 2")
         tabs.addTab(self.tab_general(), "Geral", "general", "Idioma, monitores e trava dos overlays.")
         tabs.addTab(self.tab_shugo(), "Shugo", "shugo", "Aviso antes do Festival do Shugo começar.")
         tabs.addTab(self.tab_pvp(), "PvP", "pvp", "Toca um som quando você derrota alguém.")
         tabs.addTab(self.tab_map(), "Mapa", "map", "Coletáveis, mobs e o minimapa do Alt+M com os recursos por cima.")
+        self.dps_tab = DpsTab(self.hub)
         self.farm_tab = FarmTab(self)
-        tabs.addTab(self.farm_tab, "Farm de pet", "farm", "Quantas almas faltam e quantos mobs ainda precisa derrotar.")
+        tabs.addTab(self.farm_tab, "Farm de pet", "farm", "Conta sozinho os seus abates e mostra os mobs de pet onde você está.")
         self.events = EventScheduler()
         tabs.insertTab(2, EventsTab(self.events, SoundRow), "Rifts e chefes", "rifts",
                        "Avisos 5 minutos antes e na hora das fendas e dos chefes do mundo.")
-        self.dps_tab = DpsTab()
+        self.field_bosses = FieldBossManager(self.events, self.hub)
+        tabs.insertTab(3, FieldBossTab(self.field_bosses), "Chefes de campo", "crown",
+                       "Quando cada field boss renasce, com aviso e mapa do local.")
         tabs.addTab(self.dps_tab, "DPS (experimental)", "dps", "Medidor de dano seu e do seu grupo, lido do tráfego do jogo.")
         # trava dos overlays sempre à mão, no rodapé do menu
         self.lock_pill = QPushButton()
@@ -156,14 +162,12 @@ class ControlPanel(QWidget):
         self.tray.setToolTip("Meta Overlay")
         self.tray.show()
 
-        # atalhos globais do farm (Ctrl+Alt+S / X / K) e zerar DPS (Ctrl+Alt+R)
+        # atalho global: zerar DPS (Ctrl+Alt+R)
         self.hotkeys = Hotkeys(app)
-        self._hk_wanted = {hid: (mods, k) for hid, (mods, k, _d) in HOTKEYS.items()}
-        self._hk_wanted[10] = ("ctrl+alt", "R")
+        self._hk_wanted = {10: ("ctrl+alt", "R")}
         self._hk_tries = 0
-        self._hk_base = self.farm_tab.hk_label.text()
+        self._hk_base = self.hk_label.text()
         self.register_hotkeys()
-        self.hotkeys.pressed.connect(self.farm_tab.on_hotkey)
         self.hotkeys.pressed.connect(lambda hid: self.dps_tab.reset_fight() if hid == 10 else None)
 
     def register_hotkeys(self):
@@ -177,7 +181,7 @@ class ControlPanel(QWidget):
                 continue
             if not self.hotkeys.add(hid, mods, k):
                 failed.append(f"Ctrl+Alt+{k}")
-        lbl = self.farm_tab.hk_label
+        lbl = self.hk_label
         if failed:
             self._hk_tries += 1
             msg = T("Em uso por outro programa: {k}").format(k=", ".join(failed))
@@ -236,6 +240,10 @@ class ControlPanel(QWidget):
         f.addRow("Mover:", row)
         lay.addWidget(box)
 
+        self.hk_label = QLabel("Atalho (funciona dentro do jogo): Ctrl+Alt+R = zerar o medidor de DPS")
+        self.hk_label.setWordWrap(True)
+        self.hk_label.setStyleSheet("color:#9b9282;")
+        lay.addWidget(self.hk_label)
         lay.addStretch()
         lay.addWidget(QLabel("Fechar esta janela não fecha o overlay — ele fica no ícone da bandeja."))
         return w
@@ -613,6 +621,7 @@ class ControlPanel(QWidget):
 
     def quit(self):
         self.dps_tab.shutdown()
+        self.hub.stop()
         self.pvp.stop()
         self.minimap.stop()
         self.farm_tab.shutdown()

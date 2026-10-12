@@ -1,40 +1,39 @@
-"""Farm de pet: escolhe um mob no mapa, mostra os spawns num mini-mapa e conta as almas
-que faltam para o próximo nível de afinidade do pet.
+"""Farm de pet automático.
 
-Contagem: teclas de atalho globais (funcionam com o jogo em foco) ou, opcionalmente,
-detecção da mensagem de alma na tela (mesmo método do som de abate do PvP).
+Lê o mesmo tráfego do medidor de DPS (net_hub): quando você mata um monstro que dá alma de pet, o farm
+começa sozinho com aquele monstro e cada abate seu é contado. Também mostra quais monstros de pet existem
+na região onde você está e onde nascem (mini-mapa na tela).
 """
 import json
+import math
 import os
+import time
 
-from PySide6.QtCore import QPoint, QPointF, QRectF, Qt
+from PySide6.QtCore import QPoint, QPointF, QRectF, Qt, QTimer
 from PySide6.QtGui import QColor, QFont, QFontMetrics, QPainter, QPainterPath, QPen, QPixmap, QPolygonF
-from PySide6.QtWidgets import (QCheckBox, QComboBox, QCompleter, QFormLayout, QGroupBox, QHBoxLayout,
-                               QLabel, QMessageBox, QPushButton, QSpinBox, QVBoxLayout, QWidget)
+from PySide6.QtWidgets import (QCheckBox, QComboBox, QCompleter, QFormLayout, QGroupBox, QHBoxLayout, QHeaderView,
+                               QLabel, QPushButton, QTreeWidget, QTreeWidgetItem, QVBoxLayout, QWidget)
 
-import sounds_player
 from base_window import OverlayWindow
 from i18n import N, PET, T
-from config import APP_DIR, BASE_DIR, cfg, resolve, save
-
-STAGES = [("obter", "Obter o pet", 5), ("1", "Afinidade nível 1 → 2", 25), ("2", "Afinidade nível 2 → 3", 75)]
-SOUL_REF = os.path.join(APP_DIR, "alma_referencia.png")
-HOTKEYS = {1: ("ctrl+alt", "S", "+1 alma"), 2: ("ctrl+alt", "X", "−1 alma"), 3: ("ctrl+alt", "K", "+1 abate")}
+from config import BASE_DIR, cfg, resolve, save
 
 DEFAULTS = {
-    "active": False, "world": "", "mob": "", "coords": [], "pet": "", "stage": "1",
-    "souls": 0, "goal": 25, "start_souls": 0, "kills": 0, "visible": True,
-    "sound": "sounds/shugo.wav", "volume": 80, "opacity": 0.92, "pos": None,
-    # detecção automática da mensagem de alma (opcional)
-    "detect": False, "reference": "", "region": None, "monitor": 1,
-    "threshold": 0.8, "cooldown": 1.5, "interval_ms": 250,
+    "active": False, "world": "", "mob": "", "coords": [], "pet": "", "kills": 0, "visible": True,
+    "auto": True,                # liga a leitura do jogo sozinho ao abrir o programa
+    "tally": {},                 # mob -> {"kills": n, "first": t, "last": t}  (sessão atual)
+    "opacity": 0.92, "pos": None,
 }
+OLD_KEYS = ("souls", "goal", "start_souls", "stage", "detect", "reference", "region", "monitor", "threshold",
+            "cooldown", "interval_ms", "sound", "volume")
 
-_cache = {"res": None, "bg": {}}
+_cache = {"res": None, "bg": {}, "regions": {}}
 
 
 def farm_cfg():
     c = cfg.setdefault("farm", {})
+    for k in OLD_KEYS:              # contagem manual / detecção por tela antigas: não existem mais
+        c.pop(k, None)
     for k, v in DEFAULTS.items():
         c.setdefault(k, v)
     return c
@@ -87,7 +86,7 @@ def region_of(wid, coords):
     return max(votes, key=votes.get) if votes else world["name"]
 
 
-def render_minimap(wid, coords, w, h, marker=None):
+def render_minimap(wid, coords, w, h, marker=None, min_span=30000):
     pm = QPixmap(w, h)
     pm.fill(QColor("#171511"))
     if not coords:
@@ -95,7 +94,7 @@ def render_minimap(wid, coords, w, h, marker=None):
     xs = coords[0::2]
     ys = [-y for y in coords[1::2]]
     cx, cy = (min(xs) + max(xs)) / 2, (min(ys) + max(ys)) / 2
-    span = max(max(xs) - min(xs), (max(ys) - min(ys)) * w / h, 30000) * 1.35
+    span = max(max(xs) - min(xs), (max(ys) - min(ys)) * w / h, min_span) * 1.35
     sw, sh = span, span * h / w
     view = QRectF(cx - sw / 2, cy - sh / 2, sw, sh)
     k = w / sw
@@ -159,17 +158,54 @@ def render_minimap(wid, coords, w, h, marker=None):
 
 
 # ====================================================================== card na tela
+
+
+def _region_paths(wid):
+    if wid not in _cache["regions"]:
+        world = _resources()["worlds"].get(wid)
+        paths = []
+        for r in (world or {}).get("regions", []):
+            if r["r"] != 1:
+                continue
+            p = QPainterPath()
+            for poly in r["p"]:
+                p.addPolygon(QPolygonF([QPointF(x, y) for x, y in poly]))
+            paths.append((r["n"], p))
+        _cache["regions"][wid] = paths
+    return _cache["regions"][wid]
+
+
+def region_at(wid, x, y):
+    pt = QPointF(x, y)
+    for name, p in _region_paths(wid):
+        if p.contains(pt):
+            return name
+    return ""
+
+
+def world_name(wid):
+    return T(_resources()["worlds"].get(wid, {}).get("name", "")) if wid else ""
+
+
+def rate_text(t):
+    """abates por hora de uma linha do tally."""
+    if not t or t.get("kills", 0) < 2:
+        return ""
+    mins = max(1.0, (t["last"] - t["first"]) / 60)
+    return T("{n}/h").format(n=int(round(t["kills"] * 60 / mins)))
+
+
+# ====================================================================== card na tela
 class FarmWidget(OverlayWindow):
     W, MAP_H = 290, 150
 
     def __init__(self):
         farm_cfg()
         super().__init__("farm", QPoint(40, 200))
-        self.setFixedSize(self.W, self.MAP_H + 92)
+        self.setFixedSize(self.W, self.MAP_H + 74)
         self.minimap = None
         self.region = ""
         self.pet_name = ""
-        self.done_flash = False
 
     def refresh(self, rebuild_map=False, pet_name=None):
         c = farm_cfg()
@@ -185,65 +221,39 @@ class FarmWidget(OverlayWindow):
         c = farm_cfg()
         p = QPainter(self)
         p.setRenderHint(QPainter.Antialiasing)
-        # mini-mapa com cantos arredondados
         clip = QPainterPath()
         clip.addRoundedRect(QRectF(2, 2, self.W - 4, self.MAP_H), 9, 9)
         p.save()
         p.setClipPath(clip)
         if self.minimap:
             p.drawPixmap(2, 2, self.minimap)
-        p.fillRect(QRectF(2, 2, self.W - 4, 26), QColor(0, 0, 0, 120))
+        p.fillRect(QRectF(2, 2, self.W - 4, 26), QColor(0, 0, 0, 130))
         p.restore()
-        p.setPen(QColor("white"))
         f_reg = QFont("Segoe UI", 9, QFont.Bold)
         p.setFont(f_reg)
-        region = QFontMetrics(f_reg).elidedText(self.region or "—", Qt.ElideRight, self.W - 40)
-        p.drawText(QRectF(12, 4, self.W - 24, 22), Qt.AlignVCenter | Qt.AlignLeft, region)
-        free = self.W - 24 - QFontMetrics(f_reg).horizontalAdvance(region) - 14
-        f_mob = QFont("Segoe UI", 8)
-        if free > 50:
-            p.setPen(QColor("#ffb4ab"))
-            p.setFont(f_mob)
-            p.drawText(QRectF(12, 4, self.W - 24, 22), Qt.AlignVCenter | Qt.AlignRight,
-                       QFontMetrics(f_mob).elidedText(N(c["mob"]), Qt.ElideRight, free))
-
-        y0 = self.MAP_H + 8
-        souls, goal = c["souls"], max(1, c["goal"])
-        gained = souls - c["start_souls"]
         p.setPen(QColor("white"))
+        p.drawText(QRectF(12, 4, self.W - 24, 22), Qt.AlignVCenter | Qt.AlignLeft,
+                   QFontMetrics(f_reg).elidedText(self.region or "—", Qt.ElideRight, self.W - 24))
+
+        y0 = self.MAP_H + 6
         p.setFont(QFont("Segoe UI", 11, QFont.Bold))
-        p.drawText(QRectF(14, y0, self.W - 90, 22), Qt.AlignVCenter | Qt.AlignLeft,
-                   self.pet_name or T("Escolha o pet"))
-        stage = T(next((s[1] for s in STAGES if s[0] == c["stage"]), ""))
+        p.setPen(QColor("#f4d58c"))
+        f = QFont("Segoe UI", 11, QFont.Bold)
+        p.drawText(QRectF(14, y0, self.W - 28, 22), Qt.AlignVCenter | Qt.AlignLeft,
+                   QFontMetrics(f).elidedText(self.pet_name or N(c["mob"]), Qt.ElideRight, self.W - 28))
+        f2 = QFont("Segoe UI", 8)
+        p.setFont(f2)
         p.setPen(QColor("#c7bda8"))
-        p.setFont(QFont("Segoe UI", 8))
-        p.drawText(QRectF(self.W - 110, y0, 96, 22), Qt.AlignVCenter | Qt.AlignRight,
-                   stage.replace("Afinidade ", "").replace("Affinity ", ""))
-
-        p.setFont(QFont("Segoe UI", 9, QFont.DemiBold))
+        p.drawText(QRectF(14, y0 + 20, self.W - 28, 18), Qt.AlignVCenter | Qt.AlignLeft,
+                   QFontMetrics(f2).elidedText(N(c["mob"]), Qt.ElideRight, self.W - 28))
+        t = c["tally"].get(c["mob"], {})
+        p.setPen(QColor("white"))
+        p.setFont(QFont("Segoe UI", 13, QFont.Bold))
+        p.drawText(QRectF(14, y0 + 38, self.W - 28, 26), Qt.AlignVCenter | Qt.AlignLeft,
+                   T("{n} abates").format(n=t.get("kills", 0)))
         p.setPen(QColor("#5ee39a"))
-        p.drawText(QRectF(14, y0 + 22, self.W - 28, 20), Qt.AlignVCenter | Qt.AlignLeft,
-                   T("{g} alma(s) · {s}/{t}").format(g=f"{'+' if gained >= 0 else ''}{gained}", s=souls, t=goal))
-        left = max(0, goal - souls)
-        if souls >= goal:
-            right = T("Meta atingida!")
-        elif c["kills"] >= 3 and gained > 0:
-            right = T("faltam ~{n} abates").format(n=round(left * c['kills'] / gained))
-        else:
-            right = T("faltam {n} almas").format(n=left)
-        p.setPen(QColor("#f5c542") if souls >= goal else QColor("#e3ddd0"))
-        p.drawText(QRectF(14, y0 + 22, self.W - 28, 20), Qt.AlignVCenter | Qt.AlignRight, right)
-
-        bar = QRectF(14, y0 + 48, self.W - 28, 7)
-        p.setPen(Qt.NoPen)
-        p.setBrush(QColor(255, 255, 255, 30))
-        p.drawRoundedRect(bar, 3.5, 3.5)
-        p.setBrush(QColor("#5ee39a") if souls < goal else QColor("#f5c542"))
-        p.drawRoundedRect(QRectF(bar.x(), bar.y(), bar.width() * min(1, souls / goal), bar.height()), 3.5, 3.5)
-        p.setPen(QColor("#9b9282"))
-        p.setFont(QFont("Segoe UI", 8))
-        p.drawText(QRectF(14, y0 + 58, self.W - 28, 18), Qt.AlignVCenter | Qt.AlignLeft,
-                   T("Abates: {n}").format(n=c['kills']))
+        p.setFont(QFont("Segoe UI", 9, QFont.DemiBold))
+        p.drawText(QRectF(14, y0 + 38, self.W - 28, 26), Qt.AlignVCenter | Qt.AlignRight, rate_text(t))
         p.end()
 
 
@@ -252,197 +262,319 @@ class FarmTab(QWidget):
     def __init__(self, panel):
         super().__init__()
         self.panel = panel
-        self.watcher = None
+        self.hub = panel.hub
         self.card = FarmWidget()
         with open(os.path.join(BASE_DIR, "data", "mobs.json"), encoding="utf-8") as f:
             self.mobdata = json.load(f)
         self.pets = self.mobdata["pets"]
+        self.pet_names = {pid: PET(pid, name) for pid, name, _ in self.pets}
+        self.suggest = self.mobdata["suggest"]
         c = farm_cfg()
+        c["tally"] = {}                     # cada vez que o programa abre é uma sessão nova
         lay = QVBoxLayout(self)
 
-        top = QHBoxLayout()
-        self.target = QLabel()
-        self.target.setWordWrap(True)
-        bmap = QPushButton("Escolher mob no mapa...")
-        bmap.clicked.connect(self.open_map)
-        top.addWidget(self.target, 1)
-        top.addWidget(bmap)
-        lay.addLayout(top)
+        # ---- leitura do jogo
+        box0 = QGroupBox("Contagem automática")
+        v0 = QVBoxLayout(box0)
+        self.net_label = QLabel("")
+        self.net_label.setWordWrap(True)
+        self.net_label.setTextFormat(Qt.RichText)
+        v0.addWidget(self.net_label)
+        row = QHBoxLayout()
+        self.btn_net = __import__("theme").primary(QPushButton("Ligar"))
+        self.btn_net.clicked.connect(self.toggle_net)
+        self.btn_npcap = QPushButton("Instalar Npcap")
+        self.btn_npcap.clicked.connect(lambda: panel.dps_tab.install_npcap())
+        self.btn_admin = QPushButton("Abrir como administrador")
+        self.btn_admin.clicked.connect(lambda: panel.dps_tab.reopen_admin())
+        self.chk_auto = QCheckBox("Ligar sozinho ao abrir o programa")
+        self.chk_auto.setChecked(c["auto"])
+        self.chk_auto.toggled.connect(lambda on: self.set("auto", on))
+        for w in (self.btn_net, self.btn_npcap, self.btn_admin):
+            row.addWidget(w)
+        row.addStretch()
+        row.addWidget(self.chk_auto)
+        v0.addLayout(row)
+        hint = QLabel("Mate um monstro que dá alma de pet e o farm começa sozinho com ele; cada abate seu é contado. "
+                      "Usa o mesmo leitor do medidor de DPS (só lê o tráfego do jogo).")
+        hint.setWordWrap(True)
+        hint.setProperty("hint", True)
+        v0.addWidget(hint)
+        lay.addWidget(box0)
 
-        box = QGroupBox("Pet e meta")
-        f = QFormLayout(box)
+        # ---- farm atual
+        box1 = QGroupBox("Farm atual")
+        v1 = QVBoxLayout(box1)
+        self.now_label = QLabel("")
+        self.now_label.setWordWrap(True)
+        self.now_label.setTextFormat(Qt.RichText)
+        v1.addWidget(self.now_label)
+        row = QHBoxLayout()
+        bsee = QPushButton("Ver no mapa")
+        bsee.clicked.connect(self.see_current)
+        breset = QPushButton("Zerar contagem")
+        breset.clicked.connect(self.reset_session)
+        bstop = QPushButton("Parar farm")
+        bstop.clicked.connect(self.stop_farm)
+        self.show_card = QCheckBox("Mostrar o card do farm na tela")
+        self.show_card.setChecked(c["visible"])
+        self.show_card.toggled.connect(self.set_visible)
+        for w in (bsee, breset, bstop):
+            row.addWidget(w)
+        row.addStretch()
+        row.addWidget(self.show_card)
+        v1.addLayout(row)
+        lay.addWidget(box1)
+
+        # ---- mobs de pet onde você está
+        box2 = QGroupBox("Mobs de pet na sua região")
+        v2 = QVBoxLayout(box2)
+        self.here_label = QLabel("")
+        self.here_label.setWordWrap(True)
+        v2.addWidget(self.here_label)
+        self.here = QTreeWidget()
+        self.here.setRootIsDecorated(False)
+        self.here.setUniformRowHeights(True)
+        self.here.setHeaderLabels([T("Monstro"), T("Alma de"), T("Distância"), T("Seus abates")])
+        hh = self.here.header()
+        hh.setSectionResizeMode(0, QHeaderView.Stretch)
+        hh.setSectionResizeMode(1, QHeaderView.Stretch)
+        for i in (2, 3):
+            hh.setSectionResizeMode(i, QHeaderView.ResizeToContents)
+        self.here.setMinimumHeight(190)
+        self.here.itemDoubleClicked.connect(self.pick_here)
+        v2.addWidget(self.here)
+        tip = QLabel("Duplo clique: farmar esse monstro e ver onde ele nasce.")
+        tip.setProperty("hint", True)
+        v2.addWidget(tip)
+        lay.addWidget(box2, 1)
+
+        # ---- procurar um pet específico
+        box3 = QGroupBox("Procurar um pet")
+        f = QFormLayout(box3)
         self.pet = QComboBox()
         self.pet.setEditable(True)
         self.pet.setInsertPolicy(QComboBox.NoInsert)
         self.pet.addItem("", "")
         for pid, name, _ in self.pets:
-            self.pet.addItem(PET(pid, name), pid)
+            self.pet.addItem(self.pet_names[pid], pid)
         self.pet.completer().setFilterMode(Qt.MatchContains)
         self.pet.completer().setCompletionMode(QCompleter.PopupCompletion)
-        self.pet.currentIndexChanged.connect(self.pet_changed)
-        f.addRow("Pet (alma):", self.pet)
-        # onde farmar: todos os mobs que dão a alma do pet escolhido (dados do banco do jogo)
+        self.pet.currentIndexChanged.connect(self.fill_where)
+        f.addRow("Pet:", self.pet)
         wrow = QHBoxLayout()
         self.where = QComboBox()
         self.where.setMinimumWidth(260)
-        self.btn_go = __import__("theme").primary(QPushButton("Farmar este mob"))
+        self.btn_go = QPushButton("Farmar este mob")
         self.btn_go.clicked.connect(self.farm_where)
-        bsee = QPushButton("Ver no mapa")
-        bsee.clicked.connect(self.see_where)
+        bsee2 = QPushButton("Ver no mapa")
+        bsee2.clicked.connect(self.see_where)
         wrow.addWidget(self.where, 1)
         wrow.addWidget(self.btn_go)
-        wrow.addWidget(bsee)
-        f.addRow("Onde farmar:", wrow)
+        wrow.addWidget(bsee2)
+        f.addRow("Onde:", wrow)
         self.where_hint = QLabel("")
         self.where_hint.setWordWrap(True)
+        self.where_hint.setProperty("hint", True)
         f.addRow(self.where_hint)
-        self.stage = QComboBox()
-        for key, label, n in STAGES:
-            self.stage.addItem(T(f"{label} ({n} almas)"), key)
-        self.stage.currentIndexChanged.connect(self.stage_changed)
-        f.addRow("Etapa:", self.stage)
-        row = QHBoxLayout()
-        self.souls = QSpinBox()
-        self.souls.setRange(0, 999)
-        self.souls.valueChanged.connect(self.souls_changed)
-        self.goal = QSpinBox()
-        self.goal.setRange(1, 999)
-        self.goal.valueChanged.connect(lambda v: (self.set("goal", v), self.refresh_progress()))
-        row.addWidget(self.souls)
-        row.addWidget(QLabel(" de "))
-        row.addWidget(self.goal)
-        row.addStretch()
-        f.addRow("Almas agora:", row)
-        f.addRow(QLabel("Coloque o número que aparece no jogo (ex.: 57 de 75)."))
-        lay.addWidget(box)
-
-        boxp = QGroupBox("Progresso")
-        vp = QVBoxLayout(boxp)
-        self.progress = QLabel("")
-        self.progress.setTextFormat(Qt.RichText)
-        self.progress.setObjectName("FarmProgress")
-        vp.addWidget(self.progress)
-        lay.addWidget(boxp)
-
-        box2 = QGroupBox("Contar")
-        v = QVBoxLayout(box2)
-        row = QHBoxLayout()
-        for text, fn in (("+1 alma", lambda: self.add_soul(1)), ("−1 alma", lambda: self.add_soul(-1)),
-                         ("+1 abate", self.add_kill), ("Zerar abates", self.reset_session)):
-            b = QPushButton(text)
-            b.clicked.connect(fn)
-            row.addWidget(b)
-        v.addLayout(row)
-        keys = "   ·   ".join(f"Ctrl+Alt+{k[1]} = {k[2]}" for k in HOTKEYS.values())
-        self.hk_label = QLabel(f"Atalhos (funcionam dentro do jogo): {keys}")
-        self.hk_label.setWordWrap(True)
-        v.addWidget(self.hk_label)
-        lay.addWidget(box2)
-
-        box3 = QGroupBox("Contar almas sozinho (opcional)")
-        v3 = QVBoxLayout(box3)
-        v3.addWidget(QLabel("Reconhece na tela a mensagem de \"alma obtida\" do jogo, igual ao som de abate do PvP."))
-        row = QHBoxLayout()
-        bref = QPushButton("Definir referência...")
-        bref.clicked.connect(self.define_reference)
-        breg = QPushButton("Marcar área na tela...")
-        breg.clicked.connect(self.select_region)
-        self.detect = QCheckBox("Ativar")
-        self.detect.setChecked(c["detect"])
-        self.detect.toggled.connect(self.set_detect)
-        row.addWidget(bref)
-        row.addWidget(breg)
-        row.addStretch()
-        row.addWidget(self.detect)
-        v3.addLayout(row)
-        self.detect_status = QLabel("")
-        v3.addWidget(self.detect_status)
         lay.addWidget(box3)
 
-        row = QHBoxLayout()
-        self.show_card = QCheckBox("Mostrar o card do farm na tela")
-        self.show_card.setChecked(c["visible"])
-        self.show_card.toggled.connect(self.set_visible)
-        bstop = QPushButton("Parar farm")
-        bstop.clicked.connect(self.stop_farm)
-        row.addWidget(self.show_card)
-        row.addStretch()
-        row.addWidget(bstop)
-        lay.addLayout(row)
-        lay.addStretch()
+        hub = self.hub
+        hub.kill.connect(self.on_kill)
+        hub.running_changed.connect(lambda _on: self.refresh_net())
+        hub.status.connect(lambda _m: self.refresh_net())
+        self.timer = QTimer(self)
+        self.timer.timeout.connect(self.refresh_here)
+        self.timer.start(3000)
 
-        self.load_from_cfg()
+        self.fill_where()
+        self.refresh_all(rebuild=True)
         self.card.restore_position()
         self.card.set_locked(cfg.get("locked", False))
         if c["active"] and c["visible"]:
-            self.card.refresh(rebuild_map=True, pet_name=self.pet.currentText())
             self.card.show()
-        if c["detect"]:
-            self.set_detect(True)
+        self.refresh_net()
+        if c["auto"] and hub.requirements()[0]:
+            QTimer.singleShot(2000, lambda: (hub.acquire("farm"), self.refresh_net()))
 
     # ------------------------------------------------------------------ estado
     def set(self, key, value):
         farm_cfg()[key] = value
         save()
-        self.card.refresh()
 
-    def load_from_cfg(self):
+    def pet_of(self, mob):
+        pid = self.suggest.get(mob, "")
+        return pid, self.pet_names.get(pid, "")
+
+    def refresh_all(self, rebuild=False):
         c = farm_cfg()
-        for w in (self.pet, self.stage, self.souls, self.goal):
-            w.blockSignals(True)
-        self.pet.setCurrentIndex(max(0, self.pet.findData(c["pet"])))
-        self.stage.setCurrentIndex(max(0, self.stage.findData(c["stage"])))
-        self.souls.setValue(c["souls"])
-        self.goal.setValue(c["goal"])
-        for w in (self.pet, self.stage, self.souls, self.goal):
-            w.blockSignals(False)
         if c["active"]:
-            self.target.setText(f"<b>{T('Farmando:')}</b> {N(c['mob'])}<br><span style='color:#888'>"
-                                f"{N(region_of(c['world'], c['coords']))}</span>")
+            _pid, pname = self.pet_of(c["mob"])
+            t = c["tally"].get(c["mob"], {})
+            region = N(region_of(c["world"], c["coords"]))
+            rate = rate_text(t)
+            self.now_label.setText(
+                f"<span style='font-size:13pt; font-weight:600'>{N(c['mob'])}</span>"
+                + (f"&nbsp;&nbsp;<span style='color:#e0b04f'>{T('alma de')} {pname}</span>" if pname else "")
+                + f"<br><span style='color:#9b9282'>{world_name(c['world'])} · {region}</span>"
+                + f"<br><span style='font-size:15pt; font-weight:600'>{t.get('kills', 0)}</span> "
+                + T("abates nesta sessão") + (f" &nbsp;·&nbsp; <span style='color:#5ee39a'>{rate}</span>" if rate else ""))
+            self.card.refresh(rebuild_map=rebuild, pet_name=pname)
         else:
-            self.target.setText(T("Nenhum farm ativo. Escolha o pet abaixo e clique em \"Farmar este mob\"."))
-        self.card.pet_name = self.pet.currentText()
-        if hasattr(self, "where"):
-            self.fill_where()
-            self.refresh_progress()
+            self.now_label.setText(T("Nenhum farm ainda. Mate um monstro de pet (veja a lista abaixo) "
+                                     "e o farm começa sozinho."))
 
-    def start_farm(self, wid, mob, coords, pet_id):
+    def refresh_net(self):
+        ok, falta = self.hub.requirements()
+        self.btn_npcap.setVisible("Npcap" in falta)
+        self.btn_admin.setVisible("administrador" in falta)
+        if self.hub.running and "farm" in self.hub.users:
+            self.btn_net.setText(T("Desligar"))
+            wid, _pos = self.hub.world_state()
+            who = cfg.get("dps", {}).get("char_name") or T("procurando o seu personagem (costuma aparecer quando você toma dano)…")
+            where = world_name(wid) if wid else T("procurando onde você está…")
+            self.net_label.setText(f"<span style='color:#5ee39a'>●</span> <b>{T('Lendo o jogo')}</b> — "
+                                   f"{where} · {T('personagem')}: {who}")
+        else:
+            self.btn_net.setText(T("Ligar"))
+            if ok:
+                self.net_label.setText(f"<span style='color:#9b9282'>○</span> {T('Desligado.')}")
+            else:
+                faltam = (" " + T("e") + " ").join(T(x) for x in falta)
+                self.net_label.setText("<span style='color:#f0883e'>○</span> " +
+                                       T("Para contar sozinho falta: {f}.").format(f=faltam))
+        self.btn_net.setEnabled(ok)
+
+    def toggle_net(self):
+        if self.hub.running and "farm" in self.hub.users:
+            self.hub.release("farm")
+        else:
+            self.hub.acquire("farm")
+        self.refresh_net()
+
+    # ------------------------------------------------------------------ abates
+    def on_kill(self, ev):
+        if not ev.get("mine") or not ev.get("mob"):
+            return
         c = farm_cfg()
-        c.update(active=True, world=wid, mob=mob, coords=coords, kills=0)
-        if pet_id:
-            c["pet"] = pet_id
-        c["start_souls"] = c["souls"]
+        mob, wid = ev["mob"], ev.get("world") or c["world"]
+        now = time.time()
+        t = c["tally"].setdefault(mob, {"kills": 0, "first": now, "last": now})
+        t["kills"] += 1
+        t["last"] = now
+        pid, _pname = self.pet_of(mob)
+        if pid and (not c["active"] or c["mob"] != mob):
+            data = self.panel.hub.reader.world.sp.by_name.get((wid, mob)) if self.hub.reader and self.hub.reader.world else None
+            coords = data[1] if data else []
+            self.start_farm(wid, mob, coords, pid)
+            return
+        if c["active"] and c["mob"] == mob:
+            c["kills"] = t["kills"]
         save()
-        self.load_from_cfg()
-        c["visible"] = True
-        self.show_card.setChecked(True)
-        self.card.refresh(rebuild_map=True, pet_name=self.pet.currentText())
-        self.card.show()
-        self.panel.show_panel()
-        self.panel.tabs.setCurrentWidget(self)
+        self.refresh_all()
+        self.refresh_here()
+
+    def start_farm(self, wid, mob, coords, pet_id=""):
+        c = farm_cfg()
+        if not coords:
+            for name, _cat, co in self.mobdata["worlds"].get(wid, []):
+                if name == mob:
+                    coords = co
+                    break
+        c.update(active=True, world=wid, mob=mob, coords=coords, pet=pet_id or self.suggest.get(mob, ""),
+                 kills=c["tally"].get(mob, {}).get("kills", 0))
+        save()
+        if c["visible"]:
+            self.card.show()
+            self.card.set_locked(cfg.get("locked", False))
+        self.refresh_all(rebuild=True)
+        self.refresh_here()
 
     def stop_farm(self):
         farm_cfg()["active"] = False
         save()
         self.card.hide()
-        self.load_from_cfg()
+        self.refresh_all()
 
-    def pet_changed(self, _i):
-        self.set("pet", self.pet.currentData() or "")
-        self.card.refresh(pet_name=self.pet.currentText())
-        self.fill_where()
+    def reset_session(self):
+        c = farm_cfg()
+        c["tally"] = {}
+        c["kills"] = 0
+        save()
+        self.refresh_all()
+        self.refresh_here()
 
-    # ------------------------------------------------------------------ onde farmar
-    def fill_where(self):
+    def set_visible(self, on):
+        farm_cfg()["visible"] = on
+        save()
+        if on and farm_cfg()["active"]:
+            self.card.refresh(rebuild_map=True)
+            self.card.show()
+            self.card.set_locked(cfg.get("locked", False))
+        else:
+            self.card.hide()
+
+    # ------------------------------------------------------------------ onde você está
+    def refresh_here(self):
+        if self.hub.running:
+            self.refresh_net()
+        wid, pos = self.hub.world_state()
+        c = farm_cfg()
+        if not wid:
+            wid, pos = (c["world"], None) if c["active"] else (None, None)
+        if not wid:
+            self.here_label.setText(T("Ligue a contagem automática e ande um pouco pelo mapa: a lista mostra os "
+                                      "monstros de pet da região onde você estiver."))
+            self.here.clear()
+            return
+        region = region_at(wid, *pos) if pos else ""
+        key = (wid, region, int(pos[0] // 2000) if pos else 0, int(pos[1] // 2000) if pos else 0,
+               tuple(sorted((m, t["kills"]) for m, t in c["tally"].items())), c["mob"])
+        if key == getattr(self, "_here_key", None):
+            return
+        self._here_key = key
+        rows = []
+        for name, _cat, co in self.mobdata["worlds"].get(wid, []):
+            pid = self.suggest.get(name)
+            if not pid:
+                continue
+            pts = [(co[i], co[i + 1]) for i in range(0, len(co) - 1, 2)]
+            if region:
+                inside = [pt for pt in pts if region_at(wid, *pt) == region]
+                if not inside:
+                    continue
+                pts = inside
+            dist = min(math.hypot(x - pos[0], y - pos[1]) for x, y in pts) if pos else None
+            if not region and dist is not None and dist > 25000:
+                continue
+            rows.append((dist if dist is not None else 0, name, pid, len(pts), co))
+        rows.sort(key=lambda r: r[0])
+        self.here.clear()
+        for dist, name, pid, n, co in rows[:40]:
+            kills = c["tally"].get(name, {}).get("kills", 0)
+            d = (f"{dist / 100:.0f} m" if dist < 100000 else f"{dist / 100000:.1f} km") if pos else f"{n} spawns"
+            it = QTreeWidgetItem([N(name), self.pet_names.get(pid, ""), d, str(kills) if kills else ""])
+            it.setData(0, Qt.UserRole, (wid, name))
+            if c["active"] and c["mob"] == name:
+                for col in range(4):
+                    it.setForeground(col, QColor("#f4d58c"))
+            self.here.addTopLevelItem(it)
+        where = world_name(wid) + (f" · {N(region)}" if region else "")
+        self.here_label.setText(T("Você está em {w}: {n} monstro(s) que dão alma de pet.").format(w=where, n=len(rows))
+                                if pos else T("{w}: {n} monstro(s) que dão alma de pet.").format(w=where, n=len(rows)))
+
+    def pick_here(self, it, _col=0):
+        wid, name = it.data(0, Qt.UserRole)
+        self.start_farm(wid, name, None)
+        self.show_on_map(wid, name)
+
+    # ------------------------------------------------------------------ procurar pet
+    def fill_where(self, *_):
         pid = self.pet.currentData() or ""
         res = _resources()["worlds"]
-        cur = farm_cfg().get("mob", "")
         self.where.clear()
         for wid, mob, n in self.mobdata.get("sources", {}).get(pid, []):
-            wname = T(res.get(wid, {}).get("name", wid))
-            self.where.addItem(f"{N(mob)} — {wname} ({n} spawns)", (wid, mob))
-            if mob == cur:
-                self.where.setCurrentIndex(self.where.count() - 1)
+            self.where.addItem(f"{N(mob)} — {T(res.get(wid, {}).get('name', wid))} ({n} spawns)", (wid, mob))
         has = self.where.count() > 0
         self.where.setEnabled(has)
         self.btn_go.setEnabled(has)
@@ -450,165 +582,39 @@ class FarmTab(QWidget):
             self.where_hint.setText(T("Escolha o pet para ver quais mobs dão a alma dele."))
         elif not has:
             self.where_hint.setText(T("Esse pet não vem de mobs dos mapas abertos (é de masmorra, evento ou "
-                                      "outra forma). Dá para contar as almas mesmo assim."))
+                                      "outra forma)."))
         else:
-            self.where_hint.setText(T("{n} mob(s) dão essa alma. Escolha um e clique em Farmar.").format(
-                n=self.where.count()))
-
-    def _where_coords(self):
-        data = self.where.currentData()
-        if not data:
-            return None
-        wid, mob = data
-        for name, _cat, coords in self.mobdata["worlds"].get(wid, []):
-            if name == mob:
-                return wid, mob, coords
-        return None
+            self.where_hint.setText(T("{n} mob(s) dão essa alma.").format(n=self.where.count()))
 
     def farm_where(self):
-        found = self._where_coords()
-        if found:
-            wid, mob, coords = found
-            self.start_farm(wid, mob, coords, self.pet.currentData() or "")
+        data = self.where.currentData()
+        if data:
+            self.start_farm(data[0], data[1], None, self.pet.currentData() or "")
 
     def see_where(self):
-        found = self._where_coords()
-        if not found:
+        data = self.where.currentData()
+        if data:
+            self.show_on_map(*data)
+        else:
             self.open_map()
-            return
-        wid, mob, _coords = found
+
+    def see_current(self):
+        c = farm_cfg()
+        if c["active"]:
+            self.show_on_map(c["world"], c["mob"])
+        else:
+            self.open_map()
+
+    def show_on_map(self, wid, mob):
         self.open_map()
         m = self.panel.get_map()
         if hasattr(m, "focus_mob"):
             m.focus_mob(wid, mob)
 
-    def refresh_progress(self):
-        c = farm_cfg()
-        souls, goal = c["souls"], max(1, c["goal"])
-        left = max(0, goal - souls)
-        gained = max(0, souls - c.get("start_souls", souls))
-        kills = c.get("kills", 0)
-        lines = [f"<span style='font-size:15pt; font-weight:600'>{souls} / {goal}</span>"
-                 f"&nbsp;&nbsp;<span style='color:#9b9282'>{T('almas')}</span>"]
-        if left == 0:
-            lines.append(f"<span style='color:#5ee39a'>{T('Meta alcançada!')}</span>")
-        else:
-            lines.append(T("Faltam <b>{n}</b> almas.").format(n=left))
-        if kills:
-            txt = T("Nesta sessão: {k} abates, {g} almas.").format(k=kills, g=gained)
-            if gained and left:
-                rate = kills / gained
-                txt += " " + T("Média de 1 alma a cada {r:.1f} abates → faltam uns <b>{m}</b> abates.").format(
-                    r=rate, m=int(round(left * rate)))
-            lines.append(txt)
-        else:
-            lines.append(f"<span style='color:#9b9282'>{T('Use +1 abate (ou Ctrl+Alt+K) a cada mob morto para ver quantos faltam.')}</span>")
-        self.progress.setText("<br>".join(lines))
-
-    def stage_changed(self, i):
-        key, _, n = STAGES[i]
-        farm_cfg()["stage"] = key
-        self.goal.setValue(n)
-        self.set("goal", n)
-
-    def souls_changed(self, v):
-        c = farm_cfg()
-        reached_before = c["souls"] >= c["goal"]
-        c["souls"] = v
-        if c["start_souls"] > v:
-            c["start_souls"] = v
-        save()
-        self.card.refresh()
-        self.refresh_progress()
-        if v >= c["goal"] and not reached_before:
-            sounds_player.play(c["sound"], c["volume"])
-
-    def add_soul(self, n=1):
-        self.souls.setValue(max(0, self.souls.value() + n))
-
-    def add_kill(self):
-        c = farm_cfg()
-        c["kills"] += 1
-        save()
-        self.card.refresh()
-        self.refresh_progress()
-
-    def reset_session(self):
-        c = farm_cfg()
-        c["kills"] = 0
-        c["start_souls"] = c["souls"]
-        save()
-        self.card.refresh()
-        self.refresh_progress()
-
-    def on_hotkey(self, hid):
-        if hid == 1:
-            self.add_soul(1)
-        elif hid == 2:
-            self.add_soul(-1)
-        elif hid == 3:
-            self.add_kill()
-
-    # ------------------------------------------------------------------ janela
     def open_map(self):
         m = self.panel.get_map()
         m.set_mode("mobs")
         self.panel.open_map()
 
-    def set_visible(self, on):
-        farm_cfg()["visible"] = on
-        save()
-        if on and farm_cfg()["active"]:
-            self.card.refresh(rebuild_map=True, pet_name=self.pet.currentText())
-            self.card.show()
-            self.card.set_locked(cfg.get("locked", False))
-        else:
-            self.card.hide()
-
-    # ------------------------------------------------------------------ detecção automática
-    def define_reference(self):
-        from pvp import ReferenceDialog
-        dlg = ReferenceDialog(self, section="farm", ref_path=SOUL_REF, what="mensagem de alma obtida",
-                              hint="sem a quantidade")
-        if dlg.exec() and self.detect.isChecked():
-            self.set_detect(True)
-
-    def select_region(self):
-        from PySide6.QtGui import QGuiApplication
-        from pvp import RegionSelector
-        screens = QGuiApplication.screens()
-        idx = farm_cfg().get("monitor", 1) - 1
-        self._sel = RegionSelector(screens[idx] if 0 <= idx < len(screens) else QGuiApplication.primaryScreen())
-        self._sel.chosen.connect(self.region_chosen)
-        self._sel.show()
-
-    def region_chosen(self, r):
-        farm_cfg()["region"] = r
-        save()
-        if self.detect.isChecked():
-            self.set_detect(True)
-
-    def set_detect(self, on):
-        from pvp import KillWatcher
-        c = farm_cfg()
-        c["detect"] = on
-        save()
-        if self.watcher:
-            self.watcher.stop()
-            self.watcher = None
-        if not on:
-            self.detect_status.setText("")
-            return
-        if not c["reference"] or not os.path.exists(c["reference"]):
-            self.detect_status.setText(T("Defina a referência primeiro."))
-            self.detect.setChecked(False)
-            return
-        self.watcher = KillWatcher("farm")
-        self.watcher.kill.connect(lambda _s: self.add_soul(1))
-        self.watcher.error.connect(lambda m: self.detect_status.setText(m))
-        self.watcher.score.connect(lambda s: self.detect_status.setText(T("Monitorando · semelhança {s}").format(s=f"{s:.2f}")))
-        self.watcher.start()
-
     def shutdown(self):
-        if self.watcher:
-            self.watcher.stop()
+        self.timer.stop()

@@ -304,6 +304,7 @@ class DpsReader(QThread):
     """Escuta o servidor do jogo e emite o estado da luta a cada ~0,5 s."""
     updated = Signal(object)       # dict com a luta atual
     status = Signal(str)
+    world_events = Signal(object)  # [(tipo, dict)]: abates, mapa atual (world_live.WorldTracker)
 
     def __init__(self, server_hosts=None):
         super().__init__()
@@ -321,6 +322,7 @@ class DpsReader(QThread):
         self.harmed = set()       # (atacante, alvo) que já tiveram dano: nunca são grupo
         self.enemies = set()      # quem já levou dano de habilidade de jogador
         self.mode = "party"       # "party" = você + grupo; "all" = todos os jogadores por perto
+        self.world = None         # WorldTracker (criado no start, para não pesar quem só usa o DPS)
 
     def stop(self):
         self._run = False
@@ -364,6 +366,7 @@ class DpsReader(QThread):
         self.status.emit("Lendo o tráfego do jogo...")
         while self._run:
             time.sleep(0.5)
+            self.flush_world()
             try:
                 f = self.fight
                 key = (f.start, f.last, len(f.pair), self.find_self(), self.mode)
@@ -378,12 +381,36 @@ class DpsReader(QThread):
         except Exception:
             pass
 
+    def enable_world(self):
+        if self.world is None:
+            from world_live import WorldTracker
+            with self.lock:
+                self.world = WorldTracker(self)
+
+    def flush_world(self):
+        if self.world is None:
+            return
+        with self.lock:
+            self.world.poll()
+            ev = self.world.take_events()
+        if ev:
+            self.world_events.emit(ev)
+
+    def world_state(self):
+        """(mapa, posição) atuais, ou (None, None)."""
+        if self.world is None:
+            return None, None
+        with self.lock:
+            return self.world.world, self.world.my_position()
+
     # ------------------------------------------------------------ eventos
     def handle(self, op, body):
         with self.lock:
             self._handle(op, body)
 
     def _handle(self, op, body):
+        if self.world is not None:
+            self.world.handle(op, body)
         try:
             if op == 0x3804:
                 h = decode_hit(body)
