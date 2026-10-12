@@ -19,7 +19,7 @@ Não lê a memória do jogo nem mexe em arquivos dele.
 - Vários monitores, travar/destravar overlays, português, inglês e espanhol.
 
 ## Instalar (usuário comum)
-**[⬇ Baixar o MetaOverlay-Setup.exe](https://github.com/KrulTepesk/Atreia-Code/releases/latest/download/MetaOverlay-Setup.exe)**
+**[⬇ Baixar o MetaOverlay-Setup.exe](https://github.com/KrulTepesk/Meta-Overlay/releases/latest/download/MetaOverlay-Setup.exe)**
 — abra e instale. Não precisa de Python nem de baixar o código.
 O Npcap só é necessário para o DPS (o instalador oferece instalar).
 Ao instalar uma versão nova, a anterior é removida antes (inclusive a do antigo nome "Atreia Code");

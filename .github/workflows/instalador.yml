@@ -1,6 +1,6 @@
 # Monta o MetaOverlay-Setup.exe e publica em Releases sozinho sempre que o programa muda no main.
 # Link fixo para baixar a versão mais nova:
-#   https://github.com/KrulTepesk/Atreia-Code/releases/latest/download/MetaOverlay-Setup.exe
+#   https://github.com/KrulTepesk/Meta-Overlay/releases/latest/download/MetaOverlay-Setup.exe
 name: Gerar instalador
 on:
   workflow_dispatch:
