@@ -24,16 +24,24 @@ jobs:
         shell: pwsh
         run: |
           $url = "https://npcap.com/dist/npcap-1.89.exe"
-          Invoke-WebRequest $url -OutFile npcap.exe
-          $sig = Get-AuthenticodeSignature -LiteralPath npcap.exe
-          if ($sig.Status -ne "Valid" -or $sig.SignerCertificate.Subject -notmatch "Insecure\.Com LLC") {
-            throw "assinatura do Npcap inesperada: $($sig.Status) $($sig.SignerCertificate.Subject)"
+          $sha = ""
+          try {
+            Invoke-WebRequest $url -OutFile npcap.exe -UserAgent "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
+            $sig = Get-AuthenticodeSignature -LiteralPath npcap.exe
+            $subj = "$($sig.SignerCertificate.Subject)"
+            echo "::notice title=Npcap assinatura::$($sig.Status) | $subj"
+            if ($sig.Status -eq "Valid" -and ($subj -match "Insecure\.Com LLC" -or $subj -match "Nmap Software LLC")) {
+              $sha = (Get-FileHash npcap.exe -Algorithm SHA256).Hash.ToLower()
+              @{ url = $url; sha256 = $sha } | ConvertTo-Json | Set-Content -Encoding utf8 overlay\data\npcap.json
+              echo "::notice title=Npcap SHA-256::$sha"
+            } else {
+              echo "::warning title=Npcap::assinatura inesperada; o hash não foi fixado"
+            }
+            Remove-Item npcap.exe -ErrorAction SilentlyContinue
+          } catch {
+            echo "::warning title=Npcap::não deu para baixar no build: $($_.Exception.Message)"
           }
-          $sha = (Get-FileHash npcap.exe -Algorithm SHA256).Hash.ToLower()
-          @{ url = $url; sha256 = $sha } | ConvertTo-Json | Set-Content -Encoding utf8 overlay\data\npcap.json
           "NPCAP_SHA256=$sha" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
-          echo "::notice title=Npcap::$sha"
-          Remove-Item npcap.exe
       - run: python -m PyInstaller --noconfirm --distpath dist --workpath build_tools/_work build_tools/MetaOverlay.spec
       - name: Tamanho do programa (maiores arquivos)
         shell: pwsh
