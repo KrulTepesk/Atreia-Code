@@ -22,6 +22,8 @@ DEFAULTS = {
     "active": False, "world": "", "mob": "", "coords": [], "pet": "", "kills": 0, "visible": True,
     "auto": True,                # liga a leitura do jogo sozinho ao abrir o programa
     "tally": {},                 # mob -> {"kills": n, "first": t, "last": t}  (sessão atual)
+    "soul_tally": {},            # pet -> almas ganhas nesta sessão (lidas do jogo, 0x900d)
+    "soul_total": {},            # pet -> almas contadas pelo programa desde sempre
     "opacity": 0.92, "pos": None,
 }
 OLD_KEYS = ("souls", "goal", "start_souls", "stage", "detect", "reference", "region", "monitor", "threshold",
@@ -202,7 +204,8 @@ class FarmWidget(OverlayWindow):
     def __init__(self):
         farm_cfg()
         super().__init__("farm", QPoint(40, 200))
-        self.setFixedSize(self.W, self.MAP_H + 74)
+        self.setFixedSize(self.W, self.MAP_H + 90)
+        self.souls = ""
         self.minimap = None
         self.region = ""
         self.pet_name = ""
@@ -254,6 +257,9 @@ class FarmWidget(OverlayWindow):
         p.setPen(QColor("#5ee39a"))
         p.setFont(QFont("Segoe UI", 9, QFont.DemiBold))
         p.drawText(QRectF(14, y0 + 38, self.W - 28, 26), Qt.AlignVCenter | Qt.AlignRight, rate_text(t))
+        p.setPen(QColor("#f4d58c"))
+        p.setFont(QFont("Segoe UI", 9, QFont.DemiBold))
+        p.drawText(QRectF(14, y0 + 62, self.W - 28, 18), Qt.AlignVCenter | Qt.AlignLeft, self.souls)
         p.end()
 
 
@@ -271,6 +277,7 @@ class FarmTab(QWidget):
         self.suggest = self.mobdata["suggest"]
         c = farm_cfg()
         c["tally"] = {}                     # cada vez que o programa abre é uma sessão nova
+        c["soul_tally"] = {}
         lay = QVBoxLayout(self)
 
         # ---- leitura do jogo
@@ -295,8 +302,8 @@ class FarmTab(QWidget):
         row.addStretch()
         row.addWidget(self.chk_auto)
         v0.addLayout(row)
-        hint = QLabel("Mate um monstro que dá alma de pet e o farm começa sozinho com ele; cada abate seu é contado. "
-                      "Usa o mesmo leitor do medidor de DPS (só lê o tráfego do jogo).")
+        hint = QLabel("Mate um monstro que dá alma de pet e o farm começa sozinho com ele; cada abate seu e cada alma "
+                      "que você ganha são contados. Usa o mesmo leitor do medidor de DPS (só lê o tráfego do jogo).")
         hint.setWordWrap(True)
         hint.setProperty("hint", True)
         v0.addWidget(hint)
@@ -335,13 +342,13 @@ class FarmTab(QWidget):
         self.here = QTreeWidget()
         self.here.setRootIsDecorated(False)
         self.here.setUniformRowHeights(True)
-        self.here.setHeaderLabels([T("Monstro"), T("Alma de"), T("Distância"), T("Seus abates")])
+        self.here.setHeaderLabels([T("Monstro"), T("Alma de"), T("Distância"), T("Seus abates"), T("Almas")])
         hh = self.here.header()
         hh.setSectionResizeMode(0, QHeaderView.Stretch)
         hh.setSectionResizeMode(1, QHeaderView.Stretch)
-        for i in (2, 3):
+        for i in (2, 3, 4):
             hh.setSectionResizeMode(i, QHeaderView.ResizeToContents)
-        self.here.setMinimumHeight(190)
+        self.here.setMinimumHeight(150)
         self.here.itemDoubleClicked.connect(self.pick_here)
         v2.addWidget(self.here)
         tip = QLabel("Duplo clique: farmar esse monstro e ver onde ele nasce.")
@@ -381,6 +388,7 @@ class FarmTab(QWidget):
 
         hub = self.hub
         hub.kill.connect(self.on_kill)
+        hub.soul.connect(self.on_soul)
         hub.running_changed.connect(lambda _on: self.refresh_net())
         hub.status.connect(lambda _m: self.refresh_net())
         self.timer = QTimer(self)
@@ -406,6 +414,19 @@ class FarmTab(QWidget):
         pid = self.suggest.get(mob, "")
         return pid, self.pet_names.get(pid, "")
 
+    def pet_kills(self, pid):
+        """Seus abates nesta sessão de todos os mobs que dão a alma desse pet."""
+        return sum(t["kills"] for m, t in farm_cfg()["tally"].items() if self.suggest.get(m) == pid)
+
+    def soul_line(self, pid):
+        c = farm_cfg()
+        n = c["soul_tally"].get(pid, 0)
+        k = self.pet_kills(pid)
+        txt = T("{n} alma(s)").format(n=n)
+        if n and k:
+            txt += " · " + T("1 a cada {r} abates").format(r=f"{k / n:.1f}".rstrip("0").rstrip("."))
+        return txt
+
     def refresh_all(self, rebuild=False):
         c = farm_cfg()
         if c["active"]:
@@ -418,7 +439,10 @@ class FarmTab(QWidget):
                 + (f"&nbsp;&nbsp;<span style='color:#e0b04f'>{T('alma de')} {pname}</span>" if pname else "")
                 + f"<br><span style='color:#9b9282'>{world_name(c['world'])} · {region}</span>"
                 + f"<br><span style='font-size:15pt; font-weight:600'>{t.get('kills', 0)}</span> "
-                + T("abates nesta sessão") + (f" &nbsp;·&nbsp; <span style='color:#5ee39a'>{rate}</span>" if rate else ""))
+                + T("abates nesta sessão") + (f" &nbsp;·&nbsp; <span style='color:#5ee39a'>{rate}</span>" if rate else "")
+                + (f"<br><span style='font-size:13pt; font-weight:600; color:#f4d58c'>{self.soul_line(_pid)}</span>"
+                   if _pid else ""))
+            self.card.souls = self.soul_line(_pid) if _pid else ""
             self.card.refresh(rebuild_map=rebuild, pet_name=pname)
         else:
             self.now_label.setText(T("Nenhum farm ainda. Mate um monstro de pet (veja a lista abaixo) "
@@ -474,6 +498,16 @@ class FarmTab(QWidget):
         self.refresh_all()
         self.refresh_here()
 
+    def on_soul(self, ev):
+        c = farm_cfg()
+        pid, n = ev["pet"], ev["n"]
+        c["soul_tally"][pid] = c["soul_tally"].get(pid, 0) + n
+        c["soul_total"][pid] = c["soul_total"].get(pid, 0) + n
+        save()
+        self.refresh_all()
+        self._here_key = None
+        self.refresh_here()
+
     def start_farm(self, wid, mob, coords, pet_id=""):
         c = farm_cfg()
         if not coords:
@@ -499,6 +533,7 @@ class FarmTab(QWidget):
     def reset_session(self):
         c = farm_cfg()
         c["tally"] = {}
+        c["soul_tally"] = {}
         c["kills"] = 0
         save()
         self.refresh_all()
@@ -529,7 +564,8 @@ class FarmTab(QWidget):
             return
         region = region_at(wid, *pos) if pos else ""
         key = (wid, region, int(pos[0] // 2000) if pos else 0, int(pos[1] // 2000) if pos else 0,
-               tuple(sorted((m, t["kills"]) for m, t in c["tally"].items())), c["mob"])
+               tuple(sorted((m, t["kills"]) for m, t in c["tally"].items())), c["mob"],
+               tuple(sorted(c["soul_tally"].items())))
         if key == getattr(self, "_here_key", None):
             return
         self._here_key = key
@@ -553,10 +589,12 @@ class FarmTab(QWidget):
         for dist, name, pid, n, co in rows[:40]:
             kills = c["tally"].get(name, {}).get("kills", 0)
             d = (f"{dist / 100:.0f} m" if dist < 100000 else f"{dist / 100000:.1f} km") if pos else f"{n} spawns"
-            it = QTreeWidgetItem([N(name), self.pet_names.get(pid, ""), d, str(kills) if kills else ""])
+            souls = c["soul_tally"].get(pid, 0)
+            it = QTreeWidgetItem([N(name), self.pet_names.get(pid, ""), d, str(kills) if kills else "",
+                                  str(souls) if souls else ""])
             it.setData(0, Qt.UserRole, (wid, name))
             if c["active"] and c["mob"] == name:
-                for col in range(4):
+                for col in range(5):
                     it.setForeground(col, QColor("#f4d58c"))
             self.here.addTopLevelItem(it)
         where = world_name(wid) + (f" · {N(region)}" if region else "")

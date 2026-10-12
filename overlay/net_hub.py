@@ -13,6 +13,7 @@ class NetHub(QObject):
     updated = Signal(object)          # estado da luta (medidor de DPS)
     status = Signal(str)              # texto de estado / erro
     kill = Signal(object)             # dict do world_live (um monstro morreu)
+    soul = Signal(object)             # {"pet": id, "n": quantidade}: você ganhou alma de pet
     world = Signal(object)            # id do mapa atual (str) quando muda
     running_changed = Signal(bool)
 
@@ -98,6 +99,8 @@ class NetHub(QObject):
                     self.reader.self_name = ev["killer"]
                     save()
                 self.kill.emit(ev)
+            elif kind == "soul":
+                self.soul.emit(ev)
             elif kind == "world":
                 self.world.emit(ev["world"])
 

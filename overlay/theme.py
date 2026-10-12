@@ -37,14 +37,14 @@ FONT = "'Segoe UI Variable Text', 'Segoe UI', 'Inter', sans-serif"
 FONT_DISPLAY = "Marcellus"     # fonte livre (OFL), vem junto em fonts/
 
 QSS = f"""
-* {{ font-family: {FONT}; font-size: 10pt; color: {TEXT}; }}
+* {{ font-family: {FONT}; font-size: 9pt; color: {TEXT}; }}
 QWidget#Page, QStackedWidget, QScrollArea > QWidget > QWidget {{ background: {INK}; }}
 QToolTip {{ background: {FIELD}; color: {TEXT}; border: 1px solid {LINE}; padding: 5px 8px; }}
 
 /* cartões: moldura com cantos cortados é pintada pelo CardFrame (QSS não faz chanfro) */
 QGroupBox {{
     background: transparent; border: none;
-    margin-top: 8px; padding: 46px 20px 16px 20px;
+    margin-top: 4px; padding: 36px 14px 10px 14px;
 }}
 QGroupBox::title {{ color: transparent; subcontrol-origin: padding; left: 0; top: 0; }}
 QLabel {{ background: transparent; }}
@@ -54,7 +54,7 @@ QLabel:disabled {{ color: {FAINT}; }}
 /* botões: "encaixes" escuros e retos, como os da interface do jogo */
 QPushButton {{
     background: #171512; border: 1px solid #3a3328; border-radius: 2px;
-    padding: 7px 16px; color: {TEXT}; min-height: 18px;
+    padding: 4px 12px; color: {TEXT}; min-height: 16px;
 }}
 QPushButton:hover {{ border-color: #8f7135; background: #1f1c17; }}
 QPushButton:pressed {{ background: #0c0b09; }}
@@ -68,7 +68,7 @@ QPushButton:disabled {{ color: {FAINT}; border-color: #1e1b17; background: #0f0e
 /* campos */
 QLineEdit, QSpinBox, QDoubleSpinBox, QComboBox {{
     background: #0f0e0c; border: 1px solid #2e2922; border-radius: 2px;
-    padding: 6px 10px; min-height: 18px;
+    padding: 3px 8px; min-height: 16px;
     selection-background-color: {AETHER}; selection-color: {INK};
 }}
 QLineEdit:hover, QSpinBox:hover, QDoubleSpinBox:hover, QComboBox:hover {{ border-color: #5c4b2b; }}
@@ -102,7 +102,7 @@ QSlider::handle:horizontal {{
 }}
 
 QListWidget {{ background: #0f0e0c; border: 1px solid #2e2922; padding: 4px; outline: none; }}
-QListWidget::item {{ padding: 6px 8px; }}
+QListWidget::item {{ padding: 4px 6px; }}
 QListWidget::item:hover {{ background: #191612; }}
 QListWidget::item:selected {{ background: #2a1f0b; color: #fff0cc; }}
 
@@ -120,19 +120,19 @@ QMessageBox, QDialog {{ background: {INK}; }}
 
 /* menu lateral: sem "pílulas"; o item aberto ganha um losango de éter */
 #NavBar QPushButton {{
-    text-align: left; padding: 10px 14px 10px 24px; border: none; border-radius: 0;
-    background: transparent; color: {MUTED}; font-size: 10.5pt;
+    text-align: left; padding: 7px 10px 7px 22px; border: none; border-radius: 0;
+    background: transparent; color: {MUTED}; font-size: 9.5pt;
 }}
 #NavBar QPushButton:hover {{ color: {TEXT}; background: transparent; }}
 #NavBar QPushButton:checked {{ color: {TEXT}; background: transparent; border: none; font-weight: 600; }}
 #NavBar QPushButton#LockPill {{
-    border: 1px solid {LINE}; background: rgba(10, 9, 8, 0.7); padding: 9px 12px; font-size: 9.5pt; border-radius: 2px;
+    border: 1px solid {LINE}; background: rgba(10, 9, 8, 0.7); padding: 6px 10px; font-size: 8.5pt; border-radius: 2px;
 }}
 #NavBar QPushButton#LockPill:checked {{ border-color: {AETHER}; color: #fff0cc; background: rgba(42, 31, 11, 0.8); }}
-#Brand {{ color: {TEXT}; font-family: '{FONT_DISPLAY}'; font-size: 15pt; }}
-#BrandSub {{ color: {MUTED}; font-size: 8.5pt; }}
-#PageTitle {{ font-family: '{FONT_DISPLAY}'; font-size: 24pt; color: {TEXT}; }}
-#PageSub {{ color: {MUTED}; font-size: 10pt; padding-bottom: 8px; }}
+#Brand {{ color: {TEXT}; font-family: '{FONT_DISPLAY}'; font-size: 12.5pt; }}
+#BrandSub {{ color: {MUTED}; font-size: 7.5pt; }}
+#PageTitle {{ font-family: '{FONT_DISPLAY}'; font-size: 16pt; color: {TEXT}; }}
+#PageSub {{ color: {MUTED}; font-size: 8.5pt; padding-bottom: 4px; }}
 """
 
 
@@ -192,14 +192,14 @@ class CardFrame(QObject):
             p.drawLine(QPointF(r.left(), r.top() + 12), QPointF(r.left() + 12, r.top()))
             title = w.title()
             if title:
-                y = r.top() + 22
-                draw_diamond(p, QPointF(r.left() + 22, y), 4, AETHER if w.isEnabled() else FAINT)
-                f = display_font(13)
+                y = r.top() + 17
+                draw_diamond(p, QPointF(r.left() + 18, y), 3.5, AETHER if w.isEnabled() else FAINT)
+                f = display_font(11)
                 p.setFont(f)
                 p.setPen(QColor(TEXT if w.isEnabled() else FAINT))
                 fm = p.fontMetrics()
-                p.drawText(QPointF(r.left() + 34, y + fm.ascent() / 2 - 2), title)
-                x2 = r.left() + 34 + fm.horizontalAdvance(title) + 14
+                p.drawText(QPointF(r.left() + 28, y + fm.ascent() / 2 - 2), title)
+                x2 = r.left() + 28 + fm.horizontalAdvance(title) + 14
                 if x2 < r.right() - 24:
                     p.setPen(QPen(QColor(LINE), 1))
                     p.drawLine(QPointF(x2, y), QPointF(r.right() - 20, y))
@@ -416,7 +416,7 @@ def app_icon_pixmap(size=64):
 class Brand(QWidget):
     def __init__(self):
         super().__init__()
-        self.setFixedSize(48, 48)
+        self.setFixedSize(38, 38)
 
     def paintEvent(self, _):
         p = QPainter(self)
@@ -495,9 +495,9 @@ class NavTabs(QWidget):
         lay.setSpacing(0)
         self.bar = NavBar()
         self.bar.setObjectName("NavBar")
-        self.bar.setFixedWidth(232)
+        self.bar.setFixedWidth(194)
         self.bl = QVBoxLayout(self.bar)
-        self.bl.setContentsMargins(12, 18, 12, 14)
+        self.bl.setContentsMargins(8, 12, 8, 10)
         self.bl.setSpacing(2)
         head = QHBoxLayout()
         head.setSpacing(10)
@@ -513,7 +513,7 @@ class NavTabs(QWidget):
         head.addLayout(txt, 1)
         hw = QWidget()
         hw.setLayout(head)
-        head.setContentsMargins(4, 0, 0, 18)
+        head.setContentsMargins(2, 0, 0, 10)
         self.bl.addWidget(hw)
         self.bl.addStretch()
         self.footer = QVBoxLayout()
@@ -535,7 +535,7 @@ class NavTabs(QWidget):
         wrap = QWidget()
         wrap.setObjectName("Page")
         wl = QVBoxLayout(wrap)
-        wl.setContentsMargins(30, 24, 30, 20)
+        wl.setContentsMargins(18, 12, 18, 10)
         wl.setSpacing(2)
         t = QLabel(title)
         t.setObjectName("PageTitle")
@@ -545,8 +545,14 @@ class NavTabs(QWidget):
             s.setObjectName("PageSub")
             s.setWordWrap(True)
             wl.addWidget(s)
-        wl.addSpacing(8)
-        wl.addWidget(widget, 1)
+        wl.addSpacing(4)
+        # cada página rola sozinha: a janela pode ficar pequena sem esmagar nada
+        from PySide6.QtWidgets import QScrollArea
+        sc = QScrollArea()
+        sc.setWidgetResizable(True)
+        sc.setFrameShape(QFrame.NoFrame)
+        sc.setWidget(widget)
+        wl.addWidget(sc, 1)
         return wrap
 
     def insertTab(self, index, widget, title, icon=None, sub=None):

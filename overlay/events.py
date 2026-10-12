@@ -334,8 +334,7 @@ class EventsTab(QWidget):
 
         box = QGroupBox(f"Eventos — avisos {PRE_MIN} min antes e na hora")
         g = QGridLayout(box)
-        for col, h in enumerate(("Evento", "Ativo", f"{PRE_MIN} min antes", "Na hora", f"Mapa {PRE_MIN} min antes",
-                                 "Próximo", "")):
+        for col, h in enumerate(("Evento", "Ativo", f"{PRE_MIN} min antes", "Na hora", "Mapa", "Próximo", "")):
             lb = QLabel(f"<b>{h}</b>")
             g.addWidget(lb, 0, col)
         self.next_labels = {}
@@ -360,7 +359,9 @@ class EventsTab(QWidget):
             nl = QLabel("")
             self.next_labels[ev["id"]] = nl
             g.addWidget(nl, row, 5)
-            bt = QPushButton("Testar")
+            bt = QPushButton("▶")
+            bt.setToolTip("Testar")
+            bt.setFixedWidth(34)
             bt.clicked.connect(lambda _=False, e=ev: self.test(e))
             g.addWidget(bt, row, 6)
         lay.addWidget(box)

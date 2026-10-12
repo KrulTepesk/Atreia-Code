@@ -53,7 +53,10 @@ class Dot(QGraphicsItem):
         self.pix = icons.material(name, size)
         self.setPos(x, -y)  # y do jogo cresce para o norte; na tela cresce para baixo
         self.setFlag(QGraphicsItem.ItemIgnoresTransformations)
-        self.setToolTip(f"{N(name)}\n{N(region)}" if region else N(name))
+        tip = f"{N(name)}\n{N(region)}" if region else N(name)
+        if cat == "cube":
+            tip += "\n" + T("Local onde o cubo pode nascer — não aparece sempre.")
+        self.setToolTip(tip)
         self.setZValue(10)
 
     def boundingRect(self):
@@ -258,8 +261,15 @@ class MapWindow(QWidget):
             from PySide6.QtCore import QSize
             cb.setIconSize(QSize(22, 22))
             cb.toggled.connect(self.apply_filters)
+            if k == "cube":
+                cb.setToolTip(T("Locais onde o Hidden Cube PODE nascer (dados do interactivemap.app / "
+                                "gamers4.life). Não é garantido: o cubo aparece só em alguns deles."))
             self.cat_checks[k] = cb
             cl.addWidget(cb)
+        cube_note = QLabel("Hidden Cube: são locais onde ele pode nascer, não aparece em todos.")
+        cube_note.setWordWrap(True)
+        cube_note.setStyleSheet("color:#9b9282; font-size:8pt;")
+        cl.addWidget(cube_note)
         row = QHBoxLayout()
         ball = QPushButton("Todos")
         ball.clicked.connect(lambda: self.set_all(True))

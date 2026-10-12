@@ -20,6 +20,8 @@ CATEGORIES = [
     ("shellfish", "Shellfish (Mariscos)", "#f2a65a"),
     ("tree", "Trees (Árvores)", "#9a6b3f"),
     ("vegetable", "Vegetables (Vegetais)", "#b5d94a"),
+    # locais onde o cubo PODE nascer (interactivemap.app / gamers4.life) — não é garantido
+    ("cube", "Hidden Cube (possível)", "#e0583c"),
 ]
 
 DEFAULTS = {

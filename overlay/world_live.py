@@ -170,6 +170,14 @@ class WorldTracker:
                         self.dead.setdefault(eid, now)
                 elif eid in self.dead:
                     self.credit.setdefault(eid, (None, ""))
+            elif op == 0x900D:
+                # alma de pet obtida: n | n × (id do pet u32, quantidade u32)   (ex.: 01 2a040000 01000000)
+                n = b[0]
+                if 0 < n <= 10 and len(b) >= 1 + 8 * n:
+                    for k in range(n):
+                        pid, qty = struct.unpack_from("<II", b, 1 + 8 * k)
+                        if 1000 <= pid < 100000 and 0 < qty < 100:
+                            self.events.append(("soul", {"pet": str(pid), "n": qty, "t": now}))
             elif op == 0x3642:
                 eid, _ = varint(b, 0)
                 self.pos.pop(eid, None)

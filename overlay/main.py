@@ -56,7 +56,7 @@ class SoundRow(QWidget):
         lay = QHBoxLayout(self)
         lay.setContentsMargins(0, 0, 0, 0)
         self.label = QLabel()
-        self.label.setMinimumWidth(160)
+        self.label.setMinimumWidth(90)
         pick = QPushButton("Escolher som...")
         pick.clicked.connect(self.pick)
         default = QPushButton("Padrão")
@@ -66,10 +66,23 @@ class SoundRow(QWidget):
         self.vol = QSlider(Qt.Horizontal)
         self.vol.setRange(0, 100)
         self.vol.setValue(cfg[section].get("volume", 80))
-        self.vol.setFixedWidth(110)
+        self.vol.setMinimumWidth(80)
         self.vol.valueChanged.connect(self.set_vol)
-        for w in (self.label, pick, default, test, QLabel("Volume"), self.vol):
-            lay.addWidget(w)
+        # duas linhas: cabe em janela estreita
+        from PySide6.QtWidgets import QGridLayout
+        lay.deleteLater()
+        g = QGridLayout()
+        g.setContentsMargins(0, 0, 0, 0)
+        g.setHorizontalSpacing(6)
+        g.setVerticalSpacing(4)
+        g.addWidget(self.label, 0, 0, 1, 2)
+        g.addWidget(pick, 0, 2)
+        g.addWidget(default, 0, 3)
+        g.addWidget(test, 1, 0)
+        g.addWidget(QLabel("Volume"), 1, 1)
+        g.addWidget(self.vol, 1, 2, 1, 2)
+        QWidget().setLayout(lay)          # tira o layout antigo deste widget
+        self.setLayout(g)
         self.refresh()
 
     def refresh(self):
@@ -98,7 +111,10 @@ class ControlPanel(QWidget):
         self.app = app
         self.setWindowTitle("Meta Overlay")
         self.setWindowIcon(make_icon())
-        self.resize(960, 680)
+        # tamanho compacto; em telas pequenas (ou com zoom do Windows) nunca passa de ~75% da tela
+        self.setMinimumSize(560, 380)
+        avail = QGuiApplication.primaryScreen().availableGeometry()
+        self.resize(min(860, int(avail.width() * 0.75)), min(600, int(avail.height() * 0.75)))
 
         self.shugo = ShugoWidget()
         self.pvp = PvpWidget()
@@ -228,15 +244,20 @@ class ControlPanel(QWidget):
         for name, s in screen_names():
             self.screens.addItem(name, s)
         f.addRow("Monitor:", self.screens)
-        row = QHBoxLayout()
-        for text, target in (("Aviso do Shugo", lambda: self.shugo), ("Avisos de rifts/chefes", lambda: self.events.toast),
-                             ("Mini-mapa dos chefes", lambda: self.events.popup), ("Card do farm", lambda: self.farm_tab.card),
-                             ("Medidor de DPS", lambda: self.dps_tab.meter),
-                             ("Mapa", self.get_map),
-                             ("Todos", None)):
+        from PySide6.QtWidgets import QGridLayout
+        row = QGridLayout()
+        row.setHorizontalSpacing(6)
+        row.setVerticalSpacing(6)
+        for i, (text, target) in enumerate((("Aviso do Shugo", lambda: self.shugo),
+                                            ("Avisos de rifts/chefes", lambda: self.events.toast),
+                                            ("Mini-mapa dos chefes", lambda: self.events.popup),
+                                            ("Card do farm", lambda: self.farm_tab.card),
+                                            ("Medidor de DPS", lambda: self.dps_tab.meter),
+                                            ("Mapa", self.get_map),
+                                            ("Todos", None))):
             b = QPushButton(text)
             b.clicked.connect(lambda _=False, t=target: self.send_to_screen(t))
-            row.addWidget(b)
+            row.addWidget(b, i // 4, i % 4)
         f.addRow("Mover:", row)
         lay.addWidget(box)
 

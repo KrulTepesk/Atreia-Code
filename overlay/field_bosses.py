@@ -138,7 +138,7 @@ class FieldBossManager(QObject):
 
 # ====================================================================== aba
 class FieldBossTab(QWidget):
-    COLS = ("Chefe", "Região", "Renasce a cada", "Situação", "Avisar", "", "")
+    COLS = ("Chefe", "Renasce a cada", "Situação", "Avisar", "", "")
 
     def __init__(self, manager):
         super().__init__()
@@ -191,12 +191,14 @@ class FieldBossTab(QWidget):
         self.table.setSelectionMode(QTableWidget.NoSelection)
         self.table.setEditTriggers(QTableWidget.NoEditTriggers)
         self.table.setShowGrid(False)
+        self.table.setWordWrap(True)
+        self.table.verticalHeader().setDefaultSectionSize(40)
         h = self.table.horizontalHeader()
         h.setSectionResizeMode(QHeaderView.ResizeToContents)
         h.setSectionResizeMode(0, QHeaderView.Stretch)
-        h.setSectionResizeMode(1, QHeaderView.Stretch)
-        h.setSectionResizeMode(3, QHeaderView.Interactive)
-        self.table.setColumnWidth(3, 190)
+        h.setSectionResizeMode(2, QHeaderView.Interactive)
+        self.table.setColumnWidth(2, 150)
+        self.table.setMinimumHeight(260)
         lay.addWidget(self.table, 1)
 
         note = QLabel(self.m.data.get("source", ""))
@@ -247,20 +249,22 @@ class FieldBossTab(QWidget):
         for r, b in enumerate(rows):
             key = bkey(b)
             it = self.m.item(key)
-            name = QTableWidgetItem(ic, N(b["name"]))
-            self.table.setItem(r, 0, name)
             coords = [v for xy in b["points"] for v in xy]
-            self.table.setItem(r, 1, QTableWidgetItem(N(region_of(b["world"], coords))))
+            region = N(region_of(b["world"], coords))
+            name = QTableWidgetItem(ic, f"{N(b['name'])}\n{region}")
+            name.setToolTip(f"{N(b['name'])} — {region}")
+            self.table.setItem(r, 0, name)
             sp = QSpinBox()
             sp.setRange(0, 2880)
             sp.setSingleStep(30)
             sp.setSuffix(" min")
             sp.setSpecialValueText(T("defina"))
             sp.setValue(it["minutes"] or 0)
+            sp.setMaximumWidth(96)
             sp.valueChanged.connect(lambda v, k=key: self.set_minutes(k, v))
-            self.table.setCellWidget(r, 2, sp)
+            self.table.setCellWidget(r, 1, sp)
             st = QTableWidgetItem("")
-            self.table.setItem(r, 3, st)
+            self.table.setItem(r, 2, st)
             self.status_items[key] = st
             cb = QCheckBox()
             cb.setChecked(it["alert"])
@@ -269,13 +273,13 @@ class FieldBossTab(QWidget):
             hl = QHBoxLayout(w)
             hl.setContentsMargins(0, 0, 0, 0)
             hl.addWidget(cb, alignment=Qt.AlignCenter)
-            self.table.setCellWidget(r, 4, w)
+            self.table.setCellWidget(r, 3, w)
             bmap = QPushButton(T("Mapa"))
             bmap.clicked.connect(lambda _=False, k=key: self.m.show_map(k))
-            self.table.setCellWidget(r, 5, bmap)
+            self.table.setCellWidget(r, 4, bmap)
             bdead = QPushButton(T("Morreu agora"))
             bdead.clicked.connect(lambda _=False, k=key: self.toggle_dead(k))
-            self.table.setCellWidget(r, 6, bdead)
+            self.table.setCellWidget(r, 5, bdead)
         self.refresh_status()
 
     def set_minutes(self, key, v):
@@ -299,7 +303,7 @@ class FieldBossTab(QWidget):
                 continue
             it = self.m.item(key)
             t = self.m.respawn_at(key)
-            btn = self.table.cellWidget(r, 6)
+            btn = self.table.cellWidget(r, 5)
             if it["dead_at"] and not it["minutes"]:
                 txt = T("morto às {h} (defina o tempo)").format(h=time.strftime("%H:%M", time.localtime(it["dead_at"])))
             elif t and t > now:
