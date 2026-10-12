@@ -60,7 +60,19 @@ jobs:
           Start-Sleep -Seconds 15
           if ($p.HasExited) { throw "O MetaOverlay.exe fechou sozinho (código $($p.ExitCode))" }
           echo "::notice title=Teste::o programa abriu e continuou rodando"
-          Stop-Process -Id $p.Id -Force
+          # abrir de novo pelo atalho: não pode ficar com dois abertos
+          Start-Process dist\MetaOverlay\MetaOverlay.exe
+          Start-Sleep -Seconds 8
+          $n = @(Get-Process MetaOverlay -ErrorAction SilentlyContinue).Count
+          if ($n -ne 1) { throw "abrir de novo deixou $n cópias abertas" }
+          # --replace (reiniciar / atualizar): a antiga fecha e a nova fica
+          Start-Process dist\MetaOverlay\MetaOverlay.exe -ArgumentList "--replace"
+          Start-Sleep -Seconds 15
+          $procs = @(Get-Process MetaOverlay -ErrorAction SilentlyContinue)
+          if ($procs.Count -ne 1) { throw "--replace deixou $($procs.Count) cópias abertas" }
+          if ($procs[0].Id -eq $p.Id) { throw "--replace não fechou a cópia antiga" }
+          echo "::notice title=Teste::uma cópia só (abrir de novo e --replace)"
+          Get-Process MetaOverlay -ErrorAction SilentlyContinue | Stop-Process -Force
       - run: choco install innosetup -y --no-progress
       - name: Gerar o instalador
         shell: pwsh

@@ -43,9 +43,9 @@ def npcap_installed():
 def restart_as_admin():
     """Abre de novo o programa pedindo permissão de administrador e fecha este."""
     if getattr(sys, "frozen", False):
-        exe, params = sys.executable, ""
+        exe, params = sys.executable, "--replace"
     else:
-        exe, params = sys.executable, f'"{os.path.abspath(sys.argv[0])}"'
+        exe, params = sys.executable, f'"{os.path.abspath(sys.argv[0])}" --replace'
     r = ctypes.windll.shell32.ShellExecuteW(None, "runas", exe, params, None, 1)
     return r > 32
 
@@ -627,14 +627,13 @@ class DpsTab(QWidget):
             QDesktopServices.openUrl(QUrl("https://npcap.com/#download"))
 
     def reopen_admin(self):
-        m = sys.modules.get("__main__")
-        if m and hasattr(m, "release_instance"):
-            m.release_instance()
+        import instance
+        instance.release()
         if restart_as_admin():
             from PySide6.QtWidgets import QApplication
             QApplication.instance().quit()
-        elif m and hasattr(m, "single_instance"):
-            m.single_instance()          # recusou o pedido do Windows: continua aberto e volta a marcar que está
+        else:
+            instance.acquire()           # recusou o pedido do Windows: continua aberto e volta a marcar que está
 
     def refresh_procs(self):
         self.proc.clear()

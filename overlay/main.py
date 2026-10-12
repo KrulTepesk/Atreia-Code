@@ -16,6 +16,7 @@ from PySide6.QtWidgets import (QApplication, QCheckBox, QComboBox, QDoubleSpinBo
                                QVBoxLayout, QWidget)
 
 import config
+import instance
 import i18n
 import minimap
 from i18n import T
@@ -551,11 +552,11 @@ class ControlPanel(QWidget):
 
     def restart(self):
         from PySide6.QtCore import QProcess
-        args = [] if getattr(sys, "frozen", False) else [os.path.abspath(sys.argv[0])]
+        args = ([] if getattr(sys, "frozen", False) else [os.path.abspath(sys.argv[0])]) + ["--replace"]
         self.hide()
         self.tray.hide()
         save()
-        release_instance()
+        instance.release()
         QProcess.startDetached(sys.executable, args)
         self.quit()                     # main() encerra o processo de vez depois do app.exec()
 
@@ -645,43 +646,38 @@ class ControlPanel(QWidget):
         self.tray.showMessage("Meta Overlay", T("Continua rodando na bandeja."), QSystemTrayIcon.Information, 2000)
 
     def quit(self):
-        self.dps_tab.shutdown()
-        self.hub.stop()
-        self.minimap.stop()
-        self.farm_tab.shutdown()
-        self.hotkeys.clear()
-        if self.map:
-            self.map.closeEvent(None)
-        save()
+        # cada parte fecha por conta própria: um erro numa delas não pode impedir o programa de sair
+        # (senão ele ficava escondido rodando e, ao abrir de novo, eram dois)
+        steps = [self.dps_tab.shutdown, self.hub.stop, self.minimap.stop, self.farm_tab.shutdown,
+                 self.hotkeys.clear, lambda: self.map and self.map.closeEvent(None), save]
+        for step in steps:
+            try:
+                step()
+            except Exception as e:
+                print("ao fechar:", e)
         self.app.quit()
 
-
-def single_instance():
-    """Marca que o programa está aberto (o instalador usa isso) e evita abrir duas vezes."""
-    if os.name != "nt":
-        return True
-    import ctypes
-    k = ctypes.windll.kernel32
-    main._mutex = k.CreateMutexW(None, False, "Aion2OverlayMutex")
-    return k.GetLastError() != 183      # ERROR_ALREADY_EXISTS
-
-
-def release_instance():
-    """Solta a marca de 'aberto' antes de reabrir o programa (reiniciar / abrir como administrador)."""
-    h = getattr(main, "_mutex", None)
-    if h and os.name == "nt":
-        import ctypes
-        ctypes.windll.kernel32.CloseHandle(h)
-        main._mutex = None
+    def check_instance(self):
+        """Outra cópia pediu: 'show' = abriram de novo pelo atalho; 'quit' = a cópia nova vai assumir."""
+        what = instance.poll()
+        if what == "show":
+            self.show_panel()
+        elif what == "quit":
+            self.hide()
+            self.tray.hide()
+            instance.release()
+            self.quit()
 
 
 def main():
     config.load()
-    if not single_instance():
-        from PySide6.QtWidgets import QMessageBox
-        _app = QApplication(sys.argv)
-        QMessageBox.information(None, "Meta Overlay",
-                                T("O Meta Overlay já está aberto. Procure o ícone dele perto do relógio."))
+    replace = "--replace" in sys.argv
+    if not instance.acquire(replace=replace):
+        if not instance.other_was_shown():      # versão antiga aberta (não sabe mostrar o painel sozinha)
+            from PySide6.QtWidgets import QMessageBox
+            _app = QApplication([a for a in sys.argv if a != "--replace"])  # noqa: F841
+            QMessageBox.information(None, "Meta Overlay",
+                                    T("O Meta Overlay já está aberto. Procure o ícone dele perto do relógio."))
         return
     app = QApplication(sys.argv)
     app.setQuitOnLastWindowClosed(False)
@@ -689,6 +685,9 @@ def main():
     app.setWindowIcon(make_icon())
     theme.apply(app)
     panel = ControlPanel(app)
+    inst_timer = QTimer(panel)
+    inst_timer.timeout.connect(panel.check_instance)
+    inst_timer.start(400)
     panel.show()
     theme.dark_titlebar(panel)
     code = app.exec()

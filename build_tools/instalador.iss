@@ -33,8 +33,8 @@ OutputDir=..\saida
 OutputBaseFilename=MetaOverlay-Setup
 SetupIconFile=..\overlay\icon.ico
 UninstallDisplayIcon={app}\{#AppExe}
-; o programa cria esse "mutex" enquanto está aberto: o instalador avisa e pede para fechar
-AppMutex=Aion2OverlayMutex
+; o programa aberto (inclusive como administrador) é fechado pelo sinal "fechar" em PrepareToInstall /
+; InitializeUninstall; o AppMutex não é usado porque ele só mostrava "feche o programa" e travava a instalação
 CloseApplications=force
 RestartApplications=no
 Compression=lzma2/max
@@ -77,7 +77,7 @@ Name: "{userdesktop}\{#AppName}"; Filename: "{app}\{#AppExe}"; Tasks: desktopico
 Name: "{userstartup}\{#AppName}"; Filename: "{app}\{#AppExe}"; Tasks: startup
 
 [Run]
-Filename: "{app}\{#AppExe}"; Description: "Abrir o {#AppName} agora"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\{#AppExe}"; Parameters: "--replace"; Description: "Abrir o {#AppName} agora"; Flags: nowait postinstall skipifsilent
 
 [UninstallRun]
 Filename: "taskkill"; Parameters: "/IM {#AppExe} /F"; Flags: runhidden; RunOnceId: "KillApp"
@@ -87,6 +87,35 @@ var
   DownloadPage: TDownloadWizardPage;
   NpcapPage: TOutputMsgWizardPage;
   NpcapReady: Boolean;
+
+{ sinal "fechar" do programa: funciona mesmo se ele estiver aberto como administrador
+  (o taskkill do instalador, que roda sem administrador, não consegue fechar nesse caso) }
+function OpenEventW(dwDesiredAccess: Cardinal; bInheritHandle: Integer; lpName: String): THandle;
+  external 'OpenEventW@kernel32.dll stdcall';
+function SetEvent(hEvent: THandle): Integer;
+  external 'SetEvent@kernel32.dll stdcall';
+function CloseHandle(hObject: THandle): Integer;
+  external 'CloseHandle@kernel32.dll stdcall';
+
+procedure AskAppToQuit;
+var
+  H: THandle;
+  I: Integer;
+begin
+  H := OpenEventW($0002, 0, 'Local\MetaOverlayQuit');
+  if H <> 0 then
+  begin
+    SetEvent(H);
+    CloseHandle(H);
+    { espera o programa fechar sozinho (até ~6 s) }
+    for I := 1 to 30 do
+    begin
+      Sleep(200);
+      if not CheckForMutexes('Aion2OverlayMutex') then
+        Break;
+    end;
+  end;
+end;
 
 const
   UninstKey = 'Software\Microsoft\Windows\CurrentVersion\Uninstall\{6C1E7A52-3F0B-4F57-9C2B-A2A10E2C0001}_is1';
@@ -123,6 +152,12 @@ begin
   end;
 end;
 
+function InitializeUninstall(): Boolean;
+begin
+  AskAppToQuit;
+  Result := True;
+end;
+
 function NpcapInstalled: Boolean;
 begin
   Result := DirExists(ExpandConstant('{sys}\Npcap')) or FileExists(ExpandConstant('{sys}\wpcap.dll'));
@@ -150,6 +185,7 @@ var
   R: Integer;
 begin
   { fecha o overlay se ainda estiver aberto (inclusive na bandeja) }
+  AskAppToQuit;
   Exec(ExpandConstant('{sys}\taskkill.exe'), '/IM {#AppExe} /F', '', SW_HIDE, ewWaitUntilTerminated, R);
   Exec(ExpandConstant('{sys}\taskkill.exe'), '/IM {#OldExe} /F', '', SW_HIDE, ewWaitUntilTerminated, R);
   Exec(ExpandConstant('{sys}\taskkill.exe'), '/IM {#OldExe2} /F', '', SW_HIDE, ewWaitUntilTerminated, R);
