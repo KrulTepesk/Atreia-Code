@@ -1,0 +1,492 @@
+{
+ "regions": {
+  "global-sa": [
+   "América do Sul",
+   "America/Sao_Paulo"
+  ],
+  "global-nae": [
+   "América do Norte (Leste)",
+   "America/New_York"
+  ],
+  "global-naw": [
+   "América do Norte (Oeste)",
+   "America/Los_Angeles"
+  ],
+  "global-eu": [
+   "Europa",
+   "Europe/Berlin"
+  ],
+  "global-as": [
+   "Ásia",
+   "Asia/Seoul"
+  ]
+ },
+ "events": [
+  {
+   "id": "rift",
+   "name": "Fenda Espaço-Temporal",
+   "kind": "rift",
+   "icon": "rift",
+   "schedule": {
+    "global-sa": {
+     "type": "daily",
+     "times": [
+      "02:00",
+      "05:00",
+      "08:00",
+      "11:00",
+      "14:00",
+      "17:00",
+      "20:00",
+      "23:00"
+     ]
+    },
+    "global-nae": {
+     "type": "daily",
+     "times": [
+      "02:00",
+      "05:00",
+      "08:00",
+      "11:00",
+      "14:00",
+      "17:00",
+      "20:00",
+      "23:00"
+     ]
+    },
+    "global-naw": {
+     "type": "daily",
+     "times": [
+      "02:00",
+      "05:00",
+      "08:00",
+      "11:00",
+      "14:00",
+      "17:00",
+      "20:00",
+      "23:00"
+     ]
+    },
+    "global-eu": {
+     "type": "daily",
+     "times": [
+      "02:00",
+      "05:00",
+      "08:00",
+      "11:00",
+      "14:00",
+      "17:00",
+      "20:00",
+      "23:00"
+     ]
+    },
+    "global-as": {
+     "type": "daily",
+     "times": [
+      "02:00",
+      "05:00",
+      "08:00",
+      "11:00",
+      "14:00",
+      "17:00",
+      "20:00",
+      "23:00"
+     ]
+    }
+   },
+   "note": "O portal fica aberto só nos primeiros 10 minutos.",
+   "map": "rifts",
+   "default": {
+    "enabled": true,
+    "pre": true,
+    "at": true,
+    "map": false
+   }
+  },
+  {
+   "id": "kaira",
+   "name": "Vigilante Kairah",
+   "kind": "boss",
+   "icon": "boss",
+   "schedule": {
+    "global-sa": {
+     "type": "daily",
+     "times": [
+      "01:00",
+      "04:00",
+      "07:00",
+      "10:00",
+      "13:00",
+      "16:00",
+      "19:00",
+      "22:00"
+     ]
+    },
+    "global-nae": {
+     "type": "daily",
+     "times": [
+      "01:00",
+      "04:00",
+      "07:00",
+      "10:00",
+      "13:00",
+      "16:00",
+      "19:00",
+      "22:00"
+     ]
+    },
+    "global-naw": {
+     "type": "daily",
+     "times": [
+      "01:00",
+      "04:00",
+      "07:00",
+      "10:00",
+      "13:00",
+      "16:00",
+      "19:00",
+      "22:00"
+     ]
+    },
+    "global-eu": {
+     "type": "daily",
+     "times": [
+      "01:00",
+      "04:00",
+      "07:00",
+      "10:00",
+      "13:00",
+      "16:00",
+      "19:00",
+      "22:00"
+     ]
+    },
+    "global-as": {
+     "type": "daily",
+     "times": [
+      "01:00",
+      "04:00",
+      "07:00",
+      "10:00",
+      "13:00",
+      "16:00",
+      "19:00",
+      "22:00"
+     ]
+    }
+   },
+   "note": "Nasce em um destes pontos de Reshanta Inferior (o lugar é sorteado).",
+   "map": {
+    "world": "20",
+    "points": [
+     [
+      32625,
+      11726
+     ],
+     [
+      37020,
+      21036
+     ],
+     [
+      58349,
+      -40615
+     ],
+     [
+      -28325,
+      -7637
+     ],
+     [
+      -36255,
+      -18973
+     ],
+     [
+      -45815,
+      24892
+     ]
+    ]
+   },
+   "default": {
+    "enabled": true,
+    "pre": true,
+    "at": true,
+    "map": true
+   }
+  },
+  {
+   "id": "nahma",
+   "name": "Senhor Guardião Nahma",
+   "kind": "boss",
+   "icon": "boss",
+   "schedule": {
+    "global-sa": {
+     "type": "weekly",
+     "days": [
+      "fri",
+      "sun"
+     ],
+     "times": [
+      "21:00"
+     ]
+    },
+    "global-nae": {
+     "type": "weekly",
+     "days": [
+      "fri",
+      "sun"
+     ],
+     "times": [
+      "21:00"
+     ]
+    },
+    "global-naw": {
+     "type": "weekly",
+     "days": [
+      "fri",
+      "sun"
+     ],
+     "times": [
+      "21:00"
+     ]
+    },
+    "global-eu": {
+     "type": "weekly",
+     "days": [
+      "fri",
+      "sun"
+     ],
+     "times": [
+      "21:00"
+     ]
+    },
+    "global-as": {
+     "type": "weekly",
+     "days": [
+      "fri",
+      "sun"
+     ],
+     "times": [
+      "21:00"
+     ]
+    }
+   },
+   "note": "Reshanta Inferior (a versão Furiosa aparece em Reshanta Média).",
+   "map": {
+    "world": "20",
+    "points": [
+     [
+      20235,
+      41189
+     ],
+     [
+      -13863,
+      -35374
+     ],
+     [
+      3055,
+      -2881
+     ]
+    ]
+   },
+   "default": {
+    "enabled": true,
+    "pre": true,
+    "at": true,
+    "map": true
+   }
+  },
+  {
+   "id": "siege-bosses",
+   "name": "Chefes do Cerco (Executores)",
+   "kind": "boss",
+   "icon": "boss",
+   "schedule": {
+    "global-sa": {
+     "type": "weekly",
+     "days": [
+      "mon",
+      "thu",
+      "sat"
+     ],
+     "times": [
+      "21:30"
+     ]
+    },
+    "global-nae": {
+     "type": "weekly",
+     "days": [
+      "mon",
+      "thu",
+      "sat"
+     ],
+     "times": [
+      "21:30"
+     ]
+    },
+    "global-naw": {
+     "type": "weekly",
+     "days": [
+      "mon",
+      "thu",
+      "sat"
+     ],
+     "times": [
+      "21:30"
+     ]
+    },
+    "global-eu": {
+     "type": "weekly",
+     "days": [
+      "mon",
+      "thu",
+      "sat"
+     ],
+     "times": [
+      "21:30"
+     ]
+    },
+    "global-as": {
+     "type": "weekly",
+     "days": [
+      "mon",
+      "thu",
+      "sat"
+     ],
+     "times": [
+      "21:30"
+     ]
+    }
+   },
+   "note": "Executores Tamasa, Kairah e Argo em Reshanta Inferior; Carrascos em Reshanta Média.",
+   "map": {
+    "world": "20",
+    "points": [
+     [
+      3477,
+      3049
+     ],
+     [
+      -17728,
+      30749
+     ],
+     [
+      23900,
+      -36440
+     ]
+    ]
+   },
+   "default": {
+    "enabled": true,
+    "pre": true,
+    "at": true,
+    "map": true
+   }
+  },
+  {
+   "id": "artifact-siege",
+   "name": "Cerco aos Artefatos",
+   "kind": "event",
+   "icon": "event",
+   "schedule": {
+    "global-sa": {
+     "type": "weekly",
+     "days": [
+      "mon",
+      "thu",
+      "sat"
+     ],
+     "times": [
+      "21:00"
+     ]
+    },
+    "global-nae": {
+     "type": "weekly",
+     "days": [
+      "mon",
+      "thu",
+      "sat"
+     ],
+     "times": [
+      "21:00"
+     ]
+    },
+    "global-naw": {
+     "type": "weekly",
+     "days": [
+      "mon",
+      "thu",
+      "sat"
+     ],
+     "times": [
+      "21:00"
+     ]
+    },
+    "global-eu": {
+     "type": "weekly",
+     "days": [
+      "mon",
+      "thu",
+      "sat"
+     ],
+     "times": [
+      "21:00"
+     ]
+    },
+    "global-as": {
+     "type": "weekly",
+     "days": [
+      "mon",
+      "thu",
+      "sat"
+     ],
+     "times": [
+      "21:00"
+     ]
+    }
+   },
+   "note": "",
+   "map": null,
+   "default": {
+    "enabled": false,
+    "pre": true,
+    "at": true,
+    "map": false
+   }
+  },
+  {
+   "id": "invasion",
+   "name": "Invasão Dimensional",
+   "kind": "event",
+   "icon": "event",
+   "schedule": {
+    "global-sa": {
+     "type": "hourly",
+     "minute": 30
+    },
+    "global-nae": {
+     "type": "hourly",
+     "minute": 30
+    },
+    "global-naw": {
+     "type": "hourly",
+     "minute": 30
+    },
+    "global-eu": {
+     "type": "hourly",
+     "minute": 30
+    },
+    "global-as": {
+     "type": "hourly",
+     "minute": 30
+    }
+   },
+   "note": "",
+   "map": null,
+   "default": {
+    "enabled": false,
+    "pre": true,
+    "at": true,
+    "map": false
+   }
+  }
+ ]
+}

@@ -1,0 +1,604 @@
+"""DPS (experimental): medidor ao vivo + gravador de captura (diagnóstico).
+
+Usa o driver Npcap (via scapy) para ler SÓ o tráfego que o servidor do jogo manda. Captura passiva:
+não injeta nada, não lê memória e não mexe nos arquivos do jogo. Nada é enviado
+para a internet; o arquivo fica só no seu PC.
+
+Desligado por padrão. O uso é por sua conta e risco (regras do jogo).
+"""
+import ctypes
+import datetime
+import os
+import sys
+import time
+
+from PySide6.QtCore import Qt, QThread, QTimer, QUrl, Signal
+from PySide6.QtGui import QDesktopServices
+from PySide6.QtWidgets import (QCheckBox, QComboBox, QFormLayout, QGroupBox, QHBoxLayout, QLabel, QLineEdit,
+                               QMessageBox, QPushButton, QScrollArea, QSlider, QVBoxLayout, QWidget)
+
+from i18n import T
+from config import APP_DIR, cfg, save
+from dps_live import GAME_PORT, DpsReader
+from dps_meter import CLASSES, DpsMeter, SkillPanel
+
+CAPTURE_DIR = os.path.join(APP_DIR, "capturas")
+
+
+def is_admin():
+    try:
+        return bool(ctypes.windll.shell32.IsUserAnAdmin())
+    except Exception:
+        return True  # fora do Windows não se aplica
+
+
+def npcap_installed():
+    if os.name != "nt":
+        return True
+    sysroot = os.environ.get("SystemRoot", r"C:\Windows")
+    return os.path.exists(os.path.join(sysroot, "System32", "Npcap")) or \
+        os.path.exists(os.path.join(sysroot, "System32", "wpcap.dll"))
+
+
+def restart_as_admin():
+    """Abre de novo o programa pedindo permissão de administrador e fecha este."""
+    if getattr(sys, "frozen", False):
+        exe, params = sys.executable, ""
+    else:
+        exe, params = sys.executable, f'"{os.path.abspath(sys.argv[0])}"'
+    r = ctypes.windll.shell32.ShellExecuteW(None, "runas", exe, params, None, 1)
+    return r > 32
+
+
+def deps_ok():
+    try:
+        import psutil  # noqa: F401
+        import scapy.all  # noqa: F401
+        return True, ""
+    except Exception as e:
+        return False, str(e)
+
+
+def _external(ip):
+    """Ignora conexões locais (127.x, ::1, rede interna 0.0.0.0) — o jogo fala com servidores de fora."""
+    import ipaddress
+    try:
+        a = ipaddress.ip_address(ip)
+        return not (a.is_loopback or a.is_unspecified or a.is_link_local)
+    except ValueError:
+        return False
+
+
+def list_game_processes():
+    """Processos com conexões externas; os que parecem ser o Aion vêm primeiro (e os com mais conexões)."""
+    import psutil
+    out = []
+    for p in psutil.process_iter(["pid", "name"]):
+        try:
+            conns = [c for c in p.net_connections(kind="inet")
+                     if c.raddr and _external(c.raddr.ip) and
+                     (c.status == psutil.CONN_ESTABLISHED or c.type == 2)]
+        except Exception:
+            continue
+        if conns:
+            out.append((p.info["name"] or "?", p.info["pid"], len(conns)))
+    out.sort(key=lambda t: (0 if "aion" in t[0].lower() else 1, -t[2], t[0].lower()))
+    return out
+
+
+def remote_endpoints(pid):
+    """(ip, porta, protocolo) de fora com que o processo está conversando."""
+    import psutil
+    eps = set()
+    for c in psutil.Process(pid).net_connections(kind="inet"):
+        if c.raddr and _external(c.raddr.ip) and (c.status == psutil.CONN_ESTABLISHED or c.type == 2):
+            eps.add((c.raddr.ip, c.raddr.port, "udp" if c.type == 2 else "tcp"))
+    return sorted(eps)
+
+
+def game_server_hosts(port=GAME_PORT):
+    """IPs dos servidores do jogo (conexões TCP abertas na porta do jogo)."""
+    import psutil
+    try:
+        return sorted({c.raddr.ip for c in psutil.net_connections(kind="tcp")
+                       if c.raddr and c.raddr.port == port and c.status == psutil.CONN_ESTABLISHED})
+    except Exception:
+        return []
+
+
+class CaptureThread(QThread):
+    stats = Signal(int, int)        # pacotes, bytes
+    error = Signal(str)
+    endpoints = Signal(str)
+
+    def __init__(self, pid, path):
+        super().__init__()
+        self.pid, self.path = pid, path
+        self._run = True
+
+    def stop(self):
+        self._run = False
+        self.wait(4000)
+
+    def run(self):
+        try:
+            from scapy.all import AsyncSniffer, PcapWriter, conf
+            eps = remote_endpoints(self.pid)
+            if not eps:
+                self.error.emit("O processo não tem conexões com servidores de fora")
+                return
+            self.endpoints.emit(", ".join(f"{ip}:{port}/{pr}" for ip, port, pr in eps))
+            hosts = sorted({ip for ip, _p, _pr in eps})
+            bpf = "(tcp or udp) and (" + " or ".join(f"host {h}" for h in hosts) + ")"
+            iface = conf.route.route(hosts[0])[0]
+            writer = PcapWriter(self.path, append=False, sync=True)
+            count = [0, 0]
+
+            def on_pkt(pkt):
+                writer.write(pkt)
+                count[0] += 1
+                count[1] += len(pkt)
+
+            sniffer = AsyncSniffer(iface=iface, filter=bpf, prn=on_pkt, store=False)
+            sniffer.start()
+            while self._run:
+                time.sleep(0.5)
+                self.stats.emit(count[0], count[1])
+            sniffer.stop()
+            writer.close()
+        except Exception as e:
+            self.error.emit(f"{type(e).__name__}: {e}")
+
+
+class DpsTab(QWidget):
+    def __init__(self):
+        super().__init__()
+        d = cfg.setdefault("dps", {})
+        d.setdefault("enabled", False)
+        d.setdefault("char_name", "")
+        d.setdefault("show_meter", True)
+        d.setdefault("autostart", False)
+        d.setdefault("mode", "party")
+        d.setdefault("show_skills", True)
+        self.thread = None
+        self.reader = None
+        self.current = None
+        self.marks_file = None
+        self.t0 = None
+        self.meter = DpsMeter()
+        self.skills = SkillPanel()
+        self.meter.docked = self.skills
+        self.sel_id = None            # jogador mostrado no detalhe (None = você)
+        self._last = None
+        self.meter.row_clicked.connect(self.select_row)
+        self.meter.reset_requested.connect(self.reset_fight)
+        self._hide_overlays()
+
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QScrollArea.NoFrame)
+        inner = QWidget()
+        scroll.setWidget(inner)
+        outer.addWidget(scroll)
+        lay = QVBoxLayout(inner)
+
+        warn = QLabel(
+            "<b>Experimental — desligado por padrão.</b> Lê só o tráfego de rede do jogo pelo Npcap "
+            "(sem ler memória, sem mexer em arquivos, sem enviar nada para a internet). "
+            "Mesmo assim, programas externos vão contra as regras do jogo: use por sua conta e risco.")
+        warn.setWordWrap(True)
+        lay.addWidget(warn)
+
+        self.enable = QCheckBox("Ligar módulo DPS")
+        self.enable.setChecked(d["enabled"])
+        self.enable.toggled.connect(self.set_enabled)
+        lay.addWidget(self.enable)
+
+        self.body = QWidget()
+        bl = QVBoxLayout(self.body)
+        bl.setContentsMargins(0, 0, 0, 0)
+
+        # ---- requisitos
+        g_req = QGroupBox("Requisitos")
+        b = QVBoxLayout(g_req)
+        req = QHBoxLayout()
+        self.req_label = QLabel()
+        self.btn_npcap = QPushButton("Instalar Npcap")
+        self.btn_npcap.clicked.connect(self.install_npcap)
+        self.btn_admin = QPushButton("Reabrir como administrador")
+        self.btn_admin.clicked.connect(self.reopen_admin)
+        req.addWidget(self.req_label, 1)
+        req.addWidget(self.btn_npcap)
+        req.addWidget(self.btn_admin)
+        b.addLayout(req)
+        about = QLabel(
+            "<b>Por que precisa do Npcap?</b> O medidor de DPS calcula o dano lendo o tráfego de rede do jogo. "
+            "O Npcap é um driver de rede para Windows (o mesmo usado pelo Wireshark) que deixa um programa ler "
+            "uma <i>cópia</i> dos dados que passam pela sua internet. O overlay usa isso para ler só o tráfego do "
+            "Aion 2: não altera, não bloqueia e não envia nada, e não mexe nos arquivos do jogo. "
+            "Sem o Npcap só o DPS deixa de funcionar; o resto do overlay continua normal.")
+        about.setWordWrap(True)
+        about.setStyleSheet("color:#c9cfdb; padding:4px 0 8px 0;")
+        b.addWidget(about)
+        bl.addWidget(g_req)
+
+        # ---- medidor ao vivo
+        g_live = QGroupBox("Medidor de dano ao vivo")
+        f = QFormLayout(g_live)
+        self.char_name = QLineEdit(d["char_name"])
+        self.char_name.setPlaceholderText("ex.: Krul")
+        self.char_name.editingFinished.connect(self.save_char_name)
+        f.addRow("Seu personagem:", self.char_name)
+        hint = QLabel("Opcional. O medidor normalmente descobre sozinho qual linha é a sua (fica com contorno branco); "
+                      "o nome só ajuda se isso falhar.")
+        hint.setWordWrap(True)
+        hint.setStyleSheet("color:#8a93a6;")
+        f.addRow(hint)
+        row = QHBoxLayout()
+        self.btn_live = QPushButton("▶ Iniciar medidor")
+        import theme as _theme
+        _theme.primary(self.btn_live)
+        self.btn_live.clicked.connect(self.toggle_live)
+        btn_reset = QPushButton("Zerar luta")
+        btn_reset.clicked.connect(self.reset_fight)
+        row.addWidget(self.btn_live)
+        row.addWidget(btn_reset)
+        row.addStretch()
+        f.addRow(row)
+        self.mode = QComboBox()
+        self.mode.addItem(T("Só eu e meu grupo"), "party")
+        self.mode.addItem(T("Todos os jogadores por perto"), "all")
+        self.mode.setCurrentIndex(max(0, self.mode.findData(d["mode"])))
+        self.mode.currentIndexChanged.connect(self.set_mode)
+        f.addRow("Mostrar:", self.mode)
+        group_hint = QLabel("O grupo é reconhecido por quem troca buffs e curas com você durante o jogo. "
+                            "Zerar: botão ↺ no próprio medidor ou Ctrl+Alt+R.")
+        group_hint.setWordWrap(True)
+        group_hint.setStyleSheet("color:#8a93a6;")
+        f.addRow(group_hint)
+        self.chk_show = QCheckBox("Mostrar o medidor na tela")
+        self.chk_show.setChecked(d["show_meter"])
+        self.chk_show.toggled.connect(self.set_show)
+        f.addRow(self.chk_show)
+        self.chk_skills = QCheckBox("Mostrar as habilidades abaixo do medidor (clique num jogador para ver as dele)")
+        self.chk_skills.setChecked(d["show_skills"])
+        self.chk_skills.toggled.connect(self.set_show_skills)
+        f.addRow(self.chk_skills)
+        self.chk_auto = QCheckBox("Iniciar o medidor junto com o programa")
+        self.chk_auto.setChecked(d["autostart"])
+        self.chk_auto.toggled.connect(lambda on: (cfg["dps"].__setitem__("autostart", on), save()))
+        f.addRow(self.chk_auto)
+        op = QSlider(Qt.Horizontal)
+        op.setRange(30, 100)
+        op.setValue(int(cfg["dps"].get("opacity", 0.9) * 100))
+        op.valueChanged.connect(self.set_opacity)
+        f.addRow("Transparência:", op)
+        self.live_status = QLabel("")
+        self.live_status.setWordWrap(True)
+        self.live_status.setStyleSheet("color:#8a93a6;")
+        f.addRow(self.live_status)
+        note_live = QLabel("Conta o dano que o servidor informa para você e para quem está por perto. "
+                           "Uma luta termina depois de 8 s sem golpes; a próxima começa do zero. "
+                           "Se o jogo receber atualização e o medidor parar de contar, grave uma captura abaixo.")
+        note_live.setWordWrap(True)
+        note_live.setStyleSheet("color:#8a8f99;")
+        f.addRow(note_live)
+        bl.addWidget(g_live)
+
+        # ---- gravação (diagnóstico)
+        g_rec = QGroupBox("Gravar captura (diagnóstico, para corrigir o medidor depois de atualizações)")
+        b = QVBoxLayout(g_rec)
+        steps = QLabel(
+            "1. Entre no jogo, vá até um boneco de treino e escolha o processo do jogo abaixo.\n"
+            "2. Clique em Gravar. Bata uns 20–30 s, usando 2 ou 3 habilidades diferentes.\n"
+            "   Aperte \"Marcar\" no instante de um golpe e escreva o dano que apareceu.\n"
+            "3. Pare a gravação e envie o arquivo .pcap + o _marcas.txt ao desenvolvedor.")
+        steps.setWordWrap(True)
+        b.addWidget(steps)
+
+        row = QHBoxLayout()
+        self.proc = QComboBox()
+        self.proc.setMinimumWidth(300)
+        refresh = QPushButton("Atualizar lista")
+        refresh.clicked.connect(self.refresh_procs)
+        row.addWidget(QLabel("Processo:"))
+        row.addWidget(self.proc, 1)
+        row.addWidget(refresh)
+        b.addLayout(row)
+
+        row2 = QHBoxLayout()
+        self.rec = QPushButton("● Gravar")
+        self.rec.clicked.connect(self.toggle_record)
+        self.mark_text = QLineEdit()
+        self.mark_text.setPlaceholderText("anotação (ex.: golpe 1 = 12.345 de dano)")
+        mark = QPushButton("Marcar")
+        mark.clicked.connect(self.mark)
+        opendir = QPushButton("Abrir pasta das capturas")
+        opendir.clicked.connect(lambda: (os.makedirs(CAPTURE_DIR, exist_ok=True), os.startfile(CAPTURE_DIR))
+                                if hasattr(os, "startfile") else None)
+        row2.addWidget(self.rec)
+        row2.addWidget(self.mark_text, 1)
+        row2.addWidget(mark)
+        row2.addWidget(opendir)
+        b.addLayout(row2)
+
+        self.status = QLabel("")
+        b.addWidget(self.status)
+        self.ep_label = QLabel("")
+        self.ep_label.setWordWrap(True)
+        self.ep_label.setStyleSheet("color:#8a93a6;")
+        b.addWidget(self.ep_label)
+        note = QLabel("O arquivo contém o tráfego da sua sessão de jogo: mande só para quem você confia "
+                      "e não publique. Grave já logado e dentro do jogo, não na tela de login.")
+        note.setWordWrap(True)
+        note.setStyleSheet("color:#8a8f99;")
+        b.addWidget(note)
+        bl.addWidget(g_rec)
+
+        lay.addWidget(self.body)
+        lay.addStretch()
+        self.set_enabled(self.enable.isChecked(), init=True)
+        if self.enable.isChecked() and d["autostart"] and npcap_installed() and is_admin():
+            QTimer.singleShot(1500, self.toggle_live)
+
+    # ------------------------------------------------------------------ medidor ao vivo
+    def save_char_name(self):
+        cfg["dps"]["char_name"] = self.char_name.text().strip()
+        save()
+        if self.reader:
+            self.reader.self_name = cfg["dps"]["char_name"]
+            self.reader.self_id = None
+
+    def _show_overlays(self):
+        self.meter.show()
+        self.meter._dock()
+        if cfg["dps"].get("show_skills", True):
+            self.skills.show()
+        else:
+            self.skills.hide()
+
+    def _hide_overlays(self):
+        self.meter.hide()
+        self.skills.hide()
+
+    def set_show_skills(self, on):
+        cfg["dps"]["show_skills"] = on
+        save()
+        if self.meter.isVisible() and on:
+            self.skills.show()
+            self.meter._dock()
+        else:
+            self.skills.hide()
+
+    def select_row(self, i):
+        snap = self._last
+        if not snap:
+            return
+        rows = sorted(snap["rows"], key=lambda r: -r["dmg"])
+        if 0 <= i < len(rows):
+            self.sel_id = rows[i]["id"]
+            self.on_live(snap)
+
+    def set_mode(self, _i):
+        cfg["dps"]["mode"] = self.mode.currentData()
+        save()
+        if self.reader:
+            self.reader.mode = cfg["dps"]["mode"]
+
+    def reset_fight(self):
+        self.sel_id = None
+        if self.reader:
+            self.reader.reset()
+            self.on_live(self.reader.snapshot())
+
+    def set_show(self, on):
+        cfg["dps"]["show_meter"] = on
+        save()
+        if self.reader and on:
+            self._show_overlays()
+            self.meter.set_locked(cfg.get("locked", False))
+        else:
+            self._hide_overlays()
+
+    def set_opacity(self, v):
+        cfg["dps"]["opacity"] = v / 100
+        save()
+        self.skills.setWindowOpacity(v / 100)
+        self.meter.setWindowOpacity(v / 100)
+
+    def toggle_live(self):
+        if self.reader:
+            self.reader.stop()
+            self.reader = None
+            self._hide_overlays()
+            self.btn_live.setText(T("▶ Iniciar medidor"))
+            self.live_status.setText(T("Medidor parado."))
+            return
+        if not (npcap_installed() and is_admin()):
+            self.live_status.setText(T("Precisa do Npcap e de abrir o overlay como administrador (veja acima)."))
+            return
+        self.reader = DpsReader(game_server_hosts())
+        self.reader.self_name = cfg["dps"].get("char_name", "")
+        self.reader.mode = cfg["dps"].get("mode", "party")
+        self.reader.updated.connect(self.on_live)
+        self.reader.status.connect(self.on_live_status)
+        self.reader.start()
+        self.btn_live.setText(T("■ Parar medidor"))
+        if cfg["dps"].get("show_meter", True):
+            self.meter.restore_position()
+            self._show_overlays()
+            self.meter.set_locked(cfg.get("locked", False))
+
+    def on_live_status(self, msg):
+        if msg.startswith("Lendo"):
+            self.live_status.setText(T("Lendo o tráfego do jogo... bata em algo para começar."))
+        elif msg.startswith("aviso:"):
+            self.live_status.setText(msg[6:].strip())          # erro passageiro: o medidor continua
+        else:
+            self.live_status.setText(f"{T('Erro:')} {msg}")
+            if self.reader:
+                r, self.reader = self.reader, None
+                r.stop()                                       # garante que a captura parou de verdade
+                self.btn_live.setText(T("▶ Iniciar medidor"))
+                self._hide_overlays()
+
+    def on_live(self, snap):
+        rows = []
+        for r in snap["rows"]:
+            cname = T(CLASSES[r["cls"]][0]) if r.get("cls") in CLASSES else ""
+            name = r["name"] or (T("Você") if r["me"] else (cname or f"#{r['id']}"))
+            rows.append((name, r.get("cls"), r["dmg"], r["me"], r["crit"], r["multi"]))
+        if cfg["dps"].get("mode") == "party" and not snap.get("found_me"):
+            state = T("Procurando o seu personagem...")
+        else:
+            state = T("Em luta") if snap["active"] else (T("Última luta") if rows else "—")
+        foot = f"{T('Sua cura')}: {snap['my_heal']:,}".replace(",", ".") if snap.get("my_heal") else ""
+        self.meter.set_data(state, snap["elapsed"], rows, foot)
+        # detalhe de habilidades: o jogador clicado; senão você; senão quem mais bateu
+        self._last = snap
+        ids = [r["id"] for r in snap["rows"]]
+        who = self.sel_id if self.sel_id in ids else None
+        if who is None:
+            me = [r["id"] for r in snap["rows"] if r["me"]]
+            who = me[0] if me else (max(snap["rows"], key=lambda r: r["dmg"])["id"] if snap["rows"] else None)
+        r = next((x for x in snap["rows"] if x["id"] == who), None)
+        if r:
+            cname = T(CLASSES[r["cls"]][0]) if r.get("cls") in CLASSES else ""
+            name = r["name"] or (T("Você") if r["me"] else (cname or f"#{r['id']}"))
+            self.skills.set_data(name, r.get("cls"), snap.get("skills", {}).get(who, []))
+        else:
+            self.skills.set_data("", None, [])
+
+    def shutdown(self):
+        if self.reader:
+            self.reader.stop()
+            self.reader = None
+        if self.thread:
+            self.toggle_record()
+
+    # ------------------------------------------------------------------
+    def set_enabled(self, on, init=False):
+        cfg.setdefault("dps", {})["enabled"] = on
+        save()
+        self.body.setEnabled(on)
+        if not on:
+            self.shutdown()
+        if on:
+            ok, err = deps_ok()
+            if not ok:
+                self.status.setText(f"Falta instalar componentes: {err}. Rode o INICIAR.bat de novo.")
+                self.body.setEnabled(False)
+                return
+            self.refresh_requirements()
+            if not init:
+                self.refresh_procs()
+
+    def refresh_requirements(self):
+        npcap, admin = npcap_installed(), is_admin()
+        self.btn_npcap.setVisible(not npcap)
+        self.btn_admin.setVisible(not admin)
+        if npcap and admin:
+            self.req_label.setText("<span style='color:#3fb950'>✓ Npcap instalado · ✓ administrador</span>")
+        else:
+            falta = [t for t, ok in (("instalar o Npcap", npcap), ("abrir como administrador", admin)) if not ok]
+            self.req_label.setText("<span style='color:#f0883e'>Falta: " + " e ".join(falta) + "</span>")
+
+    def install_npcap(self):
+        """Baixa o instalador oficial e abre (o Windows pede permissão de administrador)."""
+        import tempfile
+        import threading
+        import urllib.request
+        url = "https://npcap.com/dist/npcap-1.89.exe"
+        dest = os.path.join(tempfile.gettempdir(), "npcap-setup.exe")
+        self.btn_npcap.setEnabled(False)
+        self.req_label.setText(T("Baixando o Npcap..."))
+
+        def work():
+            try:
+                urllib.request.urlretrieve(url, dest)
+                ok = os.path.getsize(dest) > 1_000_000
+            except Exception:
+                ok = False
+            QTimer.singleShot(0, lambda: self._npcap_downloaded(ok, dest))
+
+        threading.Thread(target=work, daemon=True).start()
+
+    def _npcap_downloaded(self, ok, dest):
+        self.btn_npcap.setEnabled(True)
+        if ok and hasattr(os, "startfile"):
+            QMessageBox.information(self, "Npcap",
+                                    "Vai abrir o instalador oficial do Npcap.\n\nDeixe marcada a opção "
+                                    "\"Install Npcap in WinPcap API-compatible Mode\" e clique em I Agree / Install.\n"
+                                    "O Windows vai pedir permissão de administrador: clique em Sim.\n\n"
+                                    "Depois, clique em \"Reabrir como administrador\".")
+            os.startfile(dest)
+            self.req_label.setText("Instalador do Npcap aberto. Termine a instalação e reabra como administrador.")
+        else:
+            self.req_label.setText("Não deu para baixar agora; abrindo a página de download.")
+            QDesktopServices.openUrl(QUrl("https://npcap.com/#download"))
+
+    def reopen_admin(self):
+        m = sys.modules.get("__main__")
+        if m and hasattr(m, "release_instance"):
+            m.release_instance()
+        if restart_as_admin():
+            from PySide6.QtWidgets import QApplication
+            QApplication.instance().quit()
+
+    def refresh_procs(self):
+        self.proc.clear()
+        try:
+            for name, pid, n in list_game_processes():
+                self.proc.addItem(f"{name}  (PID {pid}, {n} {T('conexões')})", pid)
+        except Exception as e:
+            self.status.setText(f"Erro ao listar processos: {e}")
+
+    def toggle_record(self):
+        if self.thread:
+            self.thread.stop()
+            self.thread = None
+            if self.marks_file:
+                self.marks_file.close()
+                self.marks_file = None
+            self.rec.setText(T("● Gravar"))
+            self.status.setText(f"{T('Captura salva:')} {self.current}")
+            return
+        if self.proc.count() == 0:
+            self.refresh_procs()
+        pid = self.proc.currentData()
+        if pid is None:
+            QMessageBox.information(self, "DPS", "Escolha o processo do jogo.")
+            return
+        os.makedirs(CAPTURE_DIR, exist_ok=True)
+        stamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        self.current = os.path.join(CAPTURE_DIR, f"aion2_{stamp}.pcap")
+        self.marks_file = open(self.current.replace(".pcap", "_marcas.txt"), "w", encoding="utf-8")
+        self.t0 = time.time()
+        self.thread = CaptureThread(pid, self.current)
+        self.thread.stats.connect(lambda n, by: self.status.setText(
+            f"Gravando… {n} pacotes, {by / 1024:.0f} KB, {time.time() - self.t0:.0f} s"))
+        self.thread.error.connect(self.on_error)
+        self.thread.endpoints.connect(lambda e: self.ep_label.setText(f"{T('Servidores do jogo:')} {e}"))
+        self.thread.start()
+        self.rec.setText(T("■ Parar"))
+
+    def on_error(self, msg):
+        hint = ""
+        if "Permission" in msg or "admin" in msg.lower() or "Npcap" in msg or "winpcap" in msg.lower():
+            hint = " — confira se o Npcap está instalado e se o overlay foi aberto como Administrador."
+        self.status.setText(f"Erro: {msg}{hint}")
+        if self.thread:
+            self.thread = None
+            self.rec.setText("● Gravar")
+
+    def mark(self):
+        if not self.marks_file:
+            return
+        t = time.time()
+        line = f"{datetime.datetime.fromtimestamp(t):%H:%M:%S.%f}\t+{t - self.t0:.3f}s\t{self.mark_text.text()}\n"
+        self.marks_file.write(line)
+        self.marks_file.flush()
+        self.mark_text.clear()
+        self.status.setText(self.status.text() + "  ✓ marcado")

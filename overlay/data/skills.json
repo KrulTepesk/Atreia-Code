@@ -1,0 +1,1982 @@
+{
+"13000100": [
+"as",
+"Dodge",
+"ICON_CO_SKILL_001"
+],
+"13710000": [
+"as",
+"Heightened Sixth Sense",
+"ICON_AS_SKILL_Passive_001"
+],
+"13010000": [
+"as",
+"Quick Slice",
+"ICON_AS_SKILL_001"
+],
+"13100000": [
+"as",
+"Savage Roar",
+"ICON_AS_SKILL_009"
+],
+"13070000": [
+"as",
+"Shadowstrike",
+"ICON_AS_SKILL_007"
+],
+"13060000": [
+"as",
+"Ambush",
+"ICON_AS_SKILL_006"
+],
+"13350007": [
+"as",
+"Heart Gore",
+"ICON_AS_SKILL_035"
+],
+"13350000": [
+"as",
+"Heart Gore",
+"ICON_AS_SKILL_035"
+],
+"13340000": [
+"as",
+"Storm Rampage",
+"ICON_AS_SKILL_034"
+],
+"13720000": [
+"as",
+"Exploit Weakness",
+"ICON_AS_SKILL_Passive_002"
+],
+"13210000": [
+"as",
+"Whirlwind Slice",
+"ICON_AS_SKILL_019"
+],
+"13050000": [
+"as",
+"Flash Slice",
+"ICON_AS_SKILL_005"
+],
+"13730000": [
+"as",
+"Apply Poison",
+"ICON_AS_SKILL_Passive_003"
+],
+"13360000": [
+"as",
+"Infiltrate",
+"ICON_AS_SKILL_036"
+],
+"13740000": [
+"as",
+"Rear Smite",
+"ICON_AS_SKILL_Passive_004"
+],
+"13220037": [
+"as",
+"Shadow Fall",
+"ICON_AS_SKILL_020"
+],
+"13220000": [
+"as",
+"Shadow Fall",
+"ICON_AS_SKILL_020"
+],
+"13750000": [
+"as",
+"Assault Stance",
+"ICON_AS_SKILL_Passive_006"
+],
+"13130000": [
+"as",
+"Insignia Explosion",
+"ICON_AS_SKILL_013"
+],
+"13760000": [
+"as",
+"Impact Hit",
+"ICON_AS_SKILL_Passive_011"
+],
+"13260000": [
+"as",
+"Defiance",
+"ICON_CO_SKILL_002"
+],
+"13770000": [
+"as",
+"Ambush Stance",
+"ICON_AS_SKILL_Passive_007"
+],
+"13780000": [
+"as",
+"Defense Break",
+"ICON_AS_SKILL_Passive_008"
+],
+"13230000": [
+"as",
+"Aerial Bind",
+"ICON_AS_SKILL_026"
+],
+"13700000": [
+"as",
+"Assault Ambush",
+"ICON_CO_SKILL_003"
+],
+"13370000": [
+"as",
+"Evasion Contract",
+"ICON_AS_SKILL_039"
+],
+"13080000": [
+"as",
+"Evasion Stance",
+"ICON_AS_SKILL_024"
+],
+"13310000": [
+"as",
+"Illusive Clone",
+"ICON_AS_SKILL_029"
+],
+"13270000": [
+"as",
+"Savage Fang",
+"ICON_AS_SKILL_025"
+],
+"13180000": [
+"as",
+"Shadow Walk",
+"ICON_AS_SKILL_016"
+],
+"13140000": [
+"as",
+"Shadowstep",
+"ICON_AS_SKILL_014"
+],
+"13250000": [
+"as",
+"Smoke Bomb",
+"ICON_AS_SKILL_023"
+],
+"13280000": [
+"as",
+"Spiral Slice",
+"ICON_AS_SKILL_022"
+],
+"13390000": [
+"as",
+"Swift Contract",
+"ICON_AS_SKILL_037"
+],
+"13020000": [
+"as",
+"Throw Shadowblade",
+"ICON_AS_SKILL_031"
+],
+"13300000": [
+"as",
+"Triniel's Dagger",
+"ICON_AS_SKILL_028"
+],
+"13790000": [
+"as",
+"Revitalization Contract",
+"ICON_AS_SKILL_Passive_009"
+],
+"13800000": [
+"as",
+"Determination",
+"ICON_AS_SKILL_Passive_010"
+],
+"13240000": [
+"as",
+"Aerial Slaughter",
+"ICON_AS_SKILL_021"
+],
+"13160000": [
+"as",
+"Apply Poison",
+"ICON_AS_SKILL_014"
+],
+"13030000": [
+"as",
+"Breaking Slice",
+"ICON_AS_SKILL_003"
+],
+"13380000": [
+"as",
+"Dark Strike",
+"ICON_AS_SKILL_038"
+],
+"13150000": [
+"as",
+"Frenzied Accord",
+"ICON_AS_SKILL_015"
+],
+"13290000": [
+"as",
+"Prepare to Assassinate",
+"ICON_AS_SKILL_027"
+],
+"13110000": [
+"as",
+"Savage Back Kick",
+"ICON_AS_SKILL_010"
+],
+"13120000": [
+"as",
+"Savage Smash",
+"ICON_AS_SKILL_011"
+],
+"13090000": [
+"as",
+"Shadowblade Pursuit",
+"ICON_AS_SKILL_017"
+],
+"13330000": [
+"as",
+"Storm Slice",
+"ICON_AS_SKILL_033"
+],
+"13170000": [
+"as",
+"Surging Bloodlust",
+"ICON_AS_SKILL_015"
+],
+"13040000": [
+"as",
+"Swift Slice",
+"ICON_AS_SKILL_004"
+],
+"18710000": [
+"ch",
+"Blessing of Life",
+"ICON_CH_SKILL_Passive_012"
+],
+"18000100": [
+"ch",
+"Dodge",
+"ICON_CO_SKILL_001"
+],
+"18040000": [
+"ch",
+"Incandescent Blow",
+"ICON_CH_SKILL_004"
+],
+"18010000": [
+"ch",
+"Onslaught",
+"ICON_CH_SKILL_001"
+],
+"18090000": [
+"ch",
+"Rushing Smash",
+"ICON_CH_SKILL_009"
+],
+"18060000": [
+"ch",
+"Impactful Crush",
+"ICON_CH_SKILL_006"
+],
+"18100000": [
+"ch",
+"Dark Crush",
+"ICON_CH_SKILL_010"
+],
+"18080037": [
+"ch",
+"Wave Blow",
+"ICON_CH_SKILL_008"
+],
+"18300000": [
+"ch",
+"Gust Rampage",
+"ICON_CH_SKILL_030"
+],
+"18720000": [
+"ch",
+"Crossguard",
+"ICON_CH_SKILL_Passive_002"
+],
+"18150000": [
+"ch",
+"Heat Wave Blow",
+"ICON_CH_SKILL_015"
+],
+"18120000": [
+"ch",
+"Recuperation",
+"ICON_CH_SKILL_013"
+],
+"18730000": [
+"ch",
+"Protection Circle",
+"ICON_CH_SKILL_Passive_001"
+],
+"18210000": [
+"ch",
+"Tremor Crush",
+"ICON_CH_SKILL_021"
+],
+"18740000": [
+"ch",
+"Inspiring Spell",
+"ICON_CH_SKILL_Passive_011"
+],
+"18080000": [
+"ch",
+"Wave Blow",
+"ICON_CH_SKILL_008"
+],
+"18750000": [
+"ch",
+"Attack Preparation",
+"ICON_GL_SKILL_Passive_005"
+],
+"18290000": [
+"ch",
+"Spinning Strike",
+"ICON_CH_SKILL_029"
+],
+"18760000": [
+"ch",
+"Impact Hit",
+"ICON_GL_SKILL_Passive_006"
+],
+"18200000": [
+"ch",
+"Defiance",
+"ICON_CO_SKILL_002"
+],
+"18770000": [
+"ch",
+"Raging Spell",
+"ICON_CH_SKILL_Passive_007"
+],
+"18780000": [
+"ch",
+"Earth's Promise",
+"ICON_CH_SKILL_Passive_010"
+],
+"18700000": [
+"ch",
+"Assault Shock",
+"ICON_CO_SKILL_003"
+],
+"18440000": [
+"ch",
+"Barrier Spell",
+"ICON_CH_SKILL_044"
+],
+"18230000": [
+"ch",
+"Ensnaring Mark",
+"ICON_CH_SKILL_023"
+],
+"18140000": [
+"ch",
+"Focused Defense",
+"ICON_CH_SKILL_014"
+],
+"18130000": [
+"ch",
+"Fracturing Blow",
+"ICON_CH_SKILL_043"
+],
+"18420000": [
+"ch",
+"Guardian Blessing",
+"ICON_CH_SKILL_042"
+],
+"18170000": [
+"ch",
+"Healing Touch",
+"ICON_CH_SKILL_017"
+],
+"18240000": [
+"ch",
+"Impeding Authority",
+"ICON_CH_SKILL_024"
+],
+"18330000": [
+"ch",
+"Marchutan's Wrath",
+"ICON_CH_SKILL_033"
+],
+"18220000": [
+"ch",
+"Obliterate",
+"ICON_CH_SKILL_022"
+],
+"18250000": [
+"ch",
+"Power of the Storm",
+"ICON_CH_SKILL_025"
+],
+"18160000": [
+"ch",
+"Sprint Mantra",
+"ICON_CH_SKILL_016"
+],
+"18190000": [
+"ch",
+"Undefeated Mantra",
+"ICON_CH_SKILL_019"
+],
+"18790000": [
+"ch",
+"Survival Willpower",
+"ICON_GL_SKILL_Passive_009"
+],
+"18800000": [
+"ch",
+"Wind's Promise",
+"ICON_CH_SKILL_Passive_008"
+],
+"18030000": [
+"ch",
+"Bolt Crush",
+"ICON_CH_SKILL_003"
+],
+"18050000": [
+"ch",
+"Bursting Blow",
+"ICON_CH_SKILL_005"
+],
+"18070000": [
+"ch",
+"Crushing Blow",
+"ICON_CH_SKILL_007"
+],
+"18410000": [
+"ch",
+"Crushing Strike",
+"ICON_CH_SKILL_041"
+],
+"18400000": [
+"ch",
+"Piercing Strike",
+"ICON_CH_SKILL_040"
+],
+"18020000": [
+"ch",
+"Resonance Crush",
+"ICON_CH_SKILL_002"
+],
+"18370000": [
+"ch",
+"Storm Chain",
+"ICON_CH_SKILL_037"
+],
+"18390000": [
+"ch",
+"Surging Strike",
+"ICON_CH_SKILL_039"
+],
+"17080000": [
+"cl",
+"Debilitating Mark",
+"ICON_CL_SKILL_008"
+],
+"17000100": [
+"cl",
+"Dodge",
+"ICON_CO_SKILL_001"
+],
+"17010000": [
+"cl",
+"Earth's Retribution",
+"ICON_CL_SKILL_001"
+],
+"17040000": [
+"cl",
+"Judgment Thunder",
+"ICON_CL_SKILL_004"
+],
+"17710000": [
+"cl",
+"Warm Benediction",
+"ICON_CL_SKILL_Passive_001"
+],
+"17150000": [
+"cl",
+"Divine Aura",
+"ICON_CL_SKILL_015"
+],
+"17070000": [
+"cl",
+"Chain of Torment",
+"ICON_CL_SKILL_007"
+],
+"17370000": [
+"cl",
+"Lightning Strike Scattershot",
+"ICON_CL_SKILL_037"
+],
+"17720000": [
+"cl",
+"Empyrean Lords' Benediction",
+"ICON_CL_SKILL_Passive_002"
+],
+"17090000": [
+"cl",
+"Light of Regeneration",
+"ICON_CL_SKILL_009"
+],
+"17350000": [
+"cl",
+"Condemnation",
+"ICON_CL_SKILL_035"
+],
+"17730000": [
+"cl",
+"Empyrean Lord's Grace",
+"ICON_CL_SKILL_Passive_012"
+],
+"17100000": [
+"cl",
+"Healing Light",
+"ICON_CL_SKILL_010"
+],
+"17740000": [
+"cl",
+"Healing Enhancement",
+"ICON_CL_SKILL_Passive_003"
+],
+"17120000": [
+"cl",
+"Radiant Recovery",
+"ICON_CL_SKILL_012"
+],
+"17750000": [
+"cl",
+"Immortal Veil",
+"ICON_CL_SKILL_Passive_011"
+],
+"17060000": [
+"cl",
+"Bolt",
+"ICON_CL_SKILL_006"
+],
+"17760000": [
+"cl",
+"Heal Block",
+"ICON_CL_SKILL_Passive_005"
+],
+"17240000": [
+"cl",
+"Defiance",
+"ICON_CO_SKILL_002"
+],
+"17770000": [
+"cl",
+"Prayer of Concentration",
+"ICON_CL_SKILL_Passive_006"
+],
+"17780000": [
+"cl",
+"Earth's Grace",
+"ICON_CL_SKILL_Passive_008"
+],
+"17290000": [
+"cl",
+"Absolution",
+"ICON_CL_SKILL_028"
+],
+"17700000": [
+"cl",
+"Assault Mark",
+"ICON_CO_SKILL_003"
+],
+"17160000": [
+"cl",
+"Benevolence",
+"ICON_CL_SKILL_047"
+],
+"17400000": [
+"cl",
+"Earth Punishment",
+"ICON_CL_SKILL_040"
+],
+"17410000": [
+"cl",
+"Light of Protection",
+"ICON_CL_SKILL_041"
+],
+"17440000": [
+"cl",
+"Noble Aura",
+"ICON_CL_SKILL_046"
+],
+"17280000": [
+"cl",
+"Power Burst",
+"ICON_CL_SKILL_027"
+],
+"17430000": [
+"cl",
+"Prayer of Amplification",
+"ICON_CL_SKILL_044"
+],
+"17190000": [
+"cl",
+"Root",
+"ICON_CL_SKILL_019"
+],
+"17270000": [
+"cl",
+"Salvation",
+"ICON_CL_SKILL_026"
+],
+"17390000": [
+"cl",
+"Summon Resurrection",
+"ICON_CL_SKILL_039"
+],
+"17300000": [
+"cl",
+"Voice of Doom",
+"ICON_CL_SKILL_029"
+],
+"17420000": [
+"cl",
+"Yustiel's Power",
+"ICON_CL_SKILL_042"
+],
+"17790000": [
+"cl",
+"Survival Willpower",
+"ICON_GL_SKILL_Passive_009"
+],
+"17800000": [
+"cl",
+"Radiant Benediction",
+"ICON_CL_SKILL_Passive_007"
+],
+"17320000": [
+"cl",
+"Blessing of Regeneration",
+"ICON_CL_SKILL_032"
+],
+"17030000": [
+"cl",
+"Discharge",
+"ICON_CL_SKILL_003"
+],
+"17050000": [
+"cl",
+"Divine Punishment",
+"ICON_CL_SKILL_005"
+],
+"17020000": [
+"cl",
+"Thunder and Lightning",
+"ICON_CL_SKILL_002"
+],
+"16010000": [
+"el",
+"Cold Shock",
+"ICON_EL_SKILL_001"
+],
+"16040000": [
+"el",
+"Combustion",
+"ICON_EL_SKILL_004"
+],
+"16290004": [
+"el",
+"Dismiss: Ancient Spirit",
+"ICON_EL_SKILL_029"
+],
+"16290002": [
+"el",
+"Dismiss: Earth Spirit",
+"ICON_EL_SKILL_029"
+],
+"16290000": [
+"el",
+"Dismiss: Fire Spirit",
+"ICON_EL_SKILL_029"
+],
+"16290001": [
+"el",
+"Dismiss: Water Spirit",
+"ICON_EL_SKILL_029"
+],
+"16290003": [
+"el",
+"Dismiss: Wind Spirit",
+"ICON_EL_SKILL_029"
+],
+"16000100": [
+"el",
+"Dodge",
+"ICON_CO_SKILL_001"
+],
+"16009999": [
+"el",
+"Return: All Spirits",
+"ICON_EL_SKILL_029"
+],
+"16710000": [
+"el",
+"Spirit Strike",
+"ICON_EL_SKILL_Passive_004"
+],
+"16000000": [
+"el",
+"Spiritmaster Weapon Equip",
+"ICON_TE_TEMP_020_Effect_001"
+],
+"16100000": [
+"el",
+"Summon: Fire Spirit",
+"ICON_EL_SKILL_010"
+],
+"16110000": [
+"el",
+"Summon: Water Spirit",
+"ICON_EL_SKILL_011"
+],
+"16140000": [
+"el",
+"Jointstrike: Curse",
+"ICON_EL_SKILL_014"
+],
+"16340000": [
+"el",
+"Rapid Scattershot",
+"ICON_EL_SKILL_034"
+],
+"16720000": [
+"el",
+"Spirit Protection",
+"ICON_EL_SKILL_Passive_002"
+],
+"16130000": [
+"el",
+"Summon: Earth Spirit",
+"ICON_EL_SKILL_013"
+],
+"16330000": [
+"el",
+"Dimensional Control",
+"ICON_EL_SKILL_033"
+],
+"16730000": [
+"el",
+"Spirit's Descent",
+"ICON_EL_SKILL_Passive_003"
+],
+"16120000": [
+"el",
+"Summon: Wind Spirit",
+"ICON_EL_SKILL_012"
+],
+"16740000": [
+"el",
+"Corrode",
+"ICON_EL_SKILL_Passive_012"
+],
+"16070000": [
+"el",
+"Soul's Cry",
+"ICON_EL_SKILL_007"
+],
+"16750000": [
+"el",
+"Spirit Revitalization",
+"ICON_EL_SKILL_Passive_011"
+],
+"16300000": [
+"el",
+"Elemental Fusion",
+"ICON_EL_SKILL_030"
+],
+"16300001": [
+"el",
+"Elemental Fusion",
+"ICON_EL_SKILL_030"
+],
+"16760000": [
+"el",
+"Mental Focus",
+"ICON_EL_SKILL_Passive_006"
+],
+"16200000": [
+"el",
+"Defiance",
+"ICON_CO_SKILL_002"
+],
+"16800000": [
+"el",
+"Consecutive Countercurrent",
+"ICON_EL_SKILL_Passive_013"
+],
+"16770000": [
+"el",
+"Spirit Communion",
+"ICON_EL_SKILL_Passive_007"
+],
+"16700000": [
+"el",
+"Assault Terror",
+"ICON_CO_SKILL_003"
+],
+"16170000": [
+"el",
+"Command: Proxy",
+"ICON_EL_SKILL_017"
+],
+"16080000": [
+"el",
+"Cry of Terror",
+"ICON_EL_SKILL_008"
+],
+"16220000": [
+"el",
+"Cursed Cloud",
+"ICON_EL_SKILL_022"
+],
+"16190000": [
+"el",
+"Enhance: Spirit's Benediction",
+"ICON_EL_SKILL_019"
+],
+"16370000": [
+"el",
+"Flame Blessing",
+"ICON_EL_SKILL_037"
+],
+"16150000": [
+"el",
+"Jointstrike: Corrode",
+"ICON_EL_SKILL_015"
+],
+"16240000": [
+"el",
+"Jointstrike: Destructive Attack",
+"ICON_EL_SKILL_024"
+],
+"16360000": [
+"el",
+"Kaisinel's Power",
+"ICON_EL_SKILL_036"
+],
+"16260000": [
+"el",
+"Magic Block",
+"ICON_EL_SKILL_026"
+],
+"16230000": [
+"el",
+"Seize Magic",
+"ICON_EL_SKILL_023"
+],
+"16060000": [
+"el",
+"Siphon",
+"ICON_EL_SKILL_006"
+],
+"16250000": [
+"el",
+"Summon: Ancient Spirit",
+"ICON_EL_SKILL_025"
+],
+"16790000": [
+"el",
+"Revitalization Contract",
+"ICON_AS_SKILL_Passive_009"
+],
+"16780000": [
+"el",
+"Element Unification",
+"ICON_EL_SKILL_Passive_008"
+],
+"16155100": [
+"el",
+"Ancient Spirit: Break",
+"ICON_EL_SKILL_015"
+],
+"16050000": [
+"el",
+"Ashy Call",
+"ICON_EL_SKILL_005"
+],
+"16280000": [
+"el",
+"Continuous Impact",
+"ICON_CL_SKILL_030"
+],
+"16210000": [
+"el",
+"Curse of Despair",
+"ICON_EL_SKILL_021"
+],
+"16153100": [
+"el",
+"Earth Spirit: Taunt",
+"ICON_EL_SKILL_015"
+],
+"16153300": [
+"el",
+"Earth Spirit: Taunt",
+"ICON_EL_SKILL_015"
+],
+"16153400": [
+"el",
+"Earth Spirit: Taunt",
+"ICON_EL_SKILL_015"
+],
+"16153200": [
+"el",
+"Earth Spirit: Taunt",
+"ICON_EL_SKILL_015"
+],
+"16030000": [
+"el",
+"Earth Tremor",
+"ICON_EL_SKILL_003"
+],
+"16270000": [
+"el",
+"Elemental Replenishment",
+"ICON_TE_SKILL_003"
+],
+"16310000": [
+"el",
+"Extract Vitality",
+"ICON_TE_SKILL_003"
+],
+"16151400": [
+"el",
+"Fire Spirit: Rage Burst",
+"ICON_EL_SKILL_015"
+],
+"16151200": [
+"el",
+"Fire Spirit: Rage Burst",
+"ICON_EL_SKILL_015"
+],
+"16151100": [
+"el",
+"Fire Spirit: Rage Burst",
+"ICON_EL_SKILL_015"
+],
+"16151300": [
+"el",
+"Fire Spirit: Rage Burst",
+"ICON_EL_SKILL_015"
+],
+"16090000": [
+"el",
+"Magic Backflow",
+"ICON_EL_SKILL_009"
+],
+"11000100": [
+"gl",
+"Dodge",
+"ICON_CO_SKILL_001"
+],
+"11000000": [
+"gl",
+"Equip Gladiator Weapon",
+"ICON_TE_SKILL_001"
+],
+"11020000": [
+"gl",
+"Keen Strike",
+"ICON_GL_SKILL_002"
+],
+"11190000": [
+"gl",
+"Leaping Slam",
+"ICON_GL_SKILL_019"
+],
+"11010000": [
+"gl",
+"Rending Blow",
+"ICON_GL_SKILL_001"
+],
+"11710000": [
+"gl",
+"Survival Stance",
+"ICON_GL_SKILL_Passive_001"
+],
+"11290000": [
+"gl",
+"Mocking Blade",
+"ICON_GL_SKILL_028"
+],
+"11170037": [
+"gl",
+"Overhead Slam",
+"ICON_GL_SKILL_017"
+],
+"11170000": [
+"gl",
+"Overhead Slam",
+"ICON_GL_SKILL_017"
+],
+"11280000": [
+"gl",
+"Sword Aura Rampage",
+"ICON_TE_SKILL_034"
+],
+"11720000": [
+"gl",
+"Protection Armor",
+"ICON_GL_SKILL_Passive_002"
+],
+"11200000": [
+"gl",
+"Ankle Slice",
+"ICON_GL_SKILL_020"
+],
+"11050000": [
+"gl",
+"Crushing Wave",
+"ICON_GL_SKILL_005"
+],
+"11730000": [
+"gl",
+"Blood Absorption",
+"ICON_GL_SKILL_Passive_003"
+],
+"11360000": [
+"gl",
+"Rush Strike",
+"ICON_GL_SKILL_036"
+],
+"11740000": [
+"gl",
+"Identify Weakness",
+"ICON_GL_SKILL_Passive_004"
+],
+"11300000": [
+"gl",
+"Aerial Snare",
+"ICON_GL_SKILL_015"
+],
+"11300037": [
+"gl",
+"Forced Fall",
+"ICON_GL_SKILL_016"
+],
+"11750000": [
+"gl",
+"Attack Preparation",
+"ICON_GL_SKILL_Passive_005"
+],
+"11100000": [
+"gl",
+"Ruinous Blow",
+"ICON_GL_SKILL_010"
+],
+"11760000": [
+"gl",
+"Impact Hit",
+"ICON_GL_SKILL_Passive_006"
+],
+"11260000": [
+"gl",
+"Defiance",
+"ICON_CO_SKILL_002"
+],
+"11770000": [
+"gl",
+"Destructive Impulse",
+"ICON_GL_SKILL_Passive_007"
+],
+"11780000": [
+"gl",
+"Experienced Counterstrike",
+"ICON_GL_SKILL_Passive_008"
+],
+"11130000": [
+"gl",
+"Armor of Balance",
+"ICON_GL_SKILL_013"
+],
+"11700000": [
+"gl",
+"Assault Strike",
+"ICON_CO_SKILL_003"
+],
+"11080000": [
+"gl",
+"Blade Toss",
+"ICON_GL_SKILL_008"
+],
+"11110000": [
+"gl",
+"Focused Block",
+"ICON_GL_SKILL_011"
+],
+"11430000": [
+"gl",
+"Forced Restraint",
+"ICON_GL_SKILL_043"
+],
+"11450000": [
+"gl",
+"Fracturing Rush",
+"ICON_GL_SKILL_045"
+],
+"11340000": [
+"gl",
+"Lifestealing Blade",
+"ICON_GL_SKILL_034"
+],
+"11400000": [
+"gl",
+"Lunge Stance",
+"ICON_GL_SKILL_040"
+],
+"11390000": [
+"gl",
+"Rage Burst",
+"ICON_GL_SKILL_039"
+],
+"11380000": [
+"gl",
+"Tenaciousness",
+"ICON_GL_SKILL_038"
+],
+"11410000": [
+"gl",
+"Wave Armor",
+"ICON_GL_SKILL_041"
+],
+"11240000": [
+"gl",
+"Wrath Wave",
+"ICON_GL_SKILL_007"
+],
+"11250000": [
+"gl",
+"Zikel's Blessing",
+"ICON_GL_SKILL_024"
+],
+"11790000": [
+"gl",
+"Survival Willpower",
+"ICON_GL_SKILL_Passive_009"
+],
+"11800000": [
+"gl",
+"Murderous Burst",
+"ICON_GL_SKILL_Passive_010"
+],
+"11210000": [
+"gl",
+"Ankle Smash",
+"ICON_GL_SKILL_021"
+],
+"11090000": [
+"gl",
+"Blade Dance",
+"ICON_GL_SKILL_009"
+],
+"11120000": [
+"gl",
+"Blood Absorption",
+"ICON_GL_SKILL_012"
+],
+"11460000": [
+"gl",
+"Destructive Rush",
+"ICON_GL_SKILL_046"
+],
+"11310000": [
+"gl",
+"Doom Advent",
+"ICON_GL_SKILL_030"
+],
+"11370000": [
+"gl",
+"Forced Fall",
+"ICON_GL_SKILL_016"
+],
+"11060000": [
+"gl",
+"Frenzied Wave",
+"ICON_GL_SKILL_006"
+],
+"11140000": [
+"gl",
+"Intimidating Roar",
+"ICON_GL_SKILL_014"
+],
+"11330000": [
+"gl",
+"Madness Blow",
+"ICON_GL_SKILL_015"
+],
+"11180000": [
+"gl",
+"Reckless Strike",
+"ICON_GL_SKILL_018"
+],
+"11030000": [
+"gl",
+"Rupture Strike",
+"ICON_GL_SKILL_003"
+],
+"11230000": [
+"gl",
+"Rush",
+"ICON_GL_SKILL_015"
+],
+"11420000": [
+"gl",
+"Smashing Blow",
+"ICON_GL_SKILL_042"
+],
+"11270000": [
+"gl",
+"Survival Stance",
+"ICON_GL_SKILL_026"
+],
+"11470000": [
+"gl",
+"Unsheathing Rush",
+"ICON_GL_SKILL_047"
+],
+"11440000": [
+"gl",
+"Upward Strike",
+"ICON_TE_SKILL_016"
+],
+"11320000": [
+"gl",
+"Wrath Burst",
+"ICON_GL_SKILL_044"
+],
+"11040000": [
+"gl",
+"Wrathful Strike",
+"ICON_GL_SKILL_004"
+],
+"11350000": [
+"gl",
+"Wrathful Strike",
+"ICON_GL_SKILL_019"
+],
+"14000100": [
+"ra",
+"Dodge",
+"ICON_CO_SKILL_001"
+],
+"14130000": [
+"ra",
+"Snare Shot",
+"ICON_RA_SKILL_013"
+],
+"14020000": [
+"ra",
+"Snipe",
+"ICON_RA_SKILL_001"
+],
+"14340000": [
+"ra",
+"Tempest Shot",
+"ICON_RA_SKILL_034"
+],
+"14710000": [
+"ra",
+"Vigilant Eye",
+"ICON_RA_SKILL_Passive_004"
+],
+"14090000": [
+"ra",
+"Marking Shot",
+"ICON_RA_SKILL_031"
+],
+"14050000": [
+"ra",
+"Drill Dart",
+"ICON_RA_SKILL_005"
+],
+"14050007": [
+"ra",
+"Drill Dart",
+"ICON_RA_SKILL_005"
+],
+"14330000": [
+"ra",
+"Arrow Scattershot",
+"ICON_RA_SKILL_033"
+],
+"14720000": [
+"ra",
+"Concentrated Fire",
+"ICON_RA_SKILL_Passive_003"
+],
+"14110000": [
+"ra",
+"Gale Arrow",
+"ICON_RA_SKILL_011"
+],
+"14170000": [
+"ra",
+"Explosion Trap",
+"ICON_RA_SKILL_017"
+],
+"14730000": [
+"ra",
+"Wind Vigor",
+"ICON_RA_SKILL_Passive_006"
+],
+"14080000": [
+"ra",
+"Burst Arrow",
+"ICON_RA_SKILL_008"
+],
+"14740000": [
+"ra",
+"Focused Eye",
+"ICON_RA_SKILL_Passive_001"
+],
+"14070000": [
+"ra",
+"Suppressing Arrow",
+"ICON_RA_SKILL_007"
+],
+"14750000": [
+"ra",
+"Hunter's Resolve",
+"ICON_RA_SKILL_Passive_011"
+],
+"14010000": [
+"ra",
+"Deadshot",
+"ICON_RA_SKILL_002"
+],
+"14760000": [
+"ra",
+"Unyielding Resolve",
+"ICON_RA_SKILL_Passive_012"
+],
+"14260000": [
+"ra",
+"Defiance",
+"ICON_CO_SKILL_002"
+],
+"14770000": [
+"ra",
+"Rooting Eye",
+"ICON_RA_SKILL_Passive_008"
+],
+"14780000": [
+"ra",
+"Melee Fire",
+"ICON_RA_SKILL_Passive_013"
+],
+"14120000": [
+"ra",
+"Ambush Kick",
+"ICON_RA_SKILL_012"
+],
+"14270000": [
+"ra",
+"Arrow Storm",
+"ICON_RA_SKILL_026"
+],
+"14700000": [
+"ra",
+"Assault Smite",
+"ICON_CO_SKILL_003"
+],
+"14220000": [
+"ra",
+"Bow of Blessing",
+"ICON_RA_SKILL_030"
+],
+"14180000": [
+"ra",
+"Ensnaring Trap",
+"ICON_RA_SKILL_018"
+],
+"14360000": [
+"ra",
+"Explosive Arrow",
+"ICON_RA_SKILL_023"
+],
+"14060000": [
+"ra",
+"Griffon Arrow",
+"ICON_RA_SKILL_006"
+],
+"14150000": [
+"ra",
+"Illusory Arrow",
+"ICON_RA_SKILL_015"
+],
+"14350000": [
+"ra",
+"Mother Nature's Breath",
+"ICON_RA_SKILL_035"
+],
+"14160000": [
+"ra",
+"Sealing Arrow",
+"ICON_RA_SKILL_016"
+],
+"14190000": [
+"ra",
+"Stealth",
+"ICON_RA_SKILL_019"
+],
+"14380000": [
+"ra",
+"Supporting Fire",
+"ICON_RA_SKILL_038"
+],
+"14310000": [
+"ra",
+"Vaizel's Authority",
+"ICON_RA_SKILL_022"
+],
+"14790000": [
+"ra",
+"Revitalization Contract",
+"ICON_AS_SKILL_Passive_009"
+],
+"14800000": [
+"ra",
+"Hunter's Soul",
+"ICON_RA_SKILL_Passive_007"
+],
+"14240000": [
+"ra",
+"Afterimage",
+"ICON_RA_SKILL_024"
+],
+"14290000": [
+"ra",
+"Arrow of Space-time",
+"ICON_RA_SKILL_028"
+],
+"14300000": [
+"ra",
+"Dust Arrow",
+"ICON_RA_SKILL_029"
+],
+"14230000": [
+"ra",
+"Explosive Arrow",
+"ICON_RA_SKILL_023"
+],
+"14210000": [
+"ra",
+"Eye of Rapid Burst",
+"ICON_RA_SKILL_021"
+],
+"14200000": [
+"ra",
+"Guerilla Strike",
+"ICON_RA_SKILL_020"
+],
+"14250000": [
+"ra",
+"Hunter's Resolve",
+"ICON_RA_SKILL_025"
+],
+"14320000": [
+"ra",
+"Impact Kick",
+"ICON_RA_SKILL_032"
+],
+"14370000": [
+"ra",
+"Lightning Arrow",
+"ICON_RA_SKILL_037"
+],
+"14030000": [
+"ra",
+"Rapid Fire",
+"ICON_RA_SKILL_003"
+],
+"14140000": [
+"ra",
+"Shackling Arrow",
+"ICON_RA_SKILL_014"
+],
+"14040000": [
+"ra",
+"Spiral Arrow",
+"ICON_RA_SKILL_004"
+],
+"14100000": [
+"ra",
+"Tempest Arrow",
+"ICON_RA_SKILL_010"
+],
+"15000100": [
+"so",
+"Dodge",
+"ICON_CO_SKILL_001"
+],
+"15000000": [
+"so",
+"Equip Sorcerer Weapon",
+"ICON_SO_SKILL_012"
+],
+"15710000": [
+"so",
+"Fire Mark",
+"ICON_SO_SKILL_Passive_002"
+],
+"15040000": [
+"so",
+"Firestorm",
+"ICON_SO_SKILL_004"
+],
+"15210000": [
+"so",
+"Flame Arrow",
+"ICON_SO_SKILL_020"
+],
+"15090000": [
+"so",
+"Ice Chain",
+"ICON_SO_SKILL_009"
+],
+"15280000": [
+"so",
+"Bittercold Wind",
+"ICON_SO_SKILL_025"
+],
+"15050000": [
+"so",
+"Blaze",
+"ICON_SO_SKILL_005"
+],
+"15010000": [
+"so",
+"Flame Scattershot",
+"ICON_SO_SKILL_001"
+],
+"15720000": [
+"so",
+"Robe of Earth",
+"ICON_SO_SKILL_Passive_006"
+],
+"15150000": [
+"so",
+"Frost",
+"ICON_SO_SKILL_015"
+],
+"15110000": [
+"so",
+"Winter's Shackles",
+"ICON_SO_SKILL_011"
+],
+"15730000": [
+"so",
+"Cold Snap",
+"ICON_SO_SKILL_Passive_003"
+],
+"15220000": [
+"so",
+"Frost Burst",
+"ICON_SO_SKILL_022"
+],
+"15220037": [
+"so",
+"Frost Burst",
+"ICON_SO_SKILL_022"
+],
+"15740000": [
+"so",
+"Robe of Flame",
+"ICON_SO_SKILL_Passive_004"
+],
+"15310000": [
+"so",
+"Wish of Concentration",
+"ICON_SO_SKILL_028"
+],
+"15760000": [
+"so",
+"Absorb Essence",
+"ICON_SO_SKILL_Passive_001"
+],
+"15060000": [
+"so",
+"Hellfire",
+"ICON_SO_SKILL_006"
+],
+"15770000": [
+"so",
+"Grace of Resistance",
+"ICON_SO_SKILL_038"
+],
+"15240000": [
+"so",
+"Defiance",
+"ICON_CO_SKILL_002"
+],
+"15750000": [
+"so",
+"Robe of Cold",
+"ICON_SO_SKILL_Passive_005"
+],
+"15780000": [
+"so",
+"Grace of Enhancement",
+"ICON_SO_SKILL_Passive_007"
+],
+"15230000": [
+"so",
+"Arctic Armor",
+"ICON_SO_SKILL_021"
+],
+"15700000": [
+"so",
+"Assault Bombardment",
+"ICON_CO_SKILL_003"
+],
+"15200000": [
+"so",
+"Cold Storm",
+"ICON_SO_SKILL_019"
+],
+"15140000": [
+"so",
+"Curse: Tree",
+"ICON_SO_SKILL_014"
+],
+"15320000": [
+"so",
+"Delayed Explosion",
+"ICON_SO_SKILL_032"
+],
+"15360000": [
+"so",
+"Divine Burst",
+"ICON_SO_SKILL_036"
+],
+"15400000": [
+"so",
+"Element Enhancement",
+"ICON_SO_SKILL_040"
+],
+"15390000": [
+"so",
+"Fire Wall",
+"ICON_SO_SKILL_039"
+],
+"15120000": [
+"so",
+"Glacial Smite",
+"ICON_SO_SKILL_012"
+],
+"15410000": [
+"so",
+"Hibernation",
+"ICON_SO_SKILL_041"
+],
+"15300000": [
+"so",
+"Lumiel's Space",
+"ICON_SO_SKILL_017"
+],
+"15410057": [
+"so",
+"Remove Hibernation",
+"ICON_SO_SKILL_041_A"
+],
+"15130000": [
+"so",
+"Soul Freeze",
+"ICON_SO_SKILL_013"
+],
+"15160000": [
+"so",
+"Steel Barrier",
+"ICON_SO_SKILL_016"
+],
+"15790000": [
+"so",
+"Revitalization Contract",
+"ICON_AS_SKILL_Passive_009"
+],
+"15800000": [
+"so",
+"Vitality Evaporation",
+"ICON_SO_SKILL_Passive_008"
+],
+"15030000": [
+"so",
+"Burst",
+"ICON_SO_SKILL_003"
+],
+"15080000": [
+"so",
+"Cold Snap",
+"ICON_SO_SKILL_008"
+],
+"15100000": [
+"so",
+"Cold Wave",
+"ICON_SO_SKILL_010"
+],
+"15340000": [
+"so",
+"Curse: Old Tree",
+"ICON_SO_SKILL_014"
+],
+"15020000": [
+"so",
+"Firebomb",
+"ICON_SO_SKILL_002"
+],
+"15290000": [
+"so",
+"Illusion",
+"ICON_SO_SKILL_026"
+],
+"15380000": [
+"so",
+"Lumiel's Authority",
+"ICON_SO_SKILL_038"
+],
+"15350000": [
+"so",
+"Magic Energy Blast",
+"ICON_SO_SKILL_024"
+],
+"15250000": [
+"so",
+"Pyroclasm",
+"ICON_SO_SKILL_023"
+],
+"15270000": [
+"so",
+"Summon Flame",
+"ICON_SO_SKILL_024"
+],
+"15180000": [
+"so",
+"Vaizel's Wisdom",
+"ICON_SO_SKILL_018"
+],
+"15330000": [
+"so",
+"Winter's Illusion",
+"ICON_SO_SKILL_033"
+],
+"12000100": [
+"te",
+"Dodge",
+"ICON_CO_SKILL_001"
+],
+"12710000": [
+"te",
+"Enhance Health",
+"ICON_TE_SKILL_Passive_001"
+],
+"12130000": [
+"te",
+"Poach",
+"ICON_TE_SKILL_013"
+],
+"12040000": [
+"te",
+"Pummel",
+"ICON_TE_SKILL_006"
+],
+"12010000": [
+"te",
+"Vicious Strike",
+"ICON_TE_SKILL_001"
+],
+"12100000": [
+"te",
+"Shield Smite",
+"ICON_TE_SKILL_010"
+],
+"12240000": [
+"te",
+"Judgment",
+"ICON_TE_SKILL_004"
+],
+"12340000": [
+"te",
+"Flash Rampage",
+"ICON_GL_SKILL_027"
+],
+"12720000": [
+"te",
+"Warding Shield",
+"ICON_TE_SKILL_Passive_002"
+],
+"12270000": [
+"te",
+"Debilitating Smash",
+"ICON_TE_SKILL_025"
+],
+"12350000": [
+"te",
+"Warding Strike",
+"ICON_TE_SKILL_035"
+],
+"12730000": [
+"te",
+"Punishing Benediction",
+"ICON_TE_SKILL_Passive_003"
+],
+"12430000": [
+"te",
+"Shield Rush",
+"ICON_TE_SKILL_015"
+],
+"12740000": [
+"te",
+"Ironclad Defense",
+"ICON_TE_SKILL_Passive_004"
+],
+"12300000": [
+"te",
+"Annihilate",
+"ICON_TE_SKILL_028"
+],
+"12750000": [
+"te",
+"Guarding Seal",
+"ICON_TE_SKILL_Passive_005"
+],
+"12090000": [
+"te",
+"Punishment",
+"ICON_TE_SKILL_009"
+],
+"12760000": [
+"te",
+"Impact Hit",
+"ICON_GL_SKILL_Passive_006"
+],
+"12260000": [
+"te",
+"Defiance",
+"ICON_CO_SKILL_002"
+],
+"12770000": [
+"te",
+"Insulting Roar",
+"ICON_TE_SKILL_Passive_007"
+],
+"12780000": [
+"te",
+"Fury",
+"ICON_TE_SKILL_Passive_008"
+],
+"12200000": [
+"te",
+"Armor of Balance",
+"ICON_GL_SKILL_013"
+],
+"12700000": [
+"te",
+"Assault Fury",
+"ICON_CO_SKILL_003"
+],
+"12450000": [
+"te",
+"Battlefield Banner",
+"ICON_TE_SKILL_045"
+],
+"12250000": [
+"te",
+"Comrade in Arms",
+"ICON_TE_SKILL_024"
+],
+"12070000": [
+"te",
+"Doom Shield",
+"ICON_TE_SKILL_007"
+],
+"12310000": [
+"te",
+"Empyrean Lord's Punishment",
+"ICON_TE_SKILL_029"
+],
+"12410000": [
+"te",
+"Executing Blade",
+"ICON_TE_SKILL_041"
+],
+"12220000": [
+"te",
+"Grapple",
+"ICON_TE_SKILL_021"
+],
+"12320000": [
+"te",
+"Nezekan's Shield",
+"ICON_TE_SKILL_030"
+],
+"12230000": [
+"te",
+"Noble Armor",
+"ICON_TE_SKILL_022"
+],
+"12190000": [
+"te",
+"Second Skin",
+"ICON_TE_SKILL_018"
+],
+"12110000": [
+"te",
+"Shield of Protection",
+"ICON_TE_SKILL_011"
+],
+"12120000": [
+"te",
+"Taunt",
+"ICON_TE_SKILL_012"
+],
+"12790000": [
+"te",
+"Survival Willpower",
+"ICON_GL_SKILL_Passive_009"
+],
+"12800000": [
+"te",
+"Block Pain",
+"ICON_TE_SKILL_Passive_010"
+],
+"12420000": [
+"te",
+"Blade Storm",
+"ICON_TE_SKILL_023"
+],
+"12330000": [
+"te",
+"Capture",
+"ICON_TE_SKILL_033"
+],
+"12020000": [
+"te",
+"Decisive Strike",
+"ICON_TE_SKILL_002"
+],
+"12030000": [
+"te",
+"Desperate Strike",
+"ICON_TE_SKILL_003"
+],
+"12060000": [
+"te",
+"Punishing Strike",
+"ICON_TE_SKILL_014"
+],
+"12440000": [
+"te",
+"Threatening Blow",
+"ICON_TE_SKILL_044"
+]
+}

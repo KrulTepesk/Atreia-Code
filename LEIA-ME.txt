@@ -1,0 +1,104 @@
+AION 2 OVERLAY
+==============
+
+PARA QUEM VAI USAR
+1. Baixe o AtreiaCode-Setup.exe e abra.
+2. Avançar > Instalar. Não pede senha de administrador, não precisa de Python nem de nada.
+3. O programa abre sozinho e fica no menu Iniciar e na área de trabalho.
+   Fechar o painel não fecha o overlay: ele fica no ícone "A2" perto do relógio.
+   Para sair: botão direito no ícone > Sair. Para remover: Configurações do Windows > Aplicativos.
+
+PARA QUEM DISTRIBUI (gerar o instalador, uma vez por versão)
+- Dê dois cliques em CRIAR_INSTALADOR.bat e espere (5 a 15 min na primeira vez).
+  Ele baixa sozinho, dentro da pasta build_tools, o que precisa para montar o programa.
+  No fim abre a pasta "saida" com o AtreiaCode-Setup.exe. É esse arquivo que você manda pro pessoal.
+- Alternativa sem usar o seu PC: suba a pasta num repositório do GitHub e rode
+  Actions > "Gerar instalador"; o Setup aparece para download no fim.
+- INICIAR.bat continua servindo para testar direto do código, sem gerar instalador.
+
+IMPORTANTE: jogue em "Janela sem bordas" (Borderless). Em tela cheia exclusiva,
+nenhum overlay consegue aparecer por cima do jogo.
+
+PAINÉIS
+- Shugo: nada fica fixo na tela. Um aviso com som aparece 5 minutos antes do festival
+  e de novo 1 minuto antes, e some sozinho (duplo clique fecha antes). Os minutos, o som
+  e o ícone do aviso podem ser trocados na aba Shugo. "Posicionar aviso" mostra o aviso
+  por 15 s para você arrastar até onde quiser.
+- PvP: só toca o som que você escolher quando você mata alguém (não aparece nada na tela).
+- Mapa: Verteron, Eltnen, Altgard, Morheim e Reshanta (Abismo), só com Berries, Gems, Herbs,
+  Metal Ore, Od, Shellfish, Trees e Vegetables. Filtro por tipo ou por material
+  (ex.: só Aria). Clique num ponto para marcar como coletado.
+
+IMAGEM DE FUNDO DO MAPA (opcional)
+- Mapa > "Carregar..." e escolha uma imagem do mapa (ex.: print do mapa-múndi do jogo, tecla M).
+- O modo "Ajustar fundo" liga sozinho: arraste para mover, Ctrl+roda para o tamanho,
+  Shift+roda para ajuste fino. Encaixe o desenho nas linhas amarelas das regiões e clique
+  em "Concluir ajuste". Cada mapa (Verteron, Altgard...) guarda o seu próprio fundo.
+
+RECURSOS NO MINIMAPA DO JOGO (Alt+M)
+- Painel > Mapa > "Marcar área do minimapa...": arraste em volta do quadro do mapa do Alt+M
+  (de preferência sem as barras de opacidade e os botões). Depois marque "Ativar".
+- O programa reconhece qual parte do mapa está aparecendo e desenha os recursos por cima,
+  acompanhando quando você anda ou dá zoom. Usa os filtros do mapa completo e mostra os
+  spawns do farm de pet. Só olha a tela.
+- Funciona nos mapas que têm imagem de fundo (hoje: Verteron).
+
+IDIOMA
+- Painel > Geral > Idioma: Português (Brasil) ou English. Vale depois de reiniciar
+  (botão "Reiniciar agora").
+
+RIFTS E CHEFES (aba "Rifts e chefes")
+- Avisos 5 minutos antes e na hora para: Fenda Espaço-Temporal (rifts), Vigilante Kairah,
+  Senhor Guardião Nahma e Chefes do Cerco. Cerco aos Artefatos e Invasão Dimensional
+  também estão lá (desligados por padrão).
+- "Mapa 5 min antes": abre um mini-mapa na tela mostrando onde o chefe nasce (para a
+  Kairah, os pontos possíveis, porque o lugar é sorteado). Para as fendas, mostra os
+  locais no mapa escolhido em "Mapa das fendas".
+- O tempo que o aviso e o mini-mapa ficam na tela é ajustável (padrão 6 s e 15 s).
+- Região do servidor: América do Sul (horário de São Paulo); o programa converte
+  sozinho para o relógio do seu PC.
+
+FARM DE PET
+- Mapa > botão "Farm de pet": procure o monstro (ex.: "pedra", "fuça"). Os pontos de spawn
+  aparecem em vermelho. Clique em "Farmar este mob".
+- Na aba "Farm de pet" do painel: confira o pet, a etapa (obter = 5 almas, nível 1→2 = 25,
+  nível 2→3 = 75) e coloque quantas almas você já tem, igual aparece no jogo (ex.: 57 de 75).
+- O card na tela mostra o mini-mapa dos spawns, as almas que faltam e, depois de alguns
+  abates, uma estimativa de quantos abates faltam.
+- Contar dentro do jogo: Ctrl+Alt+S = +1 alma · Ctrl+Alt+X = −1 alma · Ctrl+Alt+K = +1 abate.
+  Ou, opcional, "Contar almas sozinho": recorte a mensagem de alma obtida de um print
+  (igual ao PvP) e o programa soma sozinho.
+- Toca um som quando chega na meta.
+
+MOVER / OUTRO MONITOR
+- Com "Travar overlays" desmarcado, arraste os painéis com o mouse para onde quiser.
+- Ou use Geral > "Mandar para outro monitor".
+- Depois marque "Travar overlays": os cliques passam direto para o jogo.
+
+CONFIGURAR O SOM DE ABATE (uma vez só)
+1. No jogo, quando matar alguém, tire um print (Win+Shift+S, PrintScreen ou F12 da Steam).
+2. Painel > PvP > "Definir referência a partir de um print..." > abra ou cole o print.
+3. Arraste em volta da mensagem de abate. Pegue só a parte que é sempre igual (ícone/texto
+   fixo), SEM o nome do inimigo. Salvar.
+4. (Recomendado) "Marcar área na tela..." e marque a região onde essa mensagem aparece.
+5. Marque "Ativar detecção de abates".
+   Se não tocar: baixe a Precisão (ex.: 0.75). Se tocar sem matar: aumente (ex.: 0.88).
+   "Semelhança agora" mostra o quanto a tela está parecida com a referência.
+   Se mudar a resolução ou a escala da interface do jogo, refaça a referência.
+
+O PvP só olha a tela (como OBS/Discord fazem). Não lê memória, pacotes de rede nem
+arquivos do jogo, e não aperta tecla nenhuma.
+
+DPS (EXPERIMENTAL, DESLIGADO POR PADRÃO)
+- Precisa do Npcap: um driver de rede para Windows (o mesmo do Wireshark) que deixa o programa
+  ler uma CÓPIA do tráfego de internet. O overlay lê só o tráfego do Aion 2 para calcular o dano;
+  não altera, não bloqueia, não envia nada e não mexe nos arquivos do jogo.
+- O instalador do overlay oferece instalar o Npcap junto: ele baixa do site oficial e abre o
+  instalador dele no final (pede permissão de administrador). Se pular, dá para instalar depois
+  pelo botão "Instalar Npcap" na aba DPS. Sem o Npcap só o DPS não funciona.
+- Por enquanto é só a etapa 1: gravar uma captura do tráfego do jogo (precisa abrir o overlay
+  como Administrador). As instruções estão na própria aba "DPS (experimental)".
+- Programas externos vão contra as regras do jogo: ligar é decisão sua e por sua conta e risco.
+
+Configurações ficam em %APPDATA%\Aion2Overlay\config.json
+
