@@ -384,4 +384,7 @@ EN = {
     '{n} alma(s)': '{n} soul(s)',
     '1 a cada {r} abates': '1 every {r} kills',
     'Almas': 'Souls',
+    'Luta': 'Fight',
+    'Sessão': 'Session',
+    'Desde o zerar': 'Since reset',
 }

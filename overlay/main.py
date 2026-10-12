@@ -127,7 +127,9 @@ class ControlPanel(QWidget):
         tabs = self.tabs = theme.NavTabs("Meta Overlay", "Ferramentas para Aion 2")
         tabs.addTab(self.tab_general(), "Geral", "general", "Idioma, monitores e trava dos overlays.")
         tabs.addTab(self.tab_shugo(), "Shugo", "shugo", "Aviso antes do Festival do Shugo começar.")
-        tabs.addTab(self.tab_pvp(), "PvP", "pvp", "Toca um som quando você derrota alguém.")
+        # aba PvP fora por enquanto (será refeita); o widget continua existindo para não quebrar nada
+        self._pvp_page = self.tab_pvp()
+        self._pvp_page.hide()
         tabs.addTab(self.tab_map(), "Mapa", "map", "Coletáveis, mobs e o minimapa do Alt+M com os recursos por cima.")
         self.dps_tab = DpsTab(self.hub)
         self.farm_tab = FarmTab(self)
@@ -163,8 +165,7 @@ class ControlPanel(QWidget):
         self.shugo.restore_position()
         self.shugo.set_locked(cfg.get("locked", False))
         self.events.set_locked(cfg.get("locked", False))
-        if cfg["pvp"].get("enabled"):
-            self.set_pvp(True)
+        # som de abate no PvP desligado enquanto a aba está fora
 
         self.tray = QSystemTrayIcon(make_icon(), self)
         menu = QMenu()

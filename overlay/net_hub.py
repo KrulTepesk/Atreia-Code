@@ -48,6 +48,7 @@ class NetHub(QObject):
             r = DpsReader(game_server_hosts())
             r.self_name = cfg.get("dps", {}).get("char_name", "")
             r.mode = cfg.get("dps", {}).get("mode", "party")
+            r.view = cfg.get("dps", {}).get("view", "fight")
             r.enable_world()
             r.updated.connect(self._on_updated)
             r.status.connect(self._on_status)

@@ -422,4 +422,7 @@ ES = {
     '{n} alma(s)': '{n} alma(s)',
     '1 a cada {r} abates': '1 cada {r} bajas',
     'Almas': 'Almas',
+    'Luta': 'Pelea',
+    'Sessão': 'Sesión',
+    'Desde o zerar': 'Desde el reinicio',
 }

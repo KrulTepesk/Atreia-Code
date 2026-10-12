@@ -6,7 +6,6 @@ Não lê a memória do jogo nem mexe em arquivos dele.
 ## O que faz
 - **Festival do Shugo** — aviso com som 5 e 1 minuto antes (horários configuráveis).
 - **Rifts e chefes do mundo** — aviso 5 minutos antes e na hora, com mini-mapa do local.
-- **PvP** — toca um som escolhido quando você derrota alguém (lê a mensagem na tela).
 - **Mapa de coletáveis** — Elyos, Asmodian e Abismo (com o mapa de Reshanta Inferior), ícone de cada recurso, filtros e "coletado".
 - **Minimapa do Alt+M** — reconhece onde você está e desenha os recursos por cima; clique no ícone
   para marcar a coleta e iniciar um timer de renascimento (5 min).
@@ -17,7 +16,7 @@ Não lê a memória do jogo nem mexe em arquivos dele.
 - **Chefes de campo** — percebe sozinho quando um field boss morre perto de você e avisa 5 min antes e na hora
   em que ele renasce, com mini-mapa do local (ou marque "Morreu agora").
 - **Medidor de DPS (experimental, desligado por padrão)** — lê o tráfego do jogo pelo Npcap; mostra
-  dano, crítico, dupla chance, cura, a classe de cada jogador e o detalhe por habilidade.
+  dano, DPS, crítico, dupla chance, cura, a classe de cada jogador e o detalhe por habilidade; mostra a luta atual ou a sessão inteira.
 - Vários monitores, travar/destravar overlays, português, inglês e espanhol.
 
 ## Instalar (usuário comum)

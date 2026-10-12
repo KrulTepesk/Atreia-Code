@@ -220,25 +220,42 @@ class TcpStream:
 
 # ---------------------------------------------------------------- luta / estatísticas
 class Fight:
-    def __init__(self):
+    """resets=True: uma luta (zera depois de FIGHT_TIMEOUT sem golpes).
+    resets=False: a sessão inteira (soma todas as lutas; o tempo conta só enquanto está lutando)."""
+
+    def __init__(self, resets=True):
+        self.resets = resets
         self.reset()
 
     def reset(self):
         self.start = None
         self.last = None
+        self.active = 0.0     # segundos lutando (pausas maiores que FIGHT_TIMEOUT não contam)
         self.pair = {}        # (atacante, alvo) -> [dano, golpes, críticos, múltiplos]
         self.heal = {}        # quem curou -> total
+        self.act = {}         # jogador -> [último golpe, segundos lutando] (DPS de cada um pelo próprio tempo)
         self.skills = {}      # (jogador, habilidade) -> [dano, golpes, críticos, cura, curas]
 
     def _touch(self, t):
-        if self.last is not None and t - self.last > FIGHT_TIMEOUT:
-            self.reset()
+        if self.last is not None:
+            gap = t - self.last
+            if gap > FIGHT_TIMEOUT:
+                if self.resets:
+                    self.reset()
+            elif gap > 0:
+                self.active += gap
         if self.start is None:
             self.start = t
         self.last = t
 
-    def add(self, t, atk, tgt, dmg, crit=False, multi=False, skill=None):
-        self._touch(t)
+    def add(self, t, atk, tgt, dmg, crit=False, multi=False, skill=None, mine=True):
+        if mine or self.start is None:
+            self._touch(t)            # só você e o seu grupo mantêm a luta aberta
+        a = self.act.setdefault(atk, [t, 0.0])
+        gap = t - a[0]
+        if 0 < gap <= FIGHT_TIMEOUT:
+            a[1] += gap
+        a[0] = t
         v = self.pair.setdefault((atk, tgt), [0, 0, 0, 0])
         v[0] += dmg
         v[1] += 1
@@ -262,7 +279,12 @@ class Fight:
     def elapsed(self):
         if self.start is None:
             return 0
-        return max(1.0, self.last - self.start)
+        return max(1.0, self.active)
+
+    def player_time(self, a):
+        """Tempo que esse jogador passou batendo (para o DPS dele)."""
+        v = self.act.get(a)
+        return max(1.0, v[1]) if v else max(1.0, self.elapsed())
 
     def players(self, known, mine=frozenset()):
         """Separa os dois lados (quem bate em quem). Seu lado = o seu e de quem você/seus aliados curam;
@@ -312,6 +334,8 @@ class DpsReader(QThread):
         self._run = True
         self.names = {}
         self.fight = Fight()
+        self.session = Fight(resets=False)
+        self.view = "fight"       # "fight" = luta atual; "session" = tudo desde que zerou
         self.self_id = None
         self.self_name = ""
         self.auto_self = None
@@ -368,8 +392,8 @@ class DpsReader(QThread):
             time.sleep(0.5)
             self.flush_world()
             try:
-                f = self.fight
-                key = (f.start, f.last, len(f.pair), self.find_self(), self.mode)
+                f = self.current()
+                key = (f.start, f.last, len(f.pair), self.find_self(), self.mode, self.view)
                 active = f.last is not None and time.time() - f.last < FIGHT_TIMEOUT
                 if key != getattr(self, "_last_key", None) or active != getattr(self, "_last_active", None):
                     self._last_key, self._last_active = key, active
@@ -425,6 +449,7 @@ class DpsReader(QThread):
                         # mas só vale como cura em alvos que não são inimigos (senão o dano dela sumiria)
                         self.heal_skills.add(skill)
                         self.fight.add_heal(now, atk, tgt, dmg, skill)
+                        self.session.add_heal(now, atk, tgt, dmg, skill)
                     return
                 if not dmg or dmg <= 0:
                     if c and (atk, tgt) not in self.harmed:   # buff/aura de jogador em outro = mesmo grupo
@@ -433,12 +458,15 @@ class DpsReader(QThread):
                 if is_known_heal(skill) or (skill in self.heal_skills and tgt not in self.enemies):
                     self._link(atk, tgt)
                     self.fight.add_heal(now, atk, tgt, dmg, skill)
+                    self.session.add_heal(now, atk, tgt, dmg, skill)
                     return
                 self.harmed.add((atk, tgt))
                 if c:
                     self.enemies.add(tgt)                  # quem leva dano de jogador é inimigo/monstro
                 self._unlink(atk, tgt)
-                self.fight.add(now, atk, tgt, dmg, h["crit"], h["multi"], skill)
+                mine = bool(c) and self._mine(atk)
+                self.fight.add(now, atk, tgt, dmg, h["crit"], h["multi"], skill, mine)
+                self.session.add(now, atk, tgt, dmg, h["crit"], h["multi"], skill, mine)
             elif op == 0x364A:
                 # mensagem que o servidor só manda sobre o seu próprio personagem
                 self.auto_self, _ = varint(body, 0)
@@ -486,8 +514,23 @@ class DpsReader(QThread):
         with self.lock:
             return self._snapshot()
 
+    def _mine(self, atk):
+        """Golpe seu / do seu grupo? (sem saber quem é você, vale qualquer jogador)"""
+        me = self.find_self()
+        if me is None:
+            return True
+        if atk == me:
+            return True
+        now = time.time()
+        if now - getattr(self, "_grp_t", 0) > 1.0:
+            self._grp, self._grp_t = self.group(me), now
+        return atk in self._grp
+
+    def current(self):
+        return self.session if self.view == "session" else self.fight
+
     def _snapshot(self):
-        f = self.fight
+        f = self.current()
         me = self.find_self()
         mine = self.group(me)
         if self.mode == "party":
@@ -507,6 +550,7 @@ class DpsReader(QThread):
         rows = []
         for a, (d, h, c, mu) in top:
             rows.append({"id": a, "name": self.names.get(a, ""), "cls": self.cls.get(a), "dmg": d, "hits": h,
+                         "dps": d / f.player_time(a),
                          "crit": c / h if h else 0, "multi": mu / h if h else 0,
                          "heal": f.heal.get(a, 0), "me": a == me})
         return {"elapsed": f.elapsed(), "rows": rows, "skills": self.skill_rows([r["id"] for r in rows]),
@@ -517,7 +561,7 @@ class DpsReader(QThread):
         """Por jogador: habilidades que deram dano ou curaram, já com nome/ícone, juntando os níveis."""
         import skills_db
         out = {}
-        for (a, sk), v in self.fight.skills.items():
+        for (a, sk), v in self.current().skills.items():
             if a not in ids:
                 continue
             key, cls, name, icon = skills_db.lookup(sk)
@@ -534,3 +578,4 @@ class DpsReader(QThread):
     def reset(self):
         with self.lock:
             self.fight.reset()
+            self.session.reset()

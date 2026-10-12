@@ -161,6 +161,7 @@ class DpsTab(QWidget):
         d.setdefault("autostart", False)
         d.setdefault("mode", "party")
         d.setdefault("show_skills", True)
+        d.setdefault("view", "fight")
         self.thread = None
         self.current = None
         self.marks_file = None
@@ -172,6 +173,7 @@ class DpsTab(QWidget):
         self._last = None
         self.meter.row_clicked.connect(self.select_row)
         self.meter.reset_requested.connect(self.reset_fight)
+        self.meter.view_requested.connect(self.set_view)
         self._hide_overlays()
         hub.updated.connect(lambda snap: self.on_live(snap) if self.reader else None)
         hub.status.connect(self.on_live_status)
@@ -390,6 +392,13 @@ class DpsTab(QWidget):
         if self.reader:
             self.reader.mode = cfg["dps"]["mode"]
 
+    def set_view(self, v):
+        cfg["dps"]["view"] = v
+        save()
+        if self.hub.reader:
+            self.hub.reader.view = v
+            self.on_live(self.hub.reader.snapshot())
+
     def reset_fight(self):
         self.sel_id = None
         if self.reader:
@@ -432,6 +441,7 @@ class DpsTab(QWidget):
             self.live_status.setText(T("Precisa do Npcap e de abrir o overlay como administrador (veja acima)."))
             return
         self.hub.reader.mode = cfg["dps"].get("mode", "party")
+        self.hub.reader.view = cfg["dps"].get("view", "fight")
         self.live_status.setText(T("Lendo o tráfego do jogo... bata em algo para começar."))
         self.btn_live.setText(T("■ Parar medidor"))
         if cfg["dps"].get("show_meter", True):
@@ -454,11 +464,13 @@ class DpsTab(QWidget):
         for r in snap["rows"]:
             cname = T(CLASSES[r["cls"]][0]) if r.get("cls") in CLASSES else ""
             name = r["name"] or (T("Você") if r["me"] else (cname or f"#{r['id']}"))
-            rows.append((name, r.get("cls"), r["dmg"], r["me"], r["crit"], r["multi"]))
+            rows.append((name, r.get("cls"), r["dmg"], r["me"], r["crit"], r["multi"], r.get("dps")))
         if cfg["dps"].get("mode") == "party" and not snap.get("found_me"):
             state = T("Procurando o seu personagem...")
         else:
             state = T("Em luta") if snap["active"] else (T("Última luta") if rows else "—")
+            if cfg["dps"].get("view") == "session":
+                state = T("Desde o zerar") if rows else "—"
         foot = f"{T('Sua cura')}: {snap['my_heal']:,}".replace(",", ".") if snap.get("my_heal") else ""
         self.meter.set_data(state, snap["elapsed"], rows, foot)
         # detalhe de habilidades: o jogador clicado; senão você; senão quem mais bateu

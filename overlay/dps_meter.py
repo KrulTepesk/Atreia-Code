@@ -137,6 +137,7 @@ class DpsMeter(OverlayWindow):
     W = 420
     ROW = 26
     reset_requested = Signal()
+    view_requested = Signal(str)   # "fight" ou "session" (clique no seletor do cabeçalho)
     row_clicked = Signal(int)      # índice da linha clicada (para o detalhe de habilidades)
 
     def __init__(self):
@@ -150,6 +151,7 @@ class DpsMeter(OverlayWindow):
         self.elapsed = 0
         self.rows = []          # [(nome, classe, dano_total, é_você, crítico%, múltiplo%)]
         self.footer = ""
+        self.view = cfg["dps"].get("view", "fight")
         self._hover_reset = False
         self.setFixedWidth(self.W)
         self._resize()
@@ -162,10 +164,23 @@ class DpsMeter(OverlayWindow):
     def reset_rect(self):
         return QRectF(self.W - 70, 9, 22, 18)
 
+    def view_rects(self):
+        """Seletor Luta | Sessão no cabeçalho."""
+        x = 150
+        return {"fight": QRectF(x, 8, 46, 20), "session": QRectF(x + 48, 8, 58, 20)}
+
     def mousePressEvent(self, e):
         if e.button() == Qt.LeftButton and self.reset_rect().contains(e.position()):
             self.reset_requested.emit()
             return
+        if e.button() == Qt.LeftButton:
+            for v, r in self.view_rects().items():
+                if r.contains(e.position()):
+                    if v != self.view:
+                        self.view = v
+                        self.view_requested.emit(v)
+                        self.update()
+                    return
         self._press_pos = e.position()
         super().mousePressEvent(e)
 
@@ -197,7 +212,8 @@ class DpsMeter(OverlayWindow):
         self._dock()
 
     def mouseMoveEvent(self, e):
-        h = self.reset_rect().contains(e.position())
+        h = self.reset_rect().contains(e.position()) or any(
+            r.contains(e.position()) for r in self.view_rects().values())
         if h != self._hover_reset:
             self._hover_reset = h
             self.setCursor(Qt.PointingHandCursor if h else Qt.ArrowCursor)
@@ -224,6 +240,15 @@ class DpsMeter(OverlayWindow):
         p.setPen(QColor("#f2ede3"))
         p.setFont(display_font(11))
         p.drawText(pad + 14, 22, T("Medidor de dano"))
+        # seletor luta / sessão
+        for v, r in self.view_rects().items():
+            on = v == self.view
+            p.setPen(Qt.NoPen)
+            p.setBrush(QColor(217, 164, 65, 230) if on else QColor(255, 255, 255, 22))
+            p.drawRoundedRect(r, 4, 4)
+            p.setPen(QColor("#1b1204") if on else QColor("#c7bda8"))
+            p.setFont(QFont("Segoe UI", 8, QFont.DemiBold if on else QFont.Normal))
+            p.drawText(r, Qt.AlignCenter, T("Luta") if v == "fight" else T("Sessão"))
         m, s = divmod(int(self.elapsed), 60)
         p.setPen(QColor("#c7bda8"))
         p.setFont(QFont("Segoe UI", 9))
@@ -274,7 +299,8 @@ class DpsMeter(OverlayWindow):
             p.setFont(f_name)
             p.drawText(r.adjusted(ic.width() + 9, 0, 0, 0), Qt.AlignVCenter | Qt.AlignLeft, name)
             p.setFont(f_num)
-            cols = [(f"{dmg / total * 100:.1f}%", 44), (fmt(dmg), 58), (fmt(dmg / dur), 52)]
+            dps = row[6] if len(row) > 6 and row[6] else dmg / dur      # cada um pelo próprio tempo lutando
+            cols = [(f"{dmg / total * 100:.1f}%", 44), (fmt(dmg), 58), (fmt(dps), 52)]
             if crit is not None:
                 cols += [(f"{multi * 100:.0f}%", 40), (f"{crit * 100:.0f}%", 40)]
             x = r.right() - 8
