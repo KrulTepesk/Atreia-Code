@@ -12,7 +12,7 @@ class OverlayWindow(QWidget):
         self.key = key
         self._drag = None
         self._locked = False
-        self._bg = QColor(12, 11, 9)        # céu do Abismo
+        self._bg = QColor(8, 8, 9)        # céu do Abismo
         self._accent = QColor(0, 0, 0, 0)
         self.default_offset = default_offset
         self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Tool)
@@ -72,15 +72,11 @@ class OverlayWindow(QWidget):
         bg = QColor(self._bg)
         bg.setAlpha(215)
         p.setBrush(bg)
-        pen = QColor(self._accent) if self._accent.alpha() else (QColor(168, 116, 42, 55) if self._locked else QColor(224, 176, 79, 110))
+        pen = QColor(self._accent) if self._accent.alpha() else (QColor(255, 255, 255, 18) if self._locked else QColor(217, 164, 65, 120))
         p.setPen(pen)
         from PySide6.QtCore import QRectF
-        from theme import chamfer_path
-        path = chamfer_path(QRectF(self.rect()).adjusted(1, 1, -1, -1), 12)
-        p.drawPath(path)
-        # traço de éter no canto de cima (mesma assinatura dos cartões do painel)
+        from theme import draw_bevel, panel_path
+        r = QRectF(self.rect()).adjusted(1, 1, -1, -1)
+        p.drawPath(panel_path(r, 10))
         if not self._accent.alpha():
-            from PySide6.QtCore import QPointF
-            from PySide6.QtGui import QPen
-            p.setPen(QPen(QColor(224, 176, 79, 200), 1.4))
-            p.drawLine(QPointF(1, 13), QPointF(13, 1))
+            draw_bevel(p, r, 10, 26)

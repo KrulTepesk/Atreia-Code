@@ -14,7 +14,7 @@ except ImportError:  # pragma: no cover
     ZoneInfo = None
 
 from PySide6.QtCore import QPointF, QPoint, QRectF, Qt, QTimer
-from PySide6.QtGui import QColor, QFont, QFontMetrics, QPainter, QPainterPath
+from PySide6.QtGui import QColor, QFont, QFontMetrics, QPainter, QPainterPath, QPen
 from PySide6.QtWidgets import (QCheckBox, QComboBox, QFormLayout, QGridLayout, QGroupBox, QHBoxLayout,
                                QLabel, QPushButton, QSpinBox, QVBoxLayout, QWidget)
 
@@ -150,7 +150,9 @@ class EventToast(OverlayWindow):
         ctr = QPointF(42, 41)
         bg = QColor(c)
         bg.setAlpha(45)
-        theme.draw_diamond(p, ctr, 27, bg, c)
+        p.setPen(QPen(c, 1.2))
+        p.setBrush(bg)
+        p.drawRoundedRect(QRectF(ctr.x() - 25, ctr.y() - 25, 50, 50), 12, 12)
         if kind == "boss":
             import icons
             pm = icons.world_boss(40)
@@ -347,7 +349,7 @@ class EventsTab(QWidget):
                             f"width='18' height='18' style='vertical-align:middle'>&nbsp; {T(ev['name'])}")
                 g.addWidget(lbl, row, 0)
             else:
-                g.addWidget(QLabel(f"<span style='color:{COLORS.get(ev['kind'], '#e0b04f')}'>◆</span>&nbsp; {T(ev['name'])}"), row, 0)
+                g.addWidget(QLabel(f"<span style='color:{COLORS.get(ev['kind'], '#e0b04f')}'>●</span>&nbsp; {T(ev['name'])}"), row, 0)
             for col, key in enumerate(("enabled", "pre", "at", "map"), 1):
                 cb = QCheckBox()
                 cb.setChecked(it.get(key, False))

@@ -1,4 +1,4 @@
-"""Visual do app: preto com detalhes em ouro (o "éter" virou dourado, como o símbolo do Meta Overlay).
+"""Visual do app: preto em camadas + o ouro metálico do símbolo do Meta Overlay.
 
 Tokens de cor, folha de estilo (QSS), ícones desenhados, menu lateral (NavTabs) e polish()
 que deixa os textos de ajuda num tom mais suave.
@@ -16,66 +16,71 @@ from PySide6.QtWidgets import (QFrame, QGroupBox, QHBoxLayout, QLabel, QPushButt
 from config import BASE_DIR
 
 # ---------------------------------------------------------------- cores
-INK = "#0a0908"        # fundo da janela
-SKY = "#0d0c0a"        # menu lateral
-CARD = "#131210"       # cartões
-FIELD = "#1a1815"      # campos / botões
-FIELD_HI = "#23201b"   # hover
-LINE = "#2b2720"       # bordas
-TEXT = "#f2ede3"
-MUTED = "#9b9282"
-FAINT = "#5f584c"
-AETHER = "#e0b04f"     # ouro (destaque)
-AETHER2 = "#a8742a"    # bronze (destaque 2)
+# Preto de verdade + o ouro metálico do símbolo. O ouro aparece em poucos lugares (botão principal,
+# aba aberta, marca); o resto é preto em camadas com um chanfro de luz em cima, como peça de metal.
+INK = "#050505"        # fundo das páginas
+SKY = "#000000"        # menu lateral
+CARD = "#0f0f10"       # painéis
+FIELD = "#17171a"      # campos / botões
+FIELD_HI = "#202024"   # hover
+LINE = "#26262a"       # bordas
+TEXT = "#eeece7"
+MUTED = "#8e8b84"
+FAINT = "#55534e"
+GOLD_HI = "#f5d27a"    # luz do metal
+AETHER = "#d9a441"     # ouro (meio do metal)
+AETHER2 = "#8a5a1c"    # sombra do metal
 GOLD = "#f2c14e"       # alertas (Shugo, eventos)
+METAL = "qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #f3d07a, stop:0.48 #d8a443, stop:0.52 #c7922f, stop:1 #93631f)"
+METAL_HI = "qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #fbe0a0, stop:0.48 #e6b456, stop:0.52 #d6a03b, stop:1 #a57126)"
 
 # nomes antigos (outros módulos ainda importam)
-BG, PANEL, PANEL2, BORDER, ACCENT, ACCENT_DARK = INK, CARD, FIELD, LINE, AETHER, "#a87b26"
+BG, PANEL, PANEL2, BORDER, ACCENT, ACCENT_DARK = INK, CARD, FIELD, LINE, AETHER, AETHER2
 
 UI = os.path.join(BASE_DIR, "ui").replace("\\", "/")
 FONT = "'Segoe UI Variable Text', 'Segoe UI', 'Inter', sans-serif"
-FONT_DISPLAY = "Marcellus"     # fonte livre (OFL), vem junto em fonts/
+FONT_DISPLAY = "Barlow Semi Condensed"     # fonte livre (OFL), vem junto em fonts/
 
 QSS = f"""
 * {{ font-family: {FONT}; font-size: 9pt; color: {TEXT}; }}
 QWidget#Page, QStackedWidget, QScrollArea > QWidget > QWidget {{ background: {INK}; }}
-QToolTip {{ background: {FIELD}; color: {TEXT}; border: 1px solid {LINE}; padding: 5px 8px; }}
+QToolTip {{ background: {FIELD}; color: {TEXT}; border: 1px solid {LINE}; border-radius: 4px; padding: 5px 8px; }}
 
-/* cartões: moldura com cantos cortados é pintada pelo CardFrame (QSS não faz chanfro) */
+/* painéis: pintados pelo CardFrame (fundo, borda e o chanfro de luz em cima) */
 QGroupBox {{
     background: transparent; border: none;
-    margin-top: 4px; padding: 36px 14px 10px 14px;
+    margin-top: 2px; padding: 34px 14px 12px 14px;
 }}
 QGroupBox::title {{ color: transparent; subcontrol-origin: padding; left: 0; top: 0; }}
 QLabel {{ background: transparent; }}
 QLabel[hint="true"] {{ color: {MUTED}; }}
 QLabel:disabled {{ color: {FAINT}; }}
 
-/* botões: "encaixes" escuros e retos, como os da interface do jogo */
 QPushButton {{
-    background: #171512; border: 1px solid #3a3328; border-radius: 2px;
+    background: {FIELD}; border: 1px solid #2c2c31; border-top-color: #38383e; border-radius: 5px;
     padding: 4px 12px; color: {TEXT}; min-height: 16px;
 }}
-QPushButton:hover {{ border-color: #8f7135; background: #1f1c17; }}
-QPushButton:pressed {{ background: #0c0b09; }}
-QPushButton:focus {{ border-color: {AETHER}; }}
+QPushButton:hover {{ background: {FIELD_HI}; border-color: #46464d; }}
+QPushButton:pressed {{ background: #0c0c0d; border-top-color: #1c1c1f; }}
+QPushButton:focus {{ border-color: #6b5320; }}
+/* ação principal: o metal dourado do símbolo */
 QPushButton:checked, QPushButton[primary="true"] {{
-    background: #2a1f0b; border: 1px solid {AETHER}; color: #fff0cc; font-weight: 600;
+    background: {METAL}; border: 1px solid #5c3f12; border-top-color: #f8dc93;
+    color: #1b1204; font-weight: 600;
 }}
-QPushButton[primary="true"]:hover {{ background: #3a2b10; border-color: #f4d58c; }}
-QPushButton:disabled {{ color: {FAINT}; border-color: #1e1b17; background: #0f0e0c; }}
+QPushButton[primary="true"]:hover, QPushButton:checked:hover {{ background: {METAL_HI}; }}
+QPushButton:disabled {{ color: {FAINT}; border-color: #1c1c1f; background: #0c0c0d; }}
 
-/* campos */
 QLineEdit, QSpinBox, QDoubleSpinBox, QComboBox {{
-    background: #0f0e0c; border: 1px solid #2e2922; border-radius: 2px;
+    background: #0b0b0c; border: 1px solid #2a2a2e; border-bottom-color: #34343a; border-radius: 5px;
     padding: 3px 8px; min-height: 16px;
-    selection-background-color: {AETHER}; selection-color: {INK};
+    selection-background-color: {AETHER}; selection-color: #1b1204;
 }}
-QLineEdit:hover, QSpinBox:hover, QDoubleSpinBox:hover, QComboBox:hover {{ border-color: #5c4b2b; }}
+QLineEdit:hover, QSpinBox:hover, QDoubleSpinBox:hover, QComboBox:hover {{ border-color: #45454c; }}
 QLineEdit:focus, QSpinBox:focus, QDoubleSpinBox:focus, QComboBox:focus {{ border-color: {AETHER}; }}
-QLineEdit:disabled, QSpinBox:disabled, QComboBox:disabled {{ color: {FAINT}; border-color: #1e1b17; }}
+QLineEdit:disabled, QSpinBox:disabled, QComboBox:disabled {{ color: {FAINT}; border-color: #1c1c1f; }}
 QSpinBox, QDoubleSpinBox {{ max-width: 170px; }}
-QComboBox::drop-down {{ border: none; width: 28px; }}
+QComboBox::drop-down {{ border: none; width: 26px; }}
 QComboBox::down-arrow {{ image: url({UI}/down.svg); width: 10px; height: 6px; }}
 QSpinBox::up-arrow, QDoubleSpinBox::up-arrow {{ image: url({UI}/up.svg); width: 9px; height: 5px; }}
 QSpinBox::down-arrow, QDoubleSpinBox::down-arrow {{ image: url({UI}/down.svg); width: 9px; height: 5px; }}
@@ -83,56 +88,64 @@ QSpinBox::up-button, QSpinBox::down-button, QDoubleSpinBox::up-button, QDoubleSp
     width: 18px; border: none; background: transparent;
 }}
 QComboBox QAbstractItemView {{
-    background: #11100e; border: 1px solid {LINE};
-    selection-background-color: #221d14; selection-color: {AETHER}; outline: none; padding: 4px;
+    background: #0f0f10; border: 1px solid {LINE}; border-radius: 5px;
+    selection-background-color: #1f1a10; selection-color: {GOLD_HI}; outline: none; padding: 4px;
 }}
 
-/* interruptores: encaixe angular com losango */
-QCheckBox {{ spacing: 10px; background: transparent; }}
-QCheckBox::indicator {{ width: 38px; height: 20px; border: none; image: url({UI}/switch_off.svg); }}
+QCheckBox {{ spacing: 9px; background: transparent; }}
+QCheckBox::indicator {{ width: 32px; height: 18px; border: none; image: url({UI}/switch_off.svg); }}
 QCheckBox::indicator:checked {{ image: url({UI}/switch_on.svg); }}
 QCheckBox::indicator:disabled {{ image: url({UI}/switch_off_dis.svg); }}
 QCheckBox::indicator:checked:disabled {{ image: url({UI}/switch_on_dis.svg); }}
 QCheckBox:disabled {{ color: {FAINT}; }}
 
-QSlider::groove:horizontal {{ height: 2px; background: {LINE}; }}
-QSlider::sub-page:horizontal {{ background: {AETHER}; }}
+QSlider::groove:horizontal {{ height: 4px; background: #222226; border-radius: 2px; }}
+QSlider::sub-page:horizontal {{ background: {AETHER}; border-radius: 2px; }}
 QSlider::handle:horizontal {{
-    image: url({UI}/diamond.svg); width: 16px; height: 16px; margin: -7px 0; background: transparent; border: none;
+    background: {GOLD_HI}; border: 3px solid #050505; width: 10px; height: 10px; margin: -6px 0; border-radius: 8px;
 }}
 
-QListWidget {{ background: #0f0e0c; border: 1px solid #2e2922; padding: 4px; outline: none; }}
-QListWidget::item {{ padding: 4px 6px; }}
-QListWidget::item:hover {{ background: #191612; }}
-QListWidget::item:selected {{ background: #2a1f0b; color: #fff0cc; }}
+QListWidget, QTreeWidget, QTableWidget {{
+    background: #0b0b0c; border: 1px solid #222226; border-radius: 6px; padding: 2px; outline: none;
+    alternate-background-color: #0f0f11;
+}}
+QListWidget::item, QTreeWidget::item {{ padding: 3px 6px; }}
+QListWidget::item:hover, QTreeWidget::item:hover {{ background: #151517; }}
+QListWidget::item:selected, QTreeWidget::item:selected, QTableWidget::item:selected {{ background: #1f1a10; color: {GOLD_HI}; }}
+QHeaderView::section {{
+    background: transparent; color: {MUTED}; border: none; border-bottom: 1px solid #26262a;
+    padding: 4px 6px; font-weight: 600;
+}}
+QTableCornerButton::section {{ background: transparent; border: none; }}
 
 QScrollArea {{ border: none; background: transparent; }}
-QScrollBar:vertical {{ background: transparent; width: 6px; margin: 4px 1px; }}
-QScrollBar::handle:vertical {{ background: #3b3428; min-height: 30px; }}
-QScrollBar::handle:vertical:hover {{ background: {AETHER}; }}
+QScrollBar:vertical {{ background: transparent; width: 8px; margin: 2px; }}
+QScrollBar::handle:vertical {{ background: #2a2a2f; min-height: 30px; border-radius: 3px; }}
+QScrollBar::handle:vertical:hover {{ background: #4a4a52; }}
 QScrollBar::add-line, QScrollBar::sub-line, QScrollBar::add-page, QScrollBar::sub-page {{ height: 0; background: none; }}
 QScrollBar:horizontal {{ height: 0; }}
 
-QMenu {{ background: #11100e; border: 1px solid {LINE}; padding: 5px; }}
-QMenu::item {{ padding: 7px 20px; }}
-QMenu::item:selected {{ background: #221d14; color: {AETHER}; }}
+QMenu {{ background: #0f0f10; border: 1px solid {LINE}; border-radius: 6px; padding: 4px; }}
+QMenu::item {{ padding: 6px 18px; border-radius: 4px; }}
+QMenu::item:selected {{ background: #1f1a10; color: {GOLD_HI}; }}
 QMessageBox, QDialog {{ background: {INK}; }}
 
-/* menu lateral: sem "pílulas"; o item aberto ganha um losango de éter */
+/* menu lateral: preto puro; a aba aberta ganha uma barra de ouro (pintada no NavButton) */
 #NavBar QPushButton {{
-    text-align: left; padding: 7px 10px 7px 22px; border: none; border-radius: 0;
+    text-align: left; padding: 7px 10px 7px 14px; border: none; border-radius: 6px;
     background: transparent; color: {MUTED}; font-size: 9.5pt;
 }}
-#NavBar QPushButton:hover {{ color: {TEXT}; background: transparent; }}
-#NavBar QPushButton:checked {{ color: {TEXT}; background: transparent; border: none; font-weight: 600; }}
+#NavBar QPushButton:hover {{ color: {TEXT}; background: #0e0e10; }}
+#NavBar QPushButton:checked {{ color: {TEXT}; background: #141416; border: none; font-weight: 600; }}
 #NavBar QPushButton#LockPill {{
-    border: 1px solid {LINE}; background: rgba(10, 9, 8, 0.7); padding: 6px 10px; font-size: 8.5pt; border-radius: 2px;
+    border: 1px solid {LINE}; background: #0b0b0c; padding: 6px 10px; font-size: 8.5pt; border-radius: 6px;
+    color: {MUTED};
 }}
-#NavBar QPushButton#LockPill:checked {{ border-color: {AETHER}; color: #fff0cc; background: rgba(42, 31, 11, 0.8); }}
-#Brand {{ color: {TEXT}; font-family: '{FONT_DISPLAY}'; font-size: 12.5pt; }}
+#NavBar QPushButton#LockPill:checked {{ border-color: #5c3f12; color: {GOLD_HI}; background: #17120a; }}
+#Brand {{ color: {TEXT}; font-family: '{FONT_DISPLAY}'; font-size: 13.5pt; font-weight: 600; }}
 #BrandSub {{ color: {MUTED}; font-size: 7.5pt; }}
-#PageTitle {{ font-family: '{FONT_DISPLAY}'; font-size: 16pt; color: {TEXT}; }}
-#PageSub {{ color: {MUTED}; font-size: 8.5pt; padding-bottom: 4px; }}
+#PageTitle {{ font-family: '{FONT_DISPLAY}'; font-size: 19pt; font-weight: 600; color: {TEXT}; }}
+#PageSub {{ color: {MUTED}; font-size: 8.5pt; padding-bottom: 6px; }}
 """
 
 
@@ -145,10 +158,37 @@ def load_fonts():
                 QFontDatabase.addApplicationFont(os.path.join(folder, f))
 
 
-def display_font(pt):
+def display_font(pt, weight=QFont.DemiBold):
     f = QFont(FONT_DISPLAY)
     f.setPointSizeF(pt)
+    f.setWeight(weight)
     return f
+
+
+def panel_path(r, radius=8):
+    path = QPainterPath()
+    path.addRoundedRect(r, radius, radius)
+    return path
+
+
+def draw_bevel(p, r, radius=8, alpha=18):
+    """Chanfro de luz na borda de cima (o painel parece uma peça de metal escuro)."""
+    p.save()
+    p.setClipRect(QRectF(r.left(), r.top(), r.width(), radius + 1))
+    c = QColor(255, 255, 255, alpha)
+    p.setPen(QPen(c, 1))
+    p.setBrush(Qt.NoBrush)
+    p.drawRoundedRect(r.adjusted(0.5, 0.5, -0.5, -0.5), radius, radius)
+    p.restore()
+
+
+def draw_mark(p, center, color, h=12):
+    """Marquinha vertical (no lugar do losango antigo) para títulos de overlays."""
+    p.save()
+    p.setPen(Qt.NoPen)
+    p.setBrush(QColor(color))
+    p.drawRoundedRect(QRectF(center.x() - 1.5, center.y() - h / 2, 3, h), 1.5, 1.5)
+    p.restore()
 
 
 def chamfer_path(r, cut=10, corners=("tl", "br")):
@@ -176,33 +216,25 @@ def draw_diamond(p, center, size, fill, outline=None):
 
 
 class CardFrame(QObject):
-    """Pinta os cartões (QGroupBox): cantos cortados, losango + título na fonte de destaque e um fio até a borda."""
+    """Pinta os painéis (QGroupBox): preto em camada, borda fina, chanfro de luz e o título na fonte condensada."""
 
     def eventFilter(self, w, e):
         if e.type() == QEvent.Paint and isinstance(w, QGroupBox):
             p = QPainter(w)
             p.setRenderHint(QPainter.Antialiasing)
-            r = QRectF(w.rect()).adjusted(0.5, 8.5, -0.5, -0.5)
-            path = chamfer_path(r, 12)
-            p.fillPath(path, QColor(CARD) if w.isEnabled() else QColor("#0f0e0c"))
+            r = QRectF(w.rect()).adjusted(0.5, 2.5, -0.5, -0.5)
+            path = panel_path(r, 8)
+            p.fillPath(path, QColor(CARD) if w.isEnabled() else QColor("#0a0a0b"))
             p.setPen(QPen(QColor(LINE), 1))
             p.drawPath(path)
-            # canto de cima com um traço de éter (marca do "encaixe")
-            p.setPen(QPen(QColor(AETHER if w.isEnabled() else LINE), 1.4))
-            p.drawLine(QPointF(r.left(), r.top() + 12), QPointF(r.left() + 12, r.top()))
+            draw_bevel(p, r, 8, 22 if w.isEnabled() else 8)
             title = w.title()
             if title:
-                y = r.top() + 17
-                draw_diamond(p, QPointF(r.left() + 18, y), 3.5, AETHER if w.isEnabled() else FAINT)
-                f = display_font(11)
+                f = display_font(11.5)
                 p.setFont(f)
                 p.setPen(QColor(TEXT if w.isEnabled() else FAINT))
                 fm = p.fontMetrics()
-                p.drawText(QPointF(r.left() + 28, y + fm.ascent() / 2 - 2), title)
-                x2 = r.left() + 28 + fm.horizontalAdvance(title) + 14
-                if x2 < r.right() - 24:
-                    p.setPen(QPen(QColor(LINE), 1))
-                    p.drawLine(QPointF(x2, y), QPointF(r.right() - 20, y))
+                p.drawText(QPointF(r.left() + 14, r.top() + 10 + fm.ascent()), title)
             p.end()
         return False
 
@@ -431,54 +463,31 @@ class Brand(QWidget):
 
 
 class NavBar(QFrame):
-    """Fundo do menu pintado como o céu do Abismo: brilhos suaves de éter e algumas estrelas."""
-    # só na parte vazia de baixo do menu (não passam por cima dos textos)
-    STARS = [(0.12, 0.52), (0.8, 0.5), (0.45, 0.58), (0.68, 0.64), (0.22, 0.68), (0.88, 0.72), (0.36, 0.76),
-             (0.6, 0.8), (0.14, 0.86), (0.78, 0.88), (0.5, 0.9), (0.3, 0.62)]
+    """Menu lateral: preto puro com uma linha fina separando das páginas."""
 
     def paintEvent(self, e):
         p = QPainter(self)
-        p.setRenderHint(QPainter.Antialiasing)
         r = self.rect()
         p.fillRect(r, QColor(SKY))
-        for cx, cy, rad, col, a in ((0.1, 0.0, 1.1, AETHER2, 34), (1.0, 1.0, 1.0, AETHER, 20)):
-            g = QRadialGradient(QPointF(r.width() * cx, r.height() * cy), r.width() * rad)
-            c = QColor(col)
-            c.setAlpha(a)
-            g.setColorAt(0, c)
-            c.setAlpha(0)
-            g.setColorAt(1, c)
-            p.fillRect(r, g)
-        p.setPen(Qt.NoPen)
-        for k, (sx, sy) in enumerate(self.STARS):
-            c = QColor(TEXT)
-            c.setAlpha(60 + (k * 37) % 90)
-            p.setBrush(c)
-            rad = 0.8 + (k % 3) * 0.35
-            p.drawEllipse(QPointF(r.width() * sx, r.height() * sy), rad, rad)
-        p.setPen(QColor(LINE))
+        p.setPen(QColor("#1b1b1e"))
         p.drawLine(r.topRight(), r.bottomRight())
         p.end()
 
 
 class NavButton(QPushButton):
-    """Item do menu: ícone + texto; o aberto ganha um losango de éter e um fio de luz embaixo."""
+    """Item do menu: ícone + texto; o aberto ganha uma barra de ouro metálico na esquerda."""
 
     def paintEvent(self, e):
         super().paintEvent(e)
         if self.isChecked():
             p = QPainter(self)
             p.setRenderHint(QPainter.Antialiasing)
-            cy = self.height() / 2
-            draw_diamond(p, QPointF(9, cy), 4, AETHER)
-            g = QLinearGradient(24, 0, self.width(), 0)
-            c = QColor(AETHER)
-            c.setAlpha(150)
-            g.setColorAt(0, c)
-            c.setAlpha(0)
-            g.setColorAt(1, c)
-            p.setPen(QPen(g, 1))
-            p.drawLine(QPointF(24, self.height() - 5), QPointF(self.width() - 10, self.height() - 5))
+            g = QLinearGradient(0, 6, 0, self.height() - 6)
+            g.setColorAt(0, QColor(GOLD_HI))
+            g.setColorAt(1, QColor(AETHER2))
+            p.setPen(Qt.NoPen)
+            p.setBrush(g)
+            p.drawRoundedRect(QRectF(0, 7, 3, self.height() - 14), 1.5, 1.5)
             p.end()
 
 

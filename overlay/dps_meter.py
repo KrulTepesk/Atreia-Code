@@ -219,8 +219,8 @@ class DpsMeter(OverlayWindow):
         p.setRenderHint(QPainter.Antialiasing)
         pad = 12
         # cabeçalho
-        from theme import display_font, draw_diamond
-        draw_diamond(p, QPointF(pad + 4, 17), 3.5, "#e0b04f")
+        from theme import display_font, draw_mark
+        draw_mark(p, QPointF(pad + 3, 17), "#d9a441")
         p.setPen(QColor("#f2ede3"))
         p.setFont(display_font(11))
         p.drawText(pad + 14, 22, T("Medidor de dano"))
@@ -325,13 +325,13 @@ class SkillPanel(OverlayWindow):
 
     def paintEvent(self, e):
         super().paintEvent(e)
-        from theme import display_font, draw_diamond
+        from theme import display_font, draw_mark
         import skills_db
         p = QPainter(self)
         p.setRenderHint(QPainter.Antialiasing)
         p.setRenderHint(QPainter.SmoothPixmapTransform)
         pad = 12
-        draw_diamond(p, QPointF(pad + 4, 17), 3.5, CLASSES.get(self.cls, ("", "#e0b04f"))[1])
+        draw_mark(p, QPointF(pad + 3, 17), CLASSES.get(self.cls, ("", "#d9a441"))[1])
         p.setPen(QColor("#f2ede3"))
         p.setFont(display_font(11))
         p.drawText(pad + 14, 22, T("Habilidades") + (f" · {self.who}" if self.who else ""))
