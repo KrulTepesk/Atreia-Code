@@ -82,7 +82,8 @@ class Spawns:
 
     def guess_world(self, points):
         """Mapa cujos pontos de nascimento mais combinam com as posições vistas (mediana da distância)."""
-        if len(points) < 3:
+        points = [(x, y) for x, y in points if abs(x) > 1000 or abs(y) > 1000]    # (0,0) = lixo
+        if len(points) < 6:
             return None, None
         res = []
         for wid in self.grid:
@@ -94,8 +95,10 @@ class Spawns:
             res.append((ds[len(ds) // 2], wid))
         res.sort()
         med, wid = res[0]
-        if med > 900 or (len(res) > 1 and res[1][0] - med < 150):
-            return None, None             # nada combina bem ou ficou ambíguo
+        # nada combina bem, ou dois mapas combinam quase igual (as coordenadas do Abismo cruzam com as
+        # dos outros mapas): melhor não chutar
+        if med > 900 or (len(res) > 1 and res[1][0] - med < max(200, med * 0.6)):
+            return None, None
         return wid, med
 
 
@@ -129,13 +132,21 @@ class WorldTracker:
                 if p and not self._is_player(eid):
                     self.pos[eid] = (p[0], p[1], now)
             elif op == 0x3802:
-                tgt, i = varint(b, 0)
-                caster, j = varint(b, i + 7)
-                p = _xyz(b, j + 4)
-                if p:
-                    me = self.r.find_self()
-                    if caster == me:
-                        self.me = (p[0], p[1], now)
+                # quem usou | 00 | habilidade (4) | seq (1) | flags (1) | alvo | f32 | [x y z do alvo se flags&2]
+                caster, i = varint(b, 0)
+                j = i + 6
+                flags = b[j]
+                tgt, k = varint(b, j + 1)
+                if flags & 2:
+                    p = _xyz(b, k + 4)
+                    if p:
+                        me = self.r.find_self()
+                        if tgt == me:
+                            self.me = (p[0], p[1], now)
+                        elif not self._is_player(tgt):
+                            self.pos[tgt] = (p[0], p[1], now)
+                            if caster == me:
+                                self.me = (p[0], p[1], now)      # você está perto do que acertou
             elif op == 0x8D00:
                 eid, i = varint(b, 0)
                 if b[i:i + 3] == b"\x02\x01\x00" and len(b) >= i + 7:
@@ -154,7 +165,7 @@ class WorldTracker:
                     killer, _ = varint(b, j)
                     n = b[k + 2] if k + 2 < len(b) else 0
                     name = b[k + 3:k + 3 + n].decode("utf-8", "replace")
-                    if eid in self.dead or (eid in self.pos and not self._is_player(eid)):
+                    if eid in self.dead or ((eid in self.pos or eid in self.maxhp) and not self._is_player(eid)):
                         self.credit[eid] = (killer, name)
                         self.dead.setdefault(eid, now)
                 elif eid in self.dead:
@@ -199,7 +210,8 @@ class WorldTracker:
         if len(self.done) > 5000:
             self.done.clear()
         p = self.pos.get(eid)
-        if not p and killer is not None and killer == self.r.find_self():
+        sname = (self.r.self_name or "").lower()
+        if not p and killer and (killer == self.r.find_self() or (sname and kname.lower() == sname)):
             p = self.my_position(now)          # sem posição do monstro: ele morreu perto de você
         ev = {"eid": eid, "t": t, "killer": kname, "killer_id": killer, "mine": False, "mob": None, "cat": None,
               "world": self.world, "x": None, "y": None}

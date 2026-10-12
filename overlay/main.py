@@ -523,9 +523,12 @@ class ControlPanel(QWidget):
     def restart(self):
         from PySide6.QtCore import QProcess
         args = [] if getattr(sys, "frozen", False) else [os.path.abspath(sys.argv[0])]
+        self.hide()
+        self.tray.hide()
+        save()
         release_instance()
         QProcess.startDetached(sys.executable, args)
-        self.quit()
+        self.quit()                     # main() encerra o processo de vez depois do app.exec()
 
     def refresh_lock_pill(self):
         on = cfg.get("locked", False)
@@ -667,7 +670,16 @@ def main():
     panel = ControlPanel(app)
     panel.show()
     theme.dark_titlebar(panel)
-    sys.exit(app.exec())
+    code = app.exec()
+    # Fecha de verdade. Sem isso, alguma leitura em segundo plano (rede, tela) podia segurar o processo
+    # escondido depois de "Reiniciar" / trocar o idioma, e ficavam dois programas abertos.
+    try:
+        panel.tray.hide()
+        save()
+    except Exception:
+        pass
+    sys.stdout.flush() if sys.stdout else None
+    os._exit(code)
 
 
 if __name__ == "__main__":

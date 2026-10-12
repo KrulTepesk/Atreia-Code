@@ -124,7 +124,18 @@ class MinimapWorker(QThread):
         self._run = False
         self.wait(3000)
 
+    TRACK_FPS = 24        # acompanhamento rápido do mapa (deslocamento quadro a quadro)
+    SIFT_EVERY = 0.35     # reconhecimento completo (em segundo plano) no máximo a cada X s
+    SHOW_AFTER_OK = 1.5   # mostra por X s depois do último reconhecimento completo...
+    SHOW_TRACKED = 8.0    # ...ou até X s se o acompanhamento rápido continuar firme
+
     def run(self):
+        """Dois níveis:
+        - rápido (24 quadros/s): mede quanto o mapa andou desde o quadro anterior (correlação de fase, ~1 ms)
+          e arrasta os ícones junto. É isso que mantém os recursos no lugar enquanto você corre.
+        - completo (SIFT, em outra thread): descobre onde o mapa está de verdade e corrige o rápido.
+        Antes só existia o completo: correndo, ele ficava para trás ou falhava e os ícones sumiam."""
+        import threading
         self.status.emit(T("Preparando o reconhecimento do mapa..."))
         m = Matcher()
         m.build(self.backgrounds)
@@ -135,63 +146,118 @@ class MinimapWorker(QThread):
         r = c["region"]
         box = {"left": r[0], "top": r[1], "width": r[2], "height": r[3]}
         self.status.emit(T("Procurando..."))
+        lock = threading.Lock()
+        job = {"busy": False, "done": False, "res": None, "cum": None, "t": 0.0}
+
+        def full_locate(gray, mask, cum0):
+            try:
+                res = m.locate(gray, self.prefer, mask)
+            except Exception as e:          # nunca derruba o acompanhamento
+                self.status.emit(str(e))
+                res = None
+            with lock:
+                job.update(busy=False, done=True, res=res, cum=cum0)
+
         with mss.mss() as sct:
-            fails = 0
-            prev = None          # miniatura do quadro anterior
-            last = None          # último resultado
-            last_full = 0.0      # quando rodou o reconhecimento completo pela última vez
-            misses = 0
+            grab_fails = 0
+            prev = None              # quadro anterior reduzido (float32) para a correlação
+            win = None
+            cum = np.zeros(2)        # quanto o conteúdo do mapa andou desde o começo (px do minimapa)
+            A = None                 # pose atual: pixel do minimapa -> cena
+            wid = None
+            n_inl = 0
+            sift_ok = 0.0            # último reconhecimento completo que deu certo
+            sift_fails = 0           # falhas seguidas do completo
+            still_since = time.time()
+            shown = False
             while self._run:
                 t0 = time.time()
                 try:
                     shot = np.asarray(sct.grab(box))
-                    fails = 0
+                    grab_fails = 0
                 except Exception:
-                    # tela bloqueada, mudança de resolução, monitor desligado...: espera e tenta de novo
-                    fails += 1
-                    if fails == 3:
+                    grab_fails += 1
+                    if grab_fails == 3:
                         self.status.emit(T("Não deu para ler a tela agora; tentando de novo..."))
                     self.located.emit(None)
+                    shown = False
                     time.sleep(1.0)
                     continue
                 gray = cv2.cvtColor(shot, cv2.COLOR_BGRA2GRAY)
-                # parado no mesmo lugar: a imagem quase não muda -> reaproveita o resultado (economiza CPU)
-                thumb = cv2.resize(gray, (64, 64), interpolation=cv2.INTER_AREA).astype(np.int16)
-                still = prev is not None and float(np.abs(thumb - prev).mean()) < 2.0
-                prev = thumb
-                if still and last is not None and t0 - last_full < 3.0:
-                    self.located.emit(last)
-                    self._sleep(t0, c)
-                    continue
-                # o print inclui os ícones que o overlay desenhou: tapa esses pontos para não confundir
-                mask = None
-                marks = self.marks
-                if marks:
-                    mask = np.full(gray.shape, 255, np.uint8)
-                    for mx, my, mr in marks:
-                        cv2.circle(mask, (int(mx), int(my)), int(mr), 0, -1)
-                        cv2.rectangle(mask, (int(mx - 26), int(my + mr - 4)), (int(mx + 26), int(my + mr + 16)), 0, -1)
-                try:
-                    res = m.locate(gray, self.prefer, mask)
-                except Exception as e:
-                    self.status.emit(str(e))
-                    res = None
-                last_full = t0
-                if res:
-                    self.prefer = res[0]
-                    misses = 0
-                else:
-                    misses += 1
-                last = res
-                self.located.emit(res)
-                # mapa fechado há um tempo: procura só 1x por segundo até ele aparecer de novo
-                self._sleep(t0, c, slow=misses > 8)
+                moved = False
 
-    def _sleep(self, t0, c, slow=False):
-        period = 1.0 if slow else 1 / max(1, c.get("fps", 4))
-        wait = period - (time.time() - t0)
-        if wait > 0:
-            time.sleep(wait)
+                # ---- rápido: deslocamento desde o quadro anterior
+                small = cv2.resize(gray, (gray.shape[1] // 2, gray.shape[0] // 2),
+                                   interpolation=cv2.INTER_AREA).astype(np.float32)
+                if prev is not None and prev.shape == small.shape:
+                    if win is None or win.shape != small.shape:
+                        win = cv2.createHanningWindow((small.shape[1], small.shape[0]), cv2.CV_32F)
+                    (dx, dy), resp = cv2.phaseCorrelate(prev, small, win)
+                    d = np.array([dx * 2, dy * 2])
+                    if resp > 0.12 and abs(d[0]) < gray.shape[1] * 0.4 and abs(d[1]) < gray.shape[0] * 0.4:
+                        if abs(d[0]) > 0.6 or abs(d[1]) > 0.6:
+                            moved = True
+                            cum += d
+                            if A is not None:
+                                A = A.copy()
+                                A[:, 2] -= A[:, :2] @ d
+                    elif float(np.abs(small - prev).mean()) > 6:
+                        moved = True          # mudou muito (zoom, mapa fechou): o completo decide
+                prev = small
+                if moved:
+                    still_since = t0
+
+                # ---- completo: resultado que chegou da outra thread
+                with lock:
+                    done, res, cum0 = job["done"], job["res"], job["cum"]
+                    job["done"] = False
+                if done:
+                    if res:
+                        wid, A0, n_inl = res
+                        A = A0.copy()
+                        A[:, 2] -= A0[:, :2] @ (cum - cum0)     # o mapa andou enquanto o SIFT rodava
+                        self.prefer = wid
+                        sift_ok = t0
+                        sift_fails = 0
+                    else:
+                        sift_fails += 1
+
+                # ---- dispara outro completo (parado há um tempo e já reconhecido: não precisa)
+                idle = t0 - still_since > 1.0 and t0 - sift_ok < 3.0
+                with lock:
+                    go = (not job["busy"] and not idle and
+                          t0 - job["t"] >= (self.SIFT_EVERY if sift_fails < 8 else 1.0))
+                    if go:
+                        job.update(busy=True, t=t0)
+                if go:
+                    mask = None
+                    marks = self.marks
+                    if marks:      # tapa os ícones que o próprio overlay desenhou
+                        mask = np.full(gray.shape, 255, np.uint8)
+                        for mx, my, mr in marks:
+                            cv2.circle(mask, (int(mx), int(my)), int(mr), 0, -1)
+                            cv2.rectangle(mask, (int(mx - 26), int(my + mr - 4)), (int(mx + 26), int(my + mr + 16)), 0, -1)
+                    threading.Thread(target=full_locate, args=(gray.copy(), mask, cum.copy()), daemon=True).start()
+
+                # ---- mostra? reconhecido há pouco, ou acompanhando firme sem o completo falhar demais
+                ok = A is not None and (t0 - sift_ok < self.SHOW_AFTER_OK or
+                                        (t0 - sift_ok < self.SHOW_TRACKED and sift_fails < 6))
+                if ok:
+                    if moved or done or not shown:
+                        self.located.emit((wid, A, n_inl))
+                    shown = True
+                elif shown or done:
+                    self.located.emit(None)
+                    shown = False
+                lost = sift_fails > 8 and not ok
+                wait = (1.0 if lost else 1 / self.TRACK_FPS) - (time.time() - t0)
+                if wait > 0:
+                    time.sleep(wait)
+            for _ in range(30):          # espera o completo em andamento terminar antes de sair
+                with lock:
+                    if not job["busy"]:
+                        break
+                time.sleep(0.1)
 
 
 def exclude_from_capture(widget):
@@ -255,11 +321,13 @@ class MinimapOverlay(QWidget):
             self.wid, A, _n = res
             self.A = cv2.invertAffineTransform(A)      # cena -> pixel do minimapa
             self.last_ok = time.time()
+        else:
+            self.A = None                              # o reconhecimento já esperou o suficiente
         self.update()
 
     def paintEvent(self, e):
         self.hits = []
-        if self.A is None or time.time() - self.last_ok > 3:
+        if self.A is None or time.time() - self.last_ok > 10:
             return
         import icons
         import respawn
@@ -409,6 +477,10 @@ class MinimapController:
 
     def _located(self, res):
         self.overlay.update_pose(res)
+        now = time.time()
+        if res and now - getattr(self, "_status_t", 0) < 0.5:
+            return                       # chega até 24x/s: o texto não precisa acompanhar tudo isso
+        self._status_t = now
         if res:
             wid, A, n = res
             cx, cy = A @ np.array([self.overlay.width() / 2, self.overlay.height() / 2, 1])
@@ -417,7 +489,7 @@ class MinimapController:
             txt += " · " + (T("{k} recursos desenhados").format(k=k) if k else
                             T("nenhum recurso nesta parte — confira os filtros do mapa"))
             self.on_status(txt)
-        elif time.time() - self.overlay.last_ok > 3:
+        else:
             self.on_status(T("Procurando... (abra o mapa com Alt+M)"))
 
     def region_at(self, wid, x, y):
