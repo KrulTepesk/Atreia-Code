@@ -14,7 +14,7 @@
 ; SHA-256 do instalador do Npcap (o build confere a assinatura e passa com /DNpcapSha256=...);
 ; o download só é aceito se bater
 #ifndef NpcapSha256
-  #define NpcapSha256 ""
+  #define NpcapSha256 "8aed85e900d783d1308506e919587d3e540451947af8a82f2d04f819e44305cc"
 #endif
 
 [Setup]

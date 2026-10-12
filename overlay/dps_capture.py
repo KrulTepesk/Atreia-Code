@@ -51,7 +51,9 @@ def restart_as_admin():
 
 
 NPCAP_URL = "https://npcap.com/dist/npcap-1.89.exe"
-NPCAP_SIGNER = "Insecure.Com LLC"
+# SHA-256 do npcap-1.89.exe oficial (conferido no build do GitHub: assinatura válida da Nmap Software LLC)
+NPCAP_SHA256 = "8aed85e900d783d1308506e919587d3e540451947af8a82f2d04f819e44305cc"
+NPCAP_SIGNER = "O=Nmap Software LLC"
 NPCAP_HOWTO = ("Vai abrir o instalador oficial do Npcap.\n\nDeixe marcada a opção \"Install Npcap in WinPcap "
                "API-compatible Mode\" e clique em I Agree / Install.\nO Windows vai pedir permissão de "
                "administrador: clique em Sim.\n\nDepois, clique em \"Reabrir como administrador\".")
@@ -69,7 +71,7 @@ def npcap_source():
             return url, sha
     except Exception:
         pass
-    return NPCAP_URL, ""
+    return NPCAP_URL, NPCAP_SHA256
 
 
 def _authenticode_ok(path):
@@ -579,7 +581,7 @@ class DpsTab(QWidget):
 
     def install_npcap(self):
         """Baixa o instalador oficial, confere que é ele mesmo (SHA-256 fixado no build + assinatura digital
-        da Insecure.Com LLC) e só então abre (o Windows pede permissão de administrador)."""
+        da Nmap Software LLC) e só então abre (o Windows pede permissão de administrador)."""
         import tempfile
         import threading
         import urllib.request

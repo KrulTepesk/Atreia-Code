@@ -30,15 +30,16 @@ jobs:
             $sig = Get-AuthenticodeSignature -LiteralPath npcap.exe
             $subj = "$($sig.SignerCertificate.Subject)"
             echo "::notice title=Npcap assinatura::$($sig.Status) | $subj"
-            if ($sig.Status -eq "Valid" -and ($subj -match "Insecure\.Com LLC" -or $subj -match "Nmap Software LLC")) {
+            if ($sig.Status -eq "Valid" -and $subj -match "O=Nmap Software LLC") {
               $sha = (Get-FileHash npcap.exe -Algorithm SHA256).Hash.ToLower()
               @{ url = $url; sha256 = $sha } | ConvertTo-Json | Set-Content -Encoding utf8 overlay\data\npcap.json
               echo "::notice title=Npcap SHA-256::$sha"
             } else {
-              echo "::warning title=Npcap::assinatura inesperada; o hash não foi fixado"
+              throw "assinatura do Npcap inesperada: $($sig.Status) $subj"
             }
             Remove-Item npcap.exe -ErrorAction SilentlyContinue
           } catch {
+            if ("$_" -match "assinatura do Npcap") { throw }      # arquivo adulterado: não publica
             echo "::warning title=Npcap::não deu para baixar no build: $($_.Exception.Message)"
           }
           "NPCAP_SHA256=$sha" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
@@ -61,7 +62,13 @@ jobs:
           echo "::notice title=Teste::o programa abriu e continuou rodando"
           Stop-Process -Id $p.Id -Force
       - run: choco install innosetup -y --no-progress
-      - run: '& "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" /DAppVersion=1.0.${{ github.run_number }} /DNpcapSha256=${env:NPCAP_SHA256} build_tools\instalador.iss'
+      - name: Gerar o instalador
+        shell: pwsh
+        run: |
+          $args = @("/DAppVersion=1.0.${{ github.run_number }}")
+          if ($env:NPCAP_SHA256) { $args += "/DNpcapSha256=$env:NPCAP_SHA256" }   # vazio: fica o hash fixo do .iss
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" @args build_tools\instalador.iss
+          if ($LASTEXITCODE -ne 0) { throw "ISCC falhou ($LASTEXITCODE)" }
       - name: Testar atualizacao (instala 2x e confere que nao sobra arquivo velho)
         shell: pwsh
         run: |
