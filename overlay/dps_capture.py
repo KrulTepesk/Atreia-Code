@@ -1,4 +1,4 @@
-"""DPS (experimental): medidor ao vivo + gravador de captura (diagnóstico).
+"""DPS: medidor ao vivo + gravador de captura (diagnóstico).
 
 Usa o driver Npcap (via scapy) para ler SÓ o tráfego que o servidor do jogo manda. Captura passiva:
 não injeta nada, não lê memória e não mexe nos arquivos do jogo. Nada é enviado
@@ -190,7 +190,7 @@ class DpsTab(QWidget):
         lay = QVBoxLayout(inner)
 
         warn = QLabel(
-            "<b>Experimental — desligado por padrão.</b> Lê só o tráfego de rede do jogo pelo Npcap "
+            "<b>Desligado por padrão.</b> Lê só o tráfego de rede do jogo pelo Npcap "
             "(sem ler memória, sem mexer em arquivos, sem enviar nada para a internet). "
             "Mesmo assim, programas externos vão contra as regras do jogo: use por sua conta e risco.")
         warn.setWordWrap(True)

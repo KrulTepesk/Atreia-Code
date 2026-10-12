@@ -235,7 +235,7 @@ ES = {
     'faltam ~{n} abates': 'faltan ~{n} bajas',
     'faltam {n} almas': 'faltan {n} almas',
     'Abates: {n}': 'Bajas: {n}',
-    '<b>Experimental — desligado por padrão.</b> Lê só o tráfego de rede do jogo pelo Npcap (sem ler memória, sem mexer em arquivos, sem enviar nada para a internet). Mesmo assim, programas externos vão contra as regras do jogo: use por sua conta e risco.': '<b>Experimental — desactivado por defecto.</b> Lee solo el tráfico de red del juego mediante Npcap (sin leer memoria, sin tocar archivos, sin enviar nada a internet). Aun así, los programas externos van contra las reglas del juego: úsalo bajo tu propio riesgo.',
+    '<b>Desligado por padrão.</b> Lê só o tráfego de rede do jogo pelo Npcap (sem ler memória, sem mexer em arquivos, sem enviar nada para a internet). Mesmo assim, programas externos vão contra as regras do jogo: use por sua conta e risco.': '<b>Desactivado por defecto.</b> Lee solo el tráfico de red del juego mediante Npcap (sin leer memoria, sin tocar archivos, sin enviar nada a internet). Aun así, los programas externos van contra las reglas del juego: úsalo bajo tu propio riesgo.',
     'Ligar módulo DPS': 'Activar módulo DPS',
     'Etapa 1 — gravar uma captura para mapear os pacotes de dano': 'Paso 1 — grabar una captura para mapear los paquetes de daño',
     'Instalar Npcap': 'Instalar Npcap',
@@ -440,4 +440,5 @@ ES = {
     'um jogador': 'un jugador',
     'Último: abate em {n}': 'Último: muerte de {n}',
     'Último: assistência em {n}': 'Último: asistencia en {n}',
+    'PvP (experimental)': 'PvP (experimental)',
 }

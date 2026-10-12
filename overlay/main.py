@@ -137,8 +137,8 @@ class ControlPanel(QWidget):
         self.field_bosses = FieldBossManager(self.events, self.hub)
         tabs.insertTab(3, FieldBossTab(self.field_bosses), "Chefes de campo", "crown",
                        "Quando cada field boss renasce, com aviso e mapa do local.")
-        tabs.addTab(self.dps_tab, "DPS (experimental)", "dps", "Medidor de dano seu e do seu grupo, lido do tráfego do jogo.")
-        tabs.addTab(self.tab_pvp(), "PvP", "pvp", "Um som quando você mata um jogador e outro quando dá assistência.")
+        tabs.addTab(self.dps_tab, "DPS", "dps", "Medidor de dano seu e do seu grupo, lido do tráfego do jogo.")
+        tabs.addTab(self.tab_pvp(), "PvP (experimental)", "pvp", "Um som quando você mata um jogador e outro quando dá assistência.")
         # trava dos overlays sempre à mão, no rodapé do menu
         self.lock_pill = QPushButton()
         self.lock_pill.setObjectName("LockPill")

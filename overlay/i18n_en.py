@@ -178,10 +178,10 @@ EN = {
     "{g} alma(s) · {s}/{t}": "{g} soul(s) · {s}/{t}", "Meta atingida!": "Goal reached!",
     "faltam ~{n} abates": "~{n} kills left", "faltam {n} almas": "{n} souls left", "Abates: {n}": "Kills: {n}",
     # ---- dps
-    "<b>Experimental — desligado por padrão.</b> Lê só o tráfego de rede do jogo pelo Npcap (sem ler memória, sem "
+    "<b>Desligado por padrão.</b> Lê só o tráfego de rede do jogo pelo Npcap (sem ler memória, sem "
     "mexer em arquivos, sem enviar nada para a internet). Mesmo assim, programas externos vão contra as regras do "
     "jogo: use por sua conta e risco.":
-        "<b>Experimental — off by default.</b> Reads only the game's network traffic through Npcap (no memory reading, "
+        "<b>Off by default.</b> Reads only the game's network traffic through Npcap (no memory reading, "
         "no file changes, nothing sent to the internet). Still, external programs go against the game rules: "
         "use at your own risk.",
     "Ligar módulo DPS": "Enable DPS module",
@@ -402,4 +402,5 @@ EN = {
     'um jogador': 'a player',
     'Último: abate em {n}': 'Last: kill on {n}',
     'Último: assistência em {n}': 'Last: assist on {n}',
+    "PvP (experimental)": "PvP (experimental)",
 }
