@@ -6,7 +6,7 @@ import sys
 os.environ.setdefault("QT_ENABLE_HIGHDPI_SCALING", "0")
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from PySide6.QtCore import QSize, Qt
+from PySide6.QtCore import QSize, Qt, QTimer
 from PySide6.QtGui import QAction, QColor, QFont, QGuiApplication, QIcon, QPainter, QPixmap
 from PySide6.QtWidgets import (QApplication, QCheckBox, QComboBox, QDoubleSpinBox, QFileDialog,
                                QFormLayout, QGroupBox, QHBoxLayout, QLabel, QMenu, QMessageBox,
@@ -156,16 +156,37 @@ class ControlPanel(QWidget):
         self.tray.setToolTip("Atreia Code")
         self.tray.show()
 
-        # atalhos globais do farm (Ctrl+Alt+S / X / K)
+        # atalhos globais do farm (Ctrl+Alt+S / X / K) e zerar DPS (Ctrl+Alt+R)
         self.hotkeys = Hotkeys(app)
-        failed = [f"Ctrl+Alt+{k}" for hid, (mods, k, _d) in HOTKEYS.items() if not self.hotkeys.add(hid, mods, k)]
-        if not self.hotkeys.add(10, "ctrl+alt", "R"):
-            failed.append("Ctrl+Alt+R")
+        self._hk_wanted = {hid: (mods, k) for hid, (mods, k, _d) in HOTKEYS.items()}
+        self._hk_wanted[10] = ("ctrl+alt", "R")
+        self._hk_tries = 0
+        self._hk_base = self.farm_tab.hk_label.text()
+        self.register_hotkeys()
         self.hotkeys.pressed.connect(self.farm_tab.on_hotkey)
         self.hotkeys.pressed.connect(lambda hid: self.dps_tab.reset_fight() if hid == 10 else None)
-        if failed and self.hotkeys.ok:
-            self.farm_tab.hk_label.setText(self.farm_tab.hk_label.text() +
-                                           f"<br><span style='color:#f0883e'>Em uso por outro programa: {', '.join(failed)}</span>")
+
+    def register_hotkeys(self):
+        """Registra os atalhos que faltam. Se outro programa (ou a cópia anterior do próprio app que ainda está
+        fechando, ex.: depois de "Reiniciar") estiver usando, tenta de novo a cada 2 s por até 30 s."""
+        if not self.hotkeys.ok:
+            return
+        failed = []
+        for hid, (mods, k) in self._hk_wanted.items():
+            if hid in self.hotkeys.ids:
+                continue
+            if not self.hotkeys.add(hid, mods, k):
+                failed.append(f"Ctrl+Alt+{k}")
+        lbl = self.farm_tab.hk_label
+        if failed:
+            self._hk_tries += 1
+            msg = T("Em uso por outro programa: {k}").format(k=", ".join(failed))
+            if self._hk_tries < 15:
+                msg += " " + T("(tentando de novo...)")
+                QTimer.singleShot(2000, self.register_hotkeys)
+            lbl.setText(self._hk_base + f"<br><span style='color:#f0883e'>{msg}</span>")
+        else:
+            lbl.setText(self._hk_base)
 
     # ------------------------------------------------------------------ abas
     def tab_general(self):

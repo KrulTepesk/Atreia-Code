@@ -223,9 +223,14 @@ class MapWindow(QWidget):
         ml.setContentsMargins(0, 0, 0, 0)
         ml.addWidget(QLabel("<b>Procurar monstro</b>"))
         self.mob_search = QLineEdit()
-        self.mob_search.setPlaceholderText("ex.: Fuça, Espírito da Pedra...")
+        self.mob_search.setPlaceholderText("nome do mob ou do pet (ex.: Abelha Mutante)")
         self.mob_search.textChanged.connect(self.fill_mob_list)
         ml.addWidget(self.mob_search)
+        self.only_tame = QCheckBox("Só mobs que dão alma de pet")
+        self.only_tame.setChecked(cfg["map"].get("only_tame", True))
+        self.only_tame.toggled.connect(lambda on: (cfg["map"].__setitem__("only_tame", on), save(),
+                                                   self.fill_mob_list()))
+        ml.addWidget(self.only_tame)
         self.mob_list = QListWidget()
         self.mob_list.setMinimumHeight(260)
         self.mob_list.currentItemChanged.connect(self.show_mob)
@@ -576,8 +581,11 @@ class MapWindow(QWidget):
         self.mob_list.blockSignals(True)
         self.mob_list.clear()
         keep = None
+        only = self.only_tame.isChecked()
         for i, (name, cat, coords) in enumerate(self.world_mobs()):
             pet = self.pet_name(self.mobs["suggest"].get(name, ""))
+            if only and not pet:
+                continue
             if q and q not in norm(name) and q not in norm(pet) and q not in norm(N(name)):
                 continue
             it = QListWidgetItem(f"{N(name)}  ({len(coords) // 2})" + ("\n    " + T("alma: {p}").format(p=pet) if pet else ""))
@@ -590,7 +598,27 @@ class MapWindow(QWidget):
             self.mob_list.setCurrentItem(keep)
         if self.mode == "mobs":
             n = self.mob_list.count()
-            self.counter.setText(T("{n} monstros neste mapa").format(n=n) if not q else T("{n} encontrados").format(n=n))
+            if q:
+                self.counter.setText(T("{n} encontrados").format(n=n))
+            else:
+                self.counter.setText(T("{n} mobs que dão alma neste mapa").format(n=n) if only
+                                     else T("{n} monstros neste mapa").format(n=n))
+
+    def focus_mob(self, wid, mob):
+        """Abre o mapa certo no modo Farm de pet e seleciona o mob (usado pelo "Ver no mapa" da aba)."""
+        i = self.world.findData(wid)
+        if i >= 0 and i != self.world.currentIndex():
+            self.world.setCurrentIndex(i)
+        self.set_mode("mobs")
+        self.mode_collect.setChecked(False)
+        self.mode_mobs.setChecked(True)
+        self.mob_search.setText("")
+        for r in range(self.mob_list.count()):
+            it = self.mob_list.item(r)
+            if self.world_mobs()[it.data(Qt.UserRole)][0] == mob:
+                self.mob_list.setCurrentItem(it)
+                self.mob_list.scrollToItem(it)
+                break
 
     def clear_mob_dots(self):
         for it in self.mob_items:
@@ -621,7 +649,7 @@ class MapWindow(QWidget):
         self.view.fitInView(r.adjusted(-pad, -pad, pad, pad), Qt.KeepAspectRatio)
         pet = self.pet_name(self.mobs["suggest"].get(name, ""))
         self.mob_info.setText(f"<b>{N(name)}</b><br>{len(pts)} {T('pontos de spawn')}<br>"
-                              + (T("Alma sugerida: {p}").format(p=pet) if pet else T("Escolha o pet ao farmar")))
+                              + (T("Dá a alma de: <b>{p}</b>").format(p=pet) if pet else T("Esse mob não dá alma de pet.")))
         self.counter.setText(T("{n} spawns de {m}").format(n=len(pts), m=N(name)))
 
     def farm_selected(self):

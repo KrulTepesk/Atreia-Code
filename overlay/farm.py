@@ -255,14 +255,15 @@ class FarmTab(QWidget):
         self.watcher = None
         self.card = FarmWidget()
         with open(os.path.join(BASE_DIR, "data", "mobs.json"), encoding="utf-8") as f:
-            self.pets = json.load(f)["pets"]
+            self.mobdata = json.load(f)
+        self.pets = self.mobdata["pets"]
         c = farm_cfg()
         lay = QVBoxLayout(self)
 
         top = QHBoxLayout()
         self.target = QLabel()
         self.target.setWordWrap(True)
-        bmap = __import__("theme").primary(QPushButton("Escolher mob no mapa..."))
+        bmap = QPushButton("Escolher mob no mapa...")
         bmap.clicked.connect(self.open_map)
         top.addWidget(self.target, 1)
         top.addWidget(bmap)
@@ -280,6 +281,21 @@ class FarmTab(QWidget):
         self.pet.completer().setCompletionMode(QCompleter.PopupCompletion)
         self.pet.currentIndexChanged.connect(self.pet_changed)
         f.addRow("Pet (alma):", self.pet)
+        # onde farmar: todos os mobs que dão a alma do pet escolhido (dados do banco do jogo)
+        wrow = QHBoxLayout()
+        self.where = QComboBox()
+        self.where.setMinimumWidth(260)
+        self.btn_go = __import__("theme").primary(QPushButton("Farmar este mob"))
+        self.btn_go.clicked.connect(self.farm_where)
+        bsee = QPushButton("Ver no mapa")
+        bsee.clicked.connect(self.see_where)
+        wrow.addWidget(self.where, 1)
+        wrow.addWidget(self.btn_go)
+        wrow.addWidget(bsee)
+        f.addRow("Onde farmar:", wrow)
+        self.where_hint = QLabel("")
+        self.where_hint.setWordWrap(True)
+        f.addRow(self.where_hint)
         self.stage = QComboBox()
         for key, label, n in STAGES:
             self.stage.addItem(T(f"{label} ({n} almas)"), key)
@@ -291,7 +307,7 @@ class FarmTab(QWidget):
         self.souls.valueChanged.connect(self.souls_changed)
         self.goal = QSpinBox()
         self.goal.setRange(1, 999)
-        self.goal.valueChanged.connect(lambda v: self.set("goal", v))
+        self.goal.valueChanged.connect(lambda v: (self.set("goal", v), self.refresh_progress()))
         row.addWidget(self.souls)
         row.addWidget(QLabel(" de "))
         row.addWidget(self.goal)
@@ -299,6 +315,14 @@ class FarmTab(QWidget):
         f.addRow("Almas agora:", row)
         f.addRow(QLabel("Coloque o número que aparece no jogo (ex.: 57 de 75)."))
         lay.addWidget(box)
+
+        boxp = QGroupBox("Progresso")
+        vp = QVBoxLayout(boxp)
+        self.progress = QLabel("")
+        self.progress.setTextFormat(Qt.RichText)
+        self.progress.setObjectName("FarmProgress")
+        vp.addWidget(self.progress)
+        lay.addWidget(boxp)
 
         box2 = QGroupBox("Contar")
         v = QVBoxLayout(box2)
@@ -376,8 +400,11 @@ class FarmTab(QWidget):
             self.target.setText(f"<b>{T('Farmando:')}</b> {N(c['mob'])}<br><span style='color:#888'>"
                                 f"{N(region_of(c['world'], c['coords']))}</span>")
         else:
-            self.target.setText(T("Nenhum farm ativo. Escolha um mob no mapa (modo \"Farm de pet\")."))
+            self.target.setText(T("Nenhum farm ativo. Escolha o pet abaixo e clique em \"Farmar este mob\"."))
         self.card.pet_name = self.pet.currentText()
+        if hasattr(self, "where"):
+            self.fill_where()
+            self.refresh_progress()
 
     def start_farm(self, wid, mob, coords, pet_id):
         c = farm_cfg()
@@ -403,6 +430,80 @@ class FarmTab(QWidget):
     def pet_changed(self, _i):
         self.set("pet", self.pet.currentData() or "")
         self.card.refresh(pet_name=self.pet.currentText())
+        self.fill_where()
+
+    # ------------------------------------------------------------------ onde farmar
+    def fill_where(self):
+        pid = self.pet.currentData() or ""
+        res = _resources()["worlds"]
+        cur = farm_cfg().get("mob", "")
+        self.where.clear()
+        for wid, mob, n in self.mobdata.get("sources", {}).get(pid, []):
+            wname = T(res.get(wid, {}).get("name", wid))
+            self.where.addItem(f"{N(mob)} — {wname} ({n} spawns)", (wid, mob))
+            if mob == cur:
+                self.where.setCurrentIndex(self.where.count() - 1)
+        has = self.where.count() > 0
+        self.where.setEnabled(has)
+        self.btn_go.setEnabled(has)
+        if not pid:
+            self.where_hint.setText(T("Escolha o pet para ver quais mobs dão a alma dele."))
+        elif not has:
+            self.where_hint.setText(T("Esse pet não vem de mobs dos mapas abertos (é de masmorra, evento ou "
+                                      "outra forma). Dá para contar as almas mesmo assim."))
+        else:
+            self.where_hint.setText(T("{n} mob(s) dão essa alma. Escolha um e clique em Farmar.").format(
+                n=self.where.count()))
+
+    def _where_coords(self):
+        data = self.where.currentData()
+        if not data:
+            return None
+        wid, mob = data
+        for name, _cat, coords in self.mobdata["worlds"].get(wid, []):
+            if name == mob:
+                return wid, mob, coords
+        return None
+
+    def farm_where(self):
+        found = self._where_coords()
+        if found:
+            wid, mob, coords = found
+            self.start_farm(wid, mob, coords, self.pet.currentData() or "")
+
+    def see_where(self):
+        found = self._where_coords()
+        if not found:
+            self.open_map()
+            return
+        wid, mob, _coords = found
+        self.open_map()
+        m = self.panel.get_map()
+        if hasattr(m, "focus_mob"):
+            m.focus_mob(wid, mob)
+
+    def refresh_progress(self):
+        c = farm_cfg()
+        souls, goal = c["souls"], max(1, c["goal"])
+        left = max(0, goal - souls)
+        gained = max(0, souls - c.get("start_souls", souls))
+        kills = c.get("kills", 0)
+        lines = [f"<span style='font-size:15pt; font-weight:600'>{souls} / {goal}</span>"
+                 f"&nbsp;&nbsp;<span style='color:#958fb3'>{T('almas')}</span>"]
+        if left == 0:
+            lines.append(f"<span style='color:#5ee39a'>{T('Meta alcançada!')}</span>")
+        else:
+            lines.append(T("Faltam <b>{n}</b> almas.").format(n=left))
+        if kills:
+            txt = T("Nesta sessão: {k} abates, {g} almas.").format(k=kills, g=gained)
+            if gained and left:
+                rate = kills / gained
+                txt += " " + T("Média de 1 alma a cada {r:.1f} abates → faltam uns <b>{m}</b> abates.").format(
+                    r=rate, m=int(round(left * rate)))
+            lines.append(txt)
+        else:
+            lines.append(f"<span style='color:#958fb3'>{T('Use +1 abate (ou Ctrl+Alt+K) a cada mob morto para ver quantos faltam.')}</span>")
+        self.progress.setText("<br>".join(lines))
 
     def stage_changed(self, i):
         key, _, n = STAGES[i]
@@ -418,6 +519,7 @@ class FarmTab(QWidget):
             c["start_souls"] = v
         save()
         self.card.refresh()
+        self.refresh_progress()
         if v >= c["goal"] and not reached_before:
             sounds_player.play(c["sound"], c["volume"])
 
@@ -429,6 +531,7 @@ class FarmTab(QWidget):
         c["kills"] += 1
         save()
         self.card.refresh()
+        self.refresh_progress()
 
     def reset_session(self):
         c = farm_cfg()
@@ -436,6 +539,7 @@ class FarmTab(QWidget):
         c["start_souls"] = c["souls"]
         save()
         self.card.refresh()
+        self.refresh_progress()
 
     def on_hotkey(self, hid):
         if hid == 1:
