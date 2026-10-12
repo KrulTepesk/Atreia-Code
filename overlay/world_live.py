@@ -295,6 +295,8 @@ class WorldTracker:
             for eid, (_x, _y, t) in list(self.pos.items()):
                 if now - t > 180:
                     self.pos.pop(eid, None)
+            if len(self.maxhp) > 20_000:          # HP de quem já sumiu (nunca morreu perto de você)
+                self.maxhp = {e: hp for e, hp in self.maxhp.items() if e in self.pos or e in self.dead}
 
     def _guess_world(self, now):
         pts = [(x, y) for x, y, t in self.pos.values() if now - t < 120][-60:]

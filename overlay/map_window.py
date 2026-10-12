@@ -679,13 +679,17 @@ class MapWindow(QWidget):
             return
         pm = QPixmap(path)
         if pm.isNull():
-            QMessageBox.warning(self, "Mapa", "Não consegui abrir essa imagem.")
+            QMessageBox.warning(self, "Mapa", T("Não consegui abrir essa imagem."))
             return
         wid = self.world.currentData()
         os.makedirs(os.path.join(APP_DIR, "fundos"), exist_ok=True)
         dest = os.path.join(APP_DIR, "fundos", f"{wid}{os.path.splitext(path)[1].lower()}")
         if os.path.abspath(path) != os.path.abspath(dest):
-            shutil.copyfile(path, dest)
+            try:
+                shutil.copyfile(path, dest)
+            except OSError:
+                QMessageBox.warning(self, "Mapa", T("Não consegui abrir essa imagem."))
+                return
         # posição inicial: imagem esticada sobre a área das regiões, para começar perto do encaixe
         area = QRectF()
         for it in self.region_items:

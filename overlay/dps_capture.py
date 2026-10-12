@@ -50,6 +50,57 @@ def restart_as_admin():
     return r > 32
 
 
+NPCAP_URL = "https://npcap.com/dist/npcap-1.89.exe"
+NPCAP_SIGNER = "Insecure.Com LLC"
+NPCAP_HOWTO = ("Vai abrir o instalador oficial do Npcap.\n\nDeixe marcada a opção \"Install Npcap in WinPcap "
+               "API-compatible Mode\" e clique em I Agree / Install.\nO Windows vai pedir permissão de "
+               "administrador: clique em Sim.\n\nDepois, clique em \"Reabrir como administrador\".")
+
+
+def npcap_source():
+    """(url, sha256) — o build grava data/npcap.json com o SHA-256 do instalador conferido no GitHub."""
+    import json
+    try:
+        from config import BASE_DIR
+        with open(os.path.join(BASE_DIR, "data", "npcap.json"), encoding="utf-8") as f:
+            d = json.load(f)
+        url, sha = d.get("url") or NPCAP_URL, (d.get("sha256") or "").lower()
+        if url.startswith("https://npcap.com/") and len(sha) == 64:
+            return url, sha
+    except Exception:
+        pass
+    return NPCAP_URL, ""
+
+
+def _authenticode_ok(path):
+    """Assinatura digital válida e do autor do Npcap (pelo PowerShell do próprio Windows)."""
+    import subprocess
+    try:
+        env = dict(os.environ, METAOVERLAY_FILE=path)
+        cmd = ("$s = Get-AuthenticodeSignature -LiteralPath $env:METAOVERLAY_FILE; "
+               "Write-Output ($s.Status.ToString() + '|' + $s.SignerCertificate.Subject)")
+        r = subprocess.run(["powershell", "-NoProfile", "-NonInteractive", "-Command", cmd], env=env,
+                           capture_output=True, text=True, timeout=60,
+                           creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+        status, _, subject = r.stdout.strip().partition("|")
+        return status == "Valid" and NPCAP_SIGNER in subject
+    except Exception:
+        return False
+
+
+def verify_npcap(path, sha=""):
+    """Só abre o instalador se for o arquivo esperado: SHA-256 fixado (quando o build gravou) e assinatura."""
+    import hashlib
+    if sha:
+        h = hashlib.sha256()
+        with open(path, "rb") as f:
+            for chunk in iter(lambda: f.read(1 << 20), b""):
+                h.update(chunk)
+        if h.hexdigest() != sha:
+            return False
+    return _authenticode_ok(path) or bool(sha)
+
+
 def deps_ok():
     try:
         import psutil  # noqa: F401
@@ -519,27 +570,46 @@ class DpsTab(QWidget):
         self.btn_npcap.setVisible(not npcap)
         self.btn_admin.setVisible(not admin)
         if npcap and admin:
-            self.req_label.setText("<span style='color:#3fb950'>✓ Npcap instalado · ✓ administrador</span>")
+            self.req_label.setText("<span style='color:#3fb950'>✓ " + T("Npcap instalado") + " · ✓ " +
+                                   T("administrador") + "</span>")
         else:
-            falta = [t for t, ok in (("instalar o Npcap", npcap), ("abrir como administrador", admin)) if not ok]
-            self.req_label.setText("<span style='color:#f0883e'>Falta: " + " e ".join(falta) + "</span>")
+            falta = [T(t) for t, ok in (("instalar o Npcap", npcap), ("abrir como administrador", admin)) if not ok]
+            self.req_label.setText("<span style='color:#f0883e'>" + T("Falta:") + " " +
+                                   (" " + T("e") + " ").join(falta) + "</span>")
 
     def install_npcap(self):
-        """Baixa o instalador oficial e abre (o Windows pede permissão de administrador)."""
+        """Baixa o instalador oficial, confere que é ele mesmo (SHA-256 fixado no build + assinatura digital
+        da Insecure.Com LLC) e só então abre (o Windows pede permissão de administrador)."""
         import tempfile
         import threading
         import urllib.request
-        url = "https://npcap.com/dist/npcap-1.89.exe"
-        dest = os.path.join(tempfile.gettempdir(), "npcap-setup.exe")
+        url, sha = npcap_source()
+        dest = os.path.join(tempfile.mkdtemp(prefix="metaoverlay-npcap-"), "npcap-setup.exe")
         self.btn_npcap.setEnabled(False)
         self.req_label.setText(T("Baixando o Npcap..."))
 
         def work():
             try:
-                urllib.request.urlretrieve(url, dest)
-                ok = os.path.getsize(dest) > 1_000_000
+                if not url.startswith("https://npcap.com/"):
+                    raise ValueError("endereço inesperado")
+                with urllib.request.urlopen(url, timeout=60) as r, open(dest, "wb") as f:
+                    if not r.geturl().startswith("https://"):
+                        raise ValueError("redirecionado para fora do https")
+                    while True:
+                        chunk = r.read(1 << 16)
+                        if not chunk:
+                            break
+                        f.write(chunk)
+                        if f.tell() > 50_000_000:
+                            raise ValueError("arquivo grande demais")
+                ok = os.path.getsize(dest) > 1_000_000 and verify_npcap(dest, sha)
             except Exception:
                 ok = False
+            if not ok:
+                try:
+                    os.remove(dest)
+                except OSError:
+                    pass
             QTimer.singleShot(0, lambda: self._npcap_downloaded(ok, dest))
 
         threading.Thread(target=work, daemon=True).start()
@@ -547,15 +617,11 @@ class DpsTab(QWidget):
     def _npcap_downloaded(self, ok, dest):
         self.btn_npcap.setEnabled(True)
         if ok and hasattr(os, "startfile"):
-            QMessageBox.information(self, "Npcap",
-                                    "Vai abrir o instalador oficial do Npcap.\n\nDeixe marcada a opção "
-                                    "\"Install Npcap in WinPcap API-compatible Mode\" e clique em I Agree / Install.\n"
-                                    "O Windows vai pedir permissão de administrador: clique em Sim.\n\n"
-                                    "Depois, clique em \"Reabrir como administrador\".")
+            QMessageBox.information(self, "Npcap", T(NPCAP_HOWTO))
             os.startfile(dest)
-            self.req_label.setText("Instalador do Npcap aberto. Termine a instalação e reabra como administrador.")
+            self.req_label.setText(T("Instalador do Npcap aberto. Termine a instalação e reabra como administrador."))
         else:
-            self.req_label.setText("Não deu para baixar agora; abrindo a página de download.")
+            self.req_label.setText(T("Não deu para baixar ou conferir o instalador agora; abrindo a página oficial."))
             QDesktopServices.openUrl(QUrl("https://npcap.com/#download"))
 
     def reopen_admin(self):
@@ -565,6 +631,8 @@ class DpsTab(QWidget):
         if restart_as_admin():
             from PySide6.QtWidgets import QApplication
             QApplication.instance().quit()
+        elif m and hasattr(m, "single_instance"):
+            m.single_instance()          # recusou o pedido do Windows: continua aberto e volta a marcar que está
 
     def refresh_procs(self):
         self.proc.clear()
@@ -588,7 +656,7 @@ class DpsTab(QWidget):
             self.refresh_procs()
         pid = self.proc.currentData()
         if pid is None:
-            QMessageBox.information(self, "DPS", "Escolha o processo do jogo.")
+            QMessageBox.information(self, "DPS", T("Escolha o processo do jogo."))
             return
         os.makedirs(CAPTURE_DIR, exist_ok=True)
         stamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")

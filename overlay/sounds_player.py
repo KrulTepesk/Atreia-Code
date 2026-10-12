@@ -48,8 +48,10 @@ def _winsound(path):
 
 def play(path, volume=80):
     path = resolve(path)
-    if not path or not os.path.exists(path):
+    if not path or not os.path.isfile(path):
         return False
+    if '"' in path or "\n" in path or "\r" in path:
+        return False          # aspas/quebras quebrariam o comando do MCI (e poderiam virar outro comando)
     if os.name != "nt":
         return False
     try:

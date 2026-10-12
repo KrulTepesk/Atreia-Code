@@ -403,4 +403,14 @@ EN = {
     'Último: abate em {n}': 'Last: kill on {n}',
     'Último: assistência em {n}': 'Last: assist on {n}',
     "PvP (experimental)": "PvP (experimental)",
+    # ---- revisão de segurança/bugs
+    'Não consegui usar essa imagem.': "Couldn't use that image.",
+    'Npcap instalado': 'Npcap installed',
+    'instalar o Npcap': 'install Npcap',
+    'abrir como administrador': 'open as administrator',
+    'Falta:': 'Missing:',
+    'Vai abrir o instalador oficial do Npcap.\n\nDeixe marcada a opção "Install Npcap in WinPcap API-compatible Mode" e clique em I Agree / Install.\nO Windows vai pedir permissão de administrador: clique em Sim.\n\nDepois, clique em "Reabrir como administrador".': 'The official Npcap installer will open.\n\nKeep "Install Npcap in WinPcap API-compatible Mode" checked and click I Agree / Install.\nWindows will ask for administrator permission: click Yes.\n\nThen click "Reopen as administrator".',
+    'Instalador do Npcap aberto. Termine a instalação e reabra como administrador.': 'Npcap installer opened. Finish the installation and reopen as administrator.',
+    'Escolha o processo do jogo.': 'Choose the game process.',
+    'Não deu para baixar ou conferir o instalador agora; abrindo a página oficial.': "Couldn't download or verify the installer right now; opening the official page.",
 }

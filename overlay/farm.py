@@ -4,6 +4,7 @@ Lê o mesmo tráfego do medidor de DPS (net_hub): quando você mata um monstro q
 começa sozinho com aquele monstro e cada abate seu é contado. Também mostra quais monstros de pet existem
 na região onde você está e onde nascem (mini-mapa na tela).
 """
+import html
 import json
 import math
 import os
@@ -455,7 +456,7 @@ class FarmTab(QWidget):
         if self.hub.running and "farm" in self.hub.users:
             self.btn_net.setText(T("Desligar"))
             wid, _pos = self.hub.world_state()
-            who = cfg.get("dps", {}).get("char_name") or T("procurando o seu personagem (costuma aparecer quando você toma dano)…")
+            who = html.escape(cfg.get("dps", {}).get("char_name") or "") or T("procurando o seu personagem (costuma aparecer quando você toma dano)…")
             where = world_name(wid) if wid else T("procurando onde você está…")
             self.net_label.setText(f"<span style='color:#5ee39a'>●</span> <b>{T('Lendo o jogo')}</b> — "
                                    f"{where} · {T('personagem')}: {who}")

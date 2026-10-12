@@ -61,11 +61,32 @@ DEFAULTS = {
 }
 
 
+def _same_kind(default, value):
+    """O valor salvo tem o mesmo tipo do padrão? (um config.json editado à mão ou estragado não pode
+    derrubar o programa toda vez que ele abre)"""
+    if default is None or value is None:
+        return True
+    if isinstance(default, bool):
+        return isinstance(value, bool)
+    if isinstance(default, (int, float)):
+        return isinstance(value, (int, float)) and not isinstance(value, bool)
+    if isinstance(default, str):
+        return isinstance(value, str)
+    if isinstance(default, (list, tuple)):
+        return isinstance(value, (list, tuple))
+    if isinstance(default, dict):
+        return isinstance(value, dict)
+    return True
+
+
 def _merge(base, extra):
+    if not isinstance(extra, dict):
+        return base
     for k, v in extra.items():
-        if isinstance(v, dict) and isinstance(base.get(k), dict):
-            _merge(base[k], v)
-        else:
+        if isinstance(base.get(k), dict):
+            if isinstance(v, dict):
+                _merge(base[k], v)
+        elif k not in base or _same_kind(base[k], v):
             base[k] = v
     return base
 

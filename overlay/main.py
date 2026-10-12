@@ -1,4 +1,5 @@
 """Meta Overlay — painel de controle, ícone na bandeja e janelas de overlay."""
+import html
 import os
 import sys
 import time
@@ -28,7 +29,7 @@ from field_bosses import FieldBossManager, FieldBossTab
 from net_hub import NetHub
 from hotkeys import Hotkeys
 from map_window import MapWindow
-from pvp import RegionSelector
+from region_select import RegionSelector
 from shugo import ShugoWidget
 
 
@@ -386,6 +387,7 @@ class ControlPanel(QWidget):
         v3 = QVBoxLayout(box3)
         self.pvp_count = QLabel("")
         self.pvp_last = QLabel("")
+        self.pvp_last.setTextFormat(Qt.PlainText)          # o nome vem do jogo: nunca vira HTML
         self.pvp_last.setStyleSheet(f"color:{theme.MUTED}")
         v3.addWidget(self.pvp_count)
         v3.addWidget(self.pvp_last)
@@ -534,8 +536,8 @@ class ControlPanel(QWidget):
 
     def pick_shugo_icon(self):
         path, _ = QFileDialog.getOpenFileName(self, "Ícone do aviso", "", "Imagens (*.png *.jpg *.jpeg *.webp *.ico)")
-        if path:
-            self.shugo.set_icon_file(path)
+        if path and not self.shugo.set_icon_file(path):
+            QMessageBox.warning(self, "Shugo", T("Não consegui usar essa imagem."))
 
     def position_shugo(self):
         if self.lock.isChecked():
@@ -597,7 +599,7 @@ class ControlPanel(QWidget):
         self.pvp_btn.setEnabled(ok)
         if self.hub.running and "pvp" in self.hub.users:
             self.pvp_btn.setText(T("Desligar"))
-            who = cfg.get("dps", {}).get("char_name") or T("procurando o seu personagem (costuma aparecer quando você toma dano)…")
+            who = html.escape(cfg.get("dps", {}).get("char_name") or "") or T("procurando o seu personagem (costuma aparecer quando você toma dano)…")
             self.pvp_status.setText(f"<span style='color:#5ee39a'>●</span> <b>{T('Lendo o jogo')}</b> — "
                                     f"{T('personagem')}: {who}")
         else:

@@ -11,6 +11,11 @@
 #define OldName2 "Atreia Code"
 ; instalador oficial do Npcap (baixado na hora da instalação; a licença gratuita não permite embutir)
 #define NpcapUrl "https://npcap.com/dist/npcap-1.89.exe"
+; SHA-256 do instalador do Npcap (o build confere a assinatura e passa com /DNpcapSha256=...);
+; o download só é aceito se bater
+#ifndef NpcapSha256
+  #define NpcapSha256 ""
+#endif
 
 [Setup]
 AppId={{6C1E7A52-3F0B-4F57-9C2B-A2A10E2C0001}
@@ -164,7 +169,7 @@ begin
   if (CurPageID = wpReady) and WizardIsTaskSelected('npcap') then
   begin
     DownloadPage.Clear;
-    DownloadPage.Add('{#NpcapUrl}', 'npcap-setup.exe', '');
+    DownloadPage.Add('{#NpcapUrl}', 'npcap-setup.exe', '{#NpcapSha256}');
     DownloadPage.Show;
     try
       try

@@ -66,10 +66,17 @@ class ShugoWidget(OverlayWindow):
     def set_icon_file(self, path):
         os.makedirs(APP_DIR, exist_ok=True)
         dest = os.path.join(APP_DIR, "shugo_icone" + os.path.splitext(path)[1].lower())
-        shutil.copyfile(path, dest)
+        if QPixmap(path).isNull():
+            return False                       # não é imagem: não copia nem troca o ícone
+        if os.path.abspath(path) != os.path.abspath(dest):   # escolher o próprio ícone salvo dava erro
+            try:
+                shutil.copyfile(path, dest)
+            except OSError:
+                return False
         cfg["shugo"]["icon"] = dest
         save()
         self.load_icon()
+        return True
 
     def reset_icon(self):
         cfg["shugo"]["icon"] = DEFAULT_ICON

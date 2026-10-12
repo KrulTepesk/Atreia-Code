@@ -313,12 +313,14 @@ class DpsMeter(OverlayWindow):
             draw_class_icon(p, cls, ic)
             p.setPen(QColor("white"))
             p.setFont(f_name)
-            p.drawText(r.adjusted(ic.width() + 9, 0, 0, 0), Qt.AlignVCenter | Qt.AlignLeft, name)
-            p.setFont(f_num)
             dps = row[6] if len(row) > 6 and row[6] else dmg / dur      # cada um pelo próprio tempo lutando
             cols = [(f"{dmg / total * 100:.1f}%", 44), (fmt(dmg), 58), (fmt(dps), 52)]
             if crit is not None:
                 cols += [(f"{multi * 100:.0f}%", 40), (f"{crit * 100:.0f}%", 40)]
+            name_w = int(r.width() - ic.width() - 14 - sum(w for _t, w in cols))
+            p.drawText(r.adjusted(ic.width() + 9, 0, 0, 0), Qt.AlignVCenter | Qt.AlignLeft,
+                       p.fontMetrics().elidedText(name, Qt.ElideRight, max(20, name_w)))  # nome longo não invade
+            p.setFont(f_num)
             x = r.right() - 8
             for k, (txt, w) in enumerate(cols):
                 p.setPen(QColor("white") if k < 3 else QColor(255, 255, 255, 190))

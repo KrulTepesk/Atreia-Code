@@ -112,6 +112,18 @@ def decode_names(op, b):
     return None
 
 
+def tcp_payload(ip, tcp):
+    """Só os dados de verdade do segmento. Pacotes pequenos (ACK puro) chegam com o "enchimento" do
+    Ethernet (bytes zero até 60 bytes) e o scapy junta esse enchimento ao payload; antes ele entrava no
+    fluxo como se fosse dado do jogo, desalinhava as mensagens e ~20% delas se perdiam."""
+    raw = bytes(tcp.payload)
+    try:
+        n = int(ip.len) - int(ip.ihl) * 4 - int(tcp.dataofs) * 4
+    except (TypeError, ValueError):
+        return raw
+    return raw[:max(0, n)] if 0 <= n < len(raw) else raw
+
+
 class MessageParser:
     """Recebe bytes do fluxo do servidor (em ordem) e devolve mensagens (opcode, corpo)."""
 
@@ -122,6 +134,7 @@ class MessageParser:
         self.buf.clear()
 
     MAX_MSG = 16384
+    MAX_INFLATE = 4 * 1024 * 1024    # LZ4 expande no máximo ~255x: 16 KB comprimidos cabem folgado aqui
 
     def _chain(self, b):
         """Percorre mensagens em b; retorna (lista de (ini, fim) dos corpos, bytes consumidos, ok)."""
@@ -164,6 +177,8 @@ class MessageParser:
             try:
                 import lz4.block
                 size = struct.unpack("<I", body[2:6])[0]
+                if not 0 < size <= self.MAX_INFLATE:
+                    return                              # tamanho absurdo: não aloca memória à toa
                 inner = lz4.block.decompress(body[6:], uncompressed_size=size)
             except Exception:
                 return
@@ -183,7 +198,14 @@ class MessageParser:
 
 
 class TcpStream:
-    """Junta os segmentos TCP de um sentido na ordem certa."""
+    """Junta os segmentos TCP de um sentido na ordem certa.
+
+    O número de sequência do TCP tem 32 bits e dá a volta depois de 4 GB; as contas são feitas módulo 2^32
+    (antes, numa sessão muito longa, tudo depois da volta era tratado como retransmissão e o medidor parava).
+    """
+    MOD = 1 << 32
+    MAX_PENDING = 512            # segmentos fora de ordem guardados no máximo
+    JUMP = 1 << 24               # salto maior que isso = conexão nova / fluxo perdido: recomeça daqui
 
     def __init__(self, parser):
         self.parser = parser
@@ -191,26 +213,57 @@ class TcpStream:
         self.pending = {}
         self.gap_since = None
 
+    def _diff(self, seq):
+        """seq - next_seq com sinal, considerando a volta dos 32 bits."""
+        d = (seq - self.next_seq) % self.MOD
+        return d - self.MOD if d >= self.MOD // 2 else d
+
+    def _trim(self):
+        """Segmentos guardados que começam antes do ponto atual (sobrepostos por uma retransmissão maior):
+        corta o pedaço já lido ou descarta. True se algum passou a começar exatamente no ponto atual."""
+        hit = False
+        for k in list(self.pending):
+            d = self._diff(k)
+            if d < 0:
+                data = self.pending.pop(k)
+                if -d < len(data):
+                    rest = data[-d:]
+                    if len(rest) > len(self.pending.get(self.next_seq, b"")):
+                        self.pending[self.next_seq] = rest
+                    hit = True
+        return hit and self.next_seq in self.pending
+
     def add(self, seq, data):
         out = []
         if self.next_seq is None:
             self.next_seq = seq
-        if seq < self.next_seq:                      # retransmissão
-            over = self.next_seq - seq
-            if over >= len(data):
+        d = self._diff(seq)
+        if abs(d) > self.JUMP:                       # outro fluxo: recomeça sem misturar
+            self.parser.resync()
+            self.pending.clear()
+            self.next_seq, d = seq, 0
+        if d < 0:                                    # retransmissão
+            if -d >= len(data):
                 return out
-            seq, data = self.next_seq, data[over:]
-        self.pending[seq] = data
-        while self.next_seq in self.pending:
-            d = self.pending.pop(self.next_seq)
-            out += self.parser.feed(d)
-            self.next_seq += len(d)
+            seq, data = self.next_seq, data[-d:]
+        seq %= self.MOD
+        if len(data) > len(self.pending.get(seq, b"")):   # retransmissão maior (juntou segmentos) ganha
+            self.pending[seq] = data
+        while True:
+            dd = self.pending.pop(self.next_seq, None)
+            if dd is None:
+                if not self._trim():
+                    break
+                continue
+            out += self.parser.feed(dd)
+            self.next_seq = (self.next_seq + len(dd)) % self.MOD
             self.gap_since = None
         if self.pending:
             if self.gap_since is None:
                 self.gap_since = time.time()
-            elif time.time() - self.gap_since > 1.0:  # pacote perdido: recomeça no próximo
-                s = min(self.pending)
+            if time.time() - self.gap_since > 1.0 or len(self.pending) > self.MAX_PENDING:
+                # pacote perdido: recomeça no próximo que chegou
+                s = min(self.pending, key=self._diff)
                 self.parser.resync()
                 self.next_seq = s
                 self.gap_since = None
@@ -367,15 +420,18 @@ class DpsReader(QThread):
             tcp = p[TCP]
             if tcp.sport != GAME_PORT and not (self.hosts and p[IP].src in self.hosts):
                 return
-            data = bytes(tcp.payload)
+            data = tcp_payload(p[IP], tcp)
             if not data:
                 return
             key = (p[IP].src, tcp.sport, p[IP].dst, tcp.dport)
             if key not in streams:
                 parser_for[key] = MessageParser()
                 streams[key] = TcpStream(parser_for[key])
-            for op, body in streams[key].add(tcp.seq, data):
-                self.handle(op, body)
+            try:
+                for op, body in streams[key].add(tcp.seq, data):
+                    self.handle(op, body)
+            except Exception as e:              # um pacote estranho nunca pode derrubar a leitura
+                self._warn(e)
 
         flt = f"tcp and src port {GAME_PORT}"
         if self.hosts:
@@ -390,7 +446,10 @@ class DpsReader(QThread):
         self.status.emit("Lendo o tráfego do jogo...")
         while self._run:
             time.sleep(0.5)
-            self.flush_world()
+            try:
+                self.flush_world()
+            except Exception as e:
+                self._warn(e)
             try:
                 f = self.current()
                 key = (f.start, f.last, len(f.pair), self.find_self(), self.mode, self.view)
@@ -432,9 +491,18 @@ class DpsReader(QThread):
         with self.lock:
             self._handle(op, body)
 
+    def _warn(self, e):
+        now = time.time()
+        if now - getattr(self, "_warn_t", 0) > 30:       # não inunda a interface com o mesmo aviso
+            self._warn_t = now
+            self.status.emit(f"aviso: {type(e).__name__}: {e}")
+
     def _handle(self, op, body):
         if self.world is not None:
-            self.world.handle(op, body)
+            try:
+                self.world.handle(op, body)
+            except Exception as e:
+                self._warn(e)
         try:
             if op == 0x3804:
                 h = decode_hit(body)
@@ -460,10 +528,14 @@ class DpsReader(QThread):
                     self.fight.add_heal(now, atk, tgt, dmg, skill)
                     self.session.add_heal(now, atk, tgt, dmg, skill)
                     return
+                if len(self.harmed) > 200_000:            # sessão muito longa: não cresce sem limite
+                    self.harmed.clear()
                 self.harmed.add((atk, tgt))
                 if self.world is not None:
                     self.world.on_damage(atk, tgt, now)
                 if c:
+                    if len(self.enemies) > 100_000:
+                        self.enemies.clear()
                     self.enemies.add(tgt)                  # quem leva dano de jogador é inimigo/monstro
                 self._unlink(atk, tgt)
                 mine = bool(c) and self._mine(atk)

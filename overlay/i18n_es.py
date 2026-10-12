@@ -441,4 +441,14 @@ ES = {
     'Último: abate em {n}': 'Último: muerte de {n}',
     'Último: assistência em {n}': 'Último: asistencia en {n}',
     'PvP (experimental)': 'PvP (experimental)',
+    # ---- revisão de segurança/bugs
+    'Não consegui usar essa imagem.': 'No pude usar esa imagen.',
+    'Npcap instalado': 'Npcap instalado',
+    'instalar o Npcap': 'instalar Npcap',
+    'abrir como administrador': 'abrir como administrador',
+    'Falta:': 'Falta:',
+    'Vai abrir o instalador oficial do Npcap.\n\nDeixe marcada a opção "Install Npcap in WinPcap API-compatible Mode" e clique em I Agree / Install.\nO Windows vai pedir permissão de administrador: clique em Sim.\n\nDepois, clique em "Reabrir como administrador".': 'Se abrirá el instalador oficial de Npcap.\n\nDeja marcada la opción "Install Npcap in WinPcap API-compatible Mode" y haz clic en I Agree / Install.\nWindows pedirá permiso de administrador: haz clic en Sí.\n\nDespués, haz clic en "Reabrir como administrador".',
+    'Instalador do Npcap aberto. Termine a instalação e reabra como administrador.': 'Instalador de Npcap abierto. Termina la instalación y vuelve a abrir como administrador.',
+    'Escolha o processo do jogo.': 'Elige el proceso del juego.',
+    'Não deu para baixar ou conferir o instalador agora; abrindo a página oficial.': 'No se pudo descargar o verificar el instalador ahora; abriendo la página oficial.',
 }
