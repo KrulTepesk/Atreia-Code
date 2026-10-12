@@ -150,7 +150,7 @@ ES = {
     'Aion 2 — Mapa': 'Aion 2 — Mapa',
     '<b>Mapa</b>': '<b>Mapa</b>',
     'Coletáveis': 'Recolección',
-    'Farm de pet': 'Farmeo de mascotas',
+    'Farm de pet': 'Farm de mascotas',
     '<b>Procurar monstro</b>': '<b>Buscar monstruo</b>',
     'ex.: Fuça, Espírito da Pedra...': 'ej.: Fossa, Espíritu de Piedra...',
     'Farmar este mob': 'Farmear este mob',
@@ -451,4 +451,6 @@ ES = {
     'Instalador do Npcap aberto. Termine a instalação e reabra como administrador.': 'Instalador de Npcap abierto. Termina la instalación y vuelve a abrir como administrador.',
     'Escolha o processo do jogo.': 'Elige el proceso del juego.',
     'Não deu para baixar ou conferir o instalador agora; abrindo a página oficial.': 'No se pudo descargar o verificar el instalador ahora; abriendo la página oficial.',
+    'Farm de pet (experimental)': 'Farm de mascotas (experimental)',
+    'experimental': 'experimental',
 }

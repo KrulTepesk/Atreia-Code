@@ -9,7 +9,7 @@ Não lê a memória do jogo nem mexe em arquivos dele.
 - **Mapa de coletáveis** — Elyos, Asmodian e Abismo (com o mapa de Reshanta Inferior), ícone de cada recurso, filtros e "coletado".
 - **Minimapa do Alt+M** — reconhece onde você está e desenha os recursos por cima; clique no ícone
   para marcar a coleta e iniciar um timer de renascimento (5 min).
-- **Farm de pet automático** — lê o tráfego do jogo: ao matar um monstro que dá alma de pet o farm começa
+- **Farm de pet automático (experimental)** — lê o tráfego do jogo: ao matar um monstro que dá alma de pet o farm começa
   sozinho; cada abate e cada alma que você ganha são contados; lista os monstros de pet da região onde você está.
 - **Hidden Cubes** — no mapa de coletáveis, os locais onde o cubo *pode* nascer (Verteron, Altgard, Eltnen e
   Morheim; dados do interactivemap.app / gamers4.life). Não é garantido que o cubo esteja em todos.

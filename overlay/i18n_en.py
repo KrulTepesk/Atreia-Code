@@ -413,4 +413,6 @@ EN = {
     'Instalador do Npcap aberto. Termine a instalação e reabra como administrador.': 'Npcap installer opened. Finish the installation and reopen as administrator.',
     'Escolha o processo do jogo.': 'Choose the game process.',
     'Não deu para baixar ou conferir o instalador agora; abrindo a página oficial.': "Couldn't download or verify the installer right now; opening the official page.",
+    "Farm de pet (experimental)": "Pet farming (experimental)",
+    "experimental": "experimental",
 }

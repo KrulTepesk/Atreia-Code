@@ -131,7 +131,7 @@ class ControlPanel(QWidget):
         tabs.addTab(self.tab_map(), "Mapa", "map", "Coletáveis, mobs e o minimapa do Alt+M com os recursos por cima.")
         self.dps_tab = DpsTab(self.hub)
         self.farm_tab = FarmTab(self)
-        tabs.addTab(self.farm_tab, "Farm de pet", "farm", "Conta sozinho os seus abates e mostra os mobs de pet onde você está.")
+        tabs.addTab(self.farm_tab, "Farm de pet (experimental)", "farm", "Conta sozinho os seus abates e mostra os mobs de pet onde você está.")
         self.events = EventScheduler()
         tabs.insertTab(2, EventsTab(self.events, SoundRow), "Rifts e chefes", "rifts",
                        "Avisos 5 minutos antes e na hora das fendas e dos chefes do mundo.")

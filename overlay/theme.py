@@ -8,7 +8,7 @@ import math
 import os
 
 from PySide6.QtCore import QEvent, QObject, QPointF, QRectF, QSize, Qt, Signal
-from PySide6.QtGui import (QColor, QFont, QIcon, QLinearGradient, QPainter, QPainterPath, QPalette, QPen, QPixmap,
+from PySide6.QtGui import (QColor, QFont, QFontMetrics, QIcon, QLinearGradient, QPainter, QPainterPath, QPalette, QPen, QPixmap,
                            QRadialGradient)
 from PySide6.QtWidgets import (QFrame, QGroupBox, QHBoxLayout, QLabel, QPushButton, QStackedWidget, QStyleFactory,
                                QVBoxLayout, QWidget)
@@ -135,6 +135,7 @@ QMessageBox, QDialog {{ background: {INK}; }}
     text-align: left; padding: 7px 10px 7px 14px; border: none; border-radius: 6px;
     background: transparent; color: {MUTED}; font-size: 9.5pt;
 }}
+#NavBar QPushButton[tagged="true"] {{ padding-top: 2px; padding-bottom: 15px; }}
 #NavBar QPushButton:hover {{ color: {TEXT}; background: #0e0e10; }}
 #NavBar QPushButton:checked {{ color: {TEXT}; background: #141416; border: none; font-weight: 600; }}
 #NavBar QPushButton#LockPill {{
@@ -477,8 +478,22 @@ class NavBar(QFrame):
 class NavButton(QPushButton):
     """Item do menu: ícone + texto; o aberto ganha uma barra de ouro metálico na esquerda."""
 
+    tag = ""          # texto pequeno embaixo do nome (ex.: "experimental")
+
     def paintEvent(self, e):
         super().paintEvent(e)
+        if self.tag:
+            p = QPainter(self)
+            f = QFont(self.font())
+            f.setPointSizeF(7.0)
+            f.setWeight(QFont.Normal)
+            p.setFont(f)
+            p.setPen(QColor(AETHER) if self.isChecked() else QColor(AETHER2).lighter(130))
+            x = 14 + (self.iconSize().width() + QFontMetrics(self.font()).horizontalAdvance("  ") + 4
+                      if not self.icon().isNull() else 0)
+            p.drawText(QRectF(x, self.height() - 17, self.width() - x - 6, 12), Qt.AlignLeft | Qt.AlignVCenter,
+                       self.tag)
+            p.end()
         if self.isChecked():
             p = QPainter(self)
             p.setRenderHint(QPainter.Antialiasing)
@@ -566,9 +581,15 @@ class NavTabs(QWidget):
 
     def insertTab(self, index, widget, title, icon=None, sub=None):
         index = min(index, len(self.pages))
-        title = self.T(self._split(title))
+        key = self._split(title)
+        tag = key.endswith(" (experimental)")
+        title = self.T(key)
         wrap = self._wrap(widget, title, self.T(sub) if sub else None)
-        btn = NavButton(("  " if icon else "") + title)
+        # "(experimental)" não cabe ao lado do nome no menu: vira uma linha pequena embaixo
+        btn = NavButton(("  " if icon else "") + (self.T(key[:-15]) if tag else title))
+        if tag:
+            btn.tag = self.T("experimental")
+            btn.setProperty("tagged", True)
         if icon:
             btn.setIcon(glyph_icon(icon))
             btn.setIconSize(QSize(20, 20))
