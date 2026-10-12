@@ -441,7 +441,9 @@ class DpsReader(QThread):
         seen, stack = {me}, [me]
         while stack:
             for y in self.links.get(stack.pop(), ()):
-                if y not in seen:
+                # só passa por jogadores: um debuff sem dano num monstro ligava você ao monstro e o monstro
+                # a qualquer estranho que batesse nele, e o estranho piscava no medidor até o 1º dano
+                if y not in seen and y in self.cls:
                     seen.add(y)
                     stack.append(y)
         return seen
@@ -461,8 +463,8 @@ class DpsReader(QThread):
         f = self.fight
         me = self.find_self()
         mine = self.group(me)
-        if self.mode == "party" and me is not None:
-            players = mine
+        if self.mode == "party":
+            players = mine      # sem saber quem é você ainda, não mostra ninguém (antes mostrava todos)
         else:
             players = f.players(self.names, mine) & set(self.cls)   # só quem usa habilidade de classe
         st = {}
