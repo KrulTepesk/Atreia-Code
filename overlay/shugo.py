@@ -45,7 +45,7 @@ class ShugoWidget(OverlayWindow):
         self.msg.setStyleSheet("color:white;")
         self.sub = QLabel("")
         self.sub.setFont(QFont("Segoe UI", 9))
-        self.sub.setStyleSheet("color:#aeb6c4;")
+        self.sub.setStyleSheet("color:#b3aa98;")
         for w in (self.title, self.msg, self.sub):
             col.addWidget(w)
         lay.addLayout(col)

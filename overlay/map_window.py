@@ -90,7 +90,7 @@ class MapView(QGraphicsView):
         self.setDragMode(QGraphicsView.ScrollHandDrag)
         self.setTransformationAnchor(QGraphicsView.AnchorUnderMouse)
         self.setViewportUpdateMode(QGraphicsView.SmartViewportUpdate)
-        self.setBackgroundBrush(QColor("#0b0e13"))
+        self.setBackgroundBrush(QColor("#080807"))
         self.setFrameShape(QFrame.NoFrame)
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
@@ -179,13 +179,13 @@ class MapWindow(QWidget):
         root.setSpacing(0)
         side = QFrame()
         side.setStyleSheet("""
-            QFrame{background:#11151c;} QLabel{color:#d7dce5;} QCheckBox{color:#d7dce5; spacing:6px;}
-            QComboBox,QPushButton{background:#232937; color:#e6e9ef; border:1px solid #333b4c;
+            QFrame{background:#100f0d;} QLabel{color:#e3ddd0;} QCheckBox{color:#e3ddd0; spacing:6px;}
+            QComboBox,QPushButton{background:#1d1a16; color:#eee8dc; border:1px solid #3a3429;
                 border-radius:5px; padding:4px 8px;}
-            QPushButton:hover{background:#2c3446;}
-            QPushButton:checked{background:qlineargradient(x1:0,y1:0,x2:1,y2:0,stop:0 #6fd3ff,stop:1 #a184ff); color:#0d0b18; border:none;}
-            QLineEdit,QListWidget{background:#11141b; color:#e6e9ef; border:1px solid #333b4c; border-radius:5px;}
-            QListWidget::item{padding:3px;} QListWidget::item:selected{background:#2c3446;}""")
+            QPushButton:hover{background:#2c271f;}
+            QPushButton:checked{background:qlineargradient(x1:0,y1:0,x2:1,y2:0,stop:0 #e0b04f,stop:1 #a8742a); color:#0a0908; border:none;}
+            QLineEdit,QListWidget{background:#0e0d0b; color:#eee8dc; border:1px solid #3a3429; border-radius:5px;}
+            QListWidget::item{padding:3px;} QListWidget::item:selected{background:#2c271f;}""")
         sl = QVBoxLayout(side)
         sl.setContentsMargins(12, 12, 12, 12)
         scroll = QScrollArea()
@@ -194,7 +194,7 @@ class MapWindow(QWidget):
         scroll.setFixedWidth(272)
         side.setMaximumWidth(256)
         scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-        scroll.setStyleSheet("QScrollArea{border:none; background:#11151c; border-right:1px solid #262e3d;}")
+        scroll.setStyleSheet("QScrollArea{border:none; background:#100f0d; border-right:1px solid #2a261f;}")
 
         self.world = QComboBox()
         for wid, w in self.data["worlds"].items():
@@ -213,7 +213,7 @@ class MapWindow(QWidget):
         sl.addLayout(mode)
 
         self.counter = QLabel()
-        self.counter.setStyleSheet("color:#6fd3ff; font-size:14px; font-weight:600; padding:6px 0;")
+        self.counter.setStyleSheet("color:#e0b04f; font-size:14px; font-weight:600; padding:6px 0;")
         self.counter.setWordWrap(True)
         sl.addWidget(self.counter)
 
@@ -332,7 +332,7 @@ class MapWindow(QWidget):
         sl.addWidget(bfit)
         sl.addStretch()
         hint = QLabel("Coletáveis: clique num ponto para marcar como coletado.\nRoda do mouse = zoom · arrastar = mover")
-        hint.setStyleSheet("color:#7d8696; font-size:11px;")
+        hint.setStyleSheet("color:#8a8272; font-size:11px;")
         hint.setWordWrap(True)
         sl.addWidget(hint)
 
@@ -398,19 +398,19 @@ class MapWindow(QWidget):
                 path.closeSubpath()
             it = QGraphicsPathItem(path)
             base = r["r"] == 1
-            it.setPen(QPen(QColor(120, 135, 160, 200 if base else 90), 1.6 if base else 0.8))
+            it.setPen(QPen(QColor(150, 135, 105, 200 if base else 90), 1.6 if base else 0.8))
             it.pen().setCosmetic(True)
             pen = it.pen()
             pen.setCosmetic(True)
             it.setPen(pen)
-            it.setBrush(QColor(38, 46, 61, 255) if base and not has_bg else Qt.NoBrush)
+            it.setBrush(QColor(36, 32, 26, 255) if base and not has_bg else Qt.NoBrush)
             it.setZValue(1 if base else 2)
             self.scene.addItem(it)
             self.region_items.append(it)
             if base or r["k"] == "village":
                 t = QGraphicsSimpleTextItem(N(r["n"]).upper() if base else N(r["n"]))
                 t.setFont(QFont("Segoe UI", 8 if base else 7, QFont.Bold if base else QFont.Normal))
-                t.setBrush(QColor(225, 230, 240, 230) if base else QColor(245, 197, 66, 220))
+                t.setBrush(QColor(238, 230, 214, 230) if base else QColor(245, 197, 66, 220))
                 t.setPen(QPen(QColor(0, 0, 0, 170), 0.45))  # contorno escuro: legível em fundo claro
                 t.setFlag(QGraphicsItem.ItemIgnoresTransformations)
                 t.setPos(r["l"][0], -r["l"][1])
@@ -502,7 +502,7 @@ class MapWindow(QWidget):
         for it in self.region_items:
             it.setVisible(m["show_regions"] or it.zValue() == 1)
             if it.zValue() == 1:
-                it.setPen(QPen(QColor(120, 135, 160, 200 if m["show_regions"] else 0), 1.6))
+                it.setPen(QPen(QColor(150, 135, 105, 200 if m["show_regions"] else 0), 1.6))
                 pen = it.pen()
                 pen.setCosmetic(True)
                 it.setPen(pen)
@@ -712,7 +712,7 @@ class MapWindow(QWidget):
             if on:
                 pen = QPen(QColor(255, 210, 60, 230), 1.6)
             else:
-                pen = QPen(QColor(120, 135, 160, 200 if base else 90), 1.6 if base else 0.8)
+                pen = QPen(QColor(150, 135, 105, 200 if base else 90), 1.6 if base else 0.8)
             pen.setCosmetic(True)
             it.setPen(pen)
         for d in self.dots:

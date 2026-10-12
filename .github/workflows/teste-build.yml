@@ -17,4 +17,4 @@ jobs:
           ATREIA_FORCE_PORTABLE_PY: "1"
         run: |
           powershell -NoProfile -ExecutionPolicy Bypass -File build_tools\build.ps1
-          if (-not (Test-Path saida\AtreiaCode-Setup.exe) -and -not (Test-Path saida\AtreiaCode-Portatil.zip)) { throw "nada foi gerado" }
+          if (-not (Test-Path saida\MetaOverlay-Setup.exe) -and -not (Test-Path saida\MetaOverlay-Portatil.zip)) { throw "nada foi gerado" }

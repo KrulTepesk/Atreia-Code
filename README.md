@@ -1,4 +1,4 @@
-# Atreia Code
+# Meta Overlay
 
 Overlay para **Aion 2** (Windows): avisos, mapa de coletáveis, farm de pet e medidor de dano.
 Não lê a memória do jogo nem mexe em arquivos dele.
@@ -16,15 +16,17 @@ Não lê a memória do jogo nem mexe em arquivos dele.
 - Vários monitores, travar/destravar overlays, português e inglês.
 
 ## Instalar (usuário comum)
-**[⬇ Baixar o AtreiaCode-Setup.exe](https://github.com/KrulTepesk/Atreia-Code/releases/latest/download/AtreiaCode-Setup.exe)**
+**[⬇ Baixar o MetaOverlay-Setup.exe](https://github.com/KrulTepesk/Atreia-Code/releases/latest/download/MetaOverlay-Setup.exe)**
 — abra e instale. Não precisa de Python nem de baixar o código.
 O Npcap só é necessário para o DPS (o instalador oferece instalar).
+Ao instalar uma versão nova, a anterior é removida antes (inclusive a do antigo nome "Atreia Code");
+as suas configurações são mantidas.
 
 > O botão verde **Code → Download ZIP** é o código-fonte, para quem quer montar o programa.
 
 ## Gerar o instalador
 No Windows, rode `CRIAR_INSTALADOR.bat`. Ele baixa o que faltar (Python, bibliotecas, Inno Setup,
-ícones das habilidades) e gera `saida\AtreiaCode-Setup.exe`.
+ícones das habilidades) e gera `saida\MetaOverlay-Setup.exe`.
 Também dá para gerar pelo GitHub: aba **Actions → Gerar instalador → Run workflow**.
 
 ## Rodar pelo código

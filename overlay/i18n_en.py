@@ -217,8 +217,8 @@ EN = {
         "The file contains your game session traffic: only send it to someone you trust and don't publish it. Record "
         "while logged in and in game, not on the login screen.",
     "Baixando o Npcap...": "Downloading Npcap...",
-    "O Atreia Code já está aberto. Procure o ícone dele perto do relógio.":
-        "Atreia Code is already open. Look for its icon near the clock.", "Servidores do jogo:": "Game servers:", "conexões": "connections", "Captura salva:": "Capture saved:",
+    "O Meta Overlay já está aberto. Procure o ícone dele perto do relógio.":
+        "Meta Overlay is already open. Look for its icon near the clock.", "Servidores do jogo:": "Game servers:", "conexões": "connections", "Captura salva:": "Capture saved:",
     "Arraste em volta da área onde fica o minimapa  (Esc cancela)": "Drag around the minimap area  (Esc cancels)",
     " (principal)": " (main)",
     'Requisitos': 'Requirements',

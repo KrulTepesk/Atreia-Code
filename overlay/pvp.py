@@ -115,7 +115,7 @@ class PvpWidget(OverlayWindow):
         self.count.setFont(QFont("Segoe UI", 22, QFont.Bold))
         self.count.setStyleSheet("color:white;")
         self.status = QLabel("")
-        self.status.setStyleSheet("color:#aeb6c4;")
+        self.status.setStyleSheet("color:#b3aa98;")
         self.status.setFont(QFont("Segoe UI", 9))
         for w in (t, self.count, self.status):
             w.setAlignment(Qt.AlignCenter)

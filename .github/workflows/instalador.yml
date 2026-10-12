@@ -1,6 +1,6 @@
-# Monta o AtreiaCode-Setup.exe e publica em Releases sozinho sempre que o programa muda no main.
+# Monta o MetaOverlay-Setup.exe e publica em Releases sozinho sempre que o programa muda no main.
 # Link fixo para baixar a versão mais nova:
-#   https://github.com/KrulTepesk/Atreia-Code/releases/latest/download/AtreiaCode-Setup.exe
+#   https://github.com/KrulTepesk/Atreia-Code/releases/latest/download/MetaOverlay-Setup.exe
 name: Gerar instalador
 on:
   workflow_dispatch:
@@ -20,38 +20,52 @@ jobs:
           python-version: "3.12"
       - run: python -m pip install -r requirements.txt pyinstaller
       - run: python -m pip install pillow && python build_tools/baixar_icones.py
-      - run: python -m PyInstaller --noconfirm --distpath dist --workpath build_tools/_work build_tools/AtreiaCode.spec
+      - run: python -m PyInstaller --noconfirm --distpath dist --workpath build_tools/_work build_tools/MetaOverlay.spec
       - name: Tamanho do programa (maiores arquivos)
         shell: pwsh
         run: |
-          $all = Get-ChildItem dist\AtreiaCode -Recurse -File
+          $all = Get-ChildItem dist\MetaOverlay -Recurse -File
           $tot = ($all | Measure-Object Length -Sum).Sum / 1MB
           echo ("::notice title=Total::{0:N1} MB em {1} arquivos" -f $tot, $all.Count)
           $all | Sort-Object Length -Descending | Select-Object -First 15 | ForEach-Object {
-            echo ("::notice title=Arquivo::{0:N1} MB  {1}" -f ($_.Length/1MB), $_.FullName.Substring((Resolve-Path dist\AtreiaCode).Path.Length))
+            echo ("::notice title=Arquivo::{0:N1} MB  {1}" -f ($_.Length/1MB), $_.FullName.Substring((Resolve-Path dist\MetaOverlay).Path.Length))
           }
       - name: Abrir o programa (confere que não falta nada)
         shell: pwsh
         run: |
-          $p = Start-Process dist\AtreiaCode\AtreiaCode.exe -PassThru
+          $p = Start-Process dist\MetaOverlay\MetaOverlay.exe -PassThru
           Start-Sleep -Seconds 15
-          if ($p.HasExited) { throw "O AtreiaCode.exe fechou sozinho (código $($p.ExitCode))" }
+          if ($p.HasExited) { throw "O MetaOverlay.exe fechou sozinho (código $($p.ExitCode))" }
           echo "::notice title=Teste::o programa abriu e continuou rodando"
           Stop-Process -Id $p.Id -Force
       - run: choco install innosetup -y --no-progress
       - run: '& "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" /DAppVersion=1.0.${{ github.run_number }} build_tools\instalador.iss'
+      - name: Testar atualizacao (instala 2x e confere que nao sobra arquivo velho)
+        shell: pwsh
+        run: |
+          $dir = "$env:LOCALAPPDATA\Programs\MetaOverlay"
+          Start-Process saida\MetaOverlay-Setup.exe -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/TASKS=""' -Wait
+          if (-not (Test-Path "$dir\MetaOverlay.exe")) { throw "1a instalacao falhou" }
+          New-Item "$dir\_internal\arquivo_velho.dll" -ItemType File -Force | Out-Null
+          Start-Process saida\MetaOverlay-Setup.exe -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/TASKS=""' -Wait
+          if (-not (Test-Path "$dir\MetaOverlay.exe")) { throw "2a instalacao falhou" }
+          if (Test-Path "$dir\_internal\arquivo_velho.dll") { throw "sobrou arquivo da versao anterior" }
+          Get-Process MetaOverlay -ErrorAction SilentlyContinue | Stop-Process -Force
+          Copy-Item saida\MetaOverlay-Setup.exe saida\AtreiaCode-Setup.exe
       - uses: actions/upload-artifact@v4
         with:
-          name: AtreiaCode-Setup
-          path: saida/AtreiaCode-Setup.exe
+          name: MetaOverlay-Setup
+          path: saida/MetaOverlay-Setup.exe
       - uses: softprops/action-gh-release@v2
         with:
           tag_name: v1.0.${{ github.run_number }}
-          name: Atreia Code 1.0.${{ github.run_number }}
+          name: Meta Overlay 1.0.${{ github.run_number }}
           target_commitish: ${{ github.sha }}
           make_latest: "true"
-          files: saida/AtreiaCode-Setup.exe
+          files: |
+            saida/MetaOverlay-Setup.exe
+            saida/AtreiaCode-Setup.exe
           body: |
-            **Como instalar:** baixe o `AtreiaCode-Setup.exe` abaixo, abra e siga as telas.
+            **Como instalar:** baixe o `MetaOverlay-Setup.exe` abaixo, abra e siga as telas.
             Não precisa de Python nem de nada além do instalador.
             O Npcap só é necessário para o medidor de DPS (o instalador oferece instalar).

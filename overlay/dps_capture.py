@@ -220,7 +220,7 @@ class DpsTab(QWidget):
             "Aion 2: não altera, não bloqueia e não envia nada, e não mexe nos arquivos do jogo. "
             "Sem o Npcap só o DPS deixa de funcionar; o resto do overlay continua normal.")
         about.setWordWrap(True)
-        about.setStyleSheet("color:#c9cfdb; padding:4px 0 8px 0;")
+        about.setStyleSheet("color:#d4ccbb; padding:4px 0 8px 0;")
         b.addWidget(about)
         bl.addWidget(g_req)
 
@@ -234,7 +234,7 @@ class DpsTab(QWidget):
         hint = QLabel("Opcional. O medidor normalmente descobre sozinho qual linha é a sua (fica com contorno branco); "
                       "o nome só ajuda se isso falhar.")
         hint.setWordWrap(True)
-        hint.setStyleSheet("color:#8a93a6;")
+        hint.setStyleSheet("color:#9b9282;")
         f.addRow(hint)
         row = QHBoxLayout()
         self.btn_live = QPushButton("▶ Iniciar medidor")
@@ -256,7 +256,7 @@ class DpsTab(QWidget):
         group_hint = QLabel("O grupo é reconhecido por quem troca buffs e curas com você durante o jogo. "
                             "Zerar: botão ↺ no próprio medidor ou Ctrl+Alt+R.")
         group_hint.setWordWrap(True)
-        group_hint.setStyleSheet("color:#8a93a6;")
+        group_hint.setStyleSheet("color:#9b9282;")
         f.addRow(group_hint)
         self.chk_show = QCheckBox("Mostrar o medidor na tela")
         self.chk_show.setChecked(d["show_meter"])
@@ -277,13 +277,13 @@ class DpsTab(QWidget):
         f.addRow("Transparência:", op)
         self.live_status = QLabel("")
         self.live_status.setWordWrap(True)
-        self.live_status.setStyleSheet("color:#8a93a6;")
+        self.live_status.setStyleSheet("color:#9b9282;")
         f.addRow(self.live_status)
         note_live = QLabel("Conta o dano que o servidor informa para você e para quem está por perto. "
                            "Uma luta termina depois de 8 s sem golpes; a próxima começa do zero. "
                            "Se o jogo receber atualização e o medidor parar de contar, grave uma captura abaixo.")
         note_live.setWordWrap(True)
-        note_live.setStyleSheet("color:#8a8f99;")
+        note_live.setStyleSheet("color:#9b9282;")
         f.addRow(note_live)
         bl.addWidget(g_live)
 
@@ -328,12 +328,12 @@ class DpsTab(QWidget):
         b.addWidget(self.status)
         self.ep_label = QLabel("")
         self.ep_label.setWordWrap(True)
-        self.ep_label.setStyleSheet("color:#8a93a6;")
+        self.ep_label.setStyleSheet("color:#9b9282;")
         b.addWidget(self.ep_label)
         note = QLabel("O arquivo contém o tráfego da sua sessão de jogo: mande só para quem você confia "
                       "e não publique. Grave já logado e dentro do jogo, não na tela de login.")
         note.setWordWrap(True)
-        note.setStyleSheet("color:#8a8f99;")
+        note.setStyleSheet("color:#9b9282;")
         b.addWidget(note)
         bl.addWidget(g_rec)
 

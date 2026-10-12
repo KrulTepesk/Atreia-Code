@@ -89,7 +89,7 @@ def region_of(wid, coords):
 
 def render_minimap(wid, coords, w, h, marker=None):
     pm = QPixmap(w, h)
-    pm.fill(QColor("#1a1631"))
+    pm.fill(QColor("#171511"))
     if not coords:
         return pm
     xs = coords[0::2]
@@ -121,8 +121,8 @@ def render_minimap(wid, coords, w, h, marker=None):
                 path.addPolygon(QPolygonF([to_px(x, -y) for x, y in poly]))
                 path.closeSubpath()
                 if not bg:
-                    p.fillPath(path, QColor(38, 46, 61))
-                p.setPen(QPen(QColor(230, 235, 245, 110), 1))
+                    p.fillPath(path, QColor(36, 32, 26))
+                p.setPen(QPen(QColor(240, 232, 215, 110), 1))
                 p.drawPath(path)
     if world:  # nomes das regiões para se localizar
         f = QFont("Segoe UI", 7, QFont.Bold)
@@ -140,14 +140,14 @@ def render_minimap(wid, coords, w, h, marker=None):
                 rect = QRectF(lp.x() - 70, lp.y() - 8, 140, 16)
                 p.setPen(QColor(0, 0, 0, 200))
                 p.drawText(rect.translated(1, 1), Qt.AlignCenter, r["n"])
-                p.setPen(QColor(235, 238, 245, 220))
+                p.setPen(QColor(242, 236, 224, 220))
                 p.drawText(rect, Qt.AlignCenter, r["n"])
     for x, y in zip(xs, ys):
         c = to_px(x, y)
         if marker is not None and not marker.isNull():
             mw, mh = marker.width(), marker.height()
             p.setPen(Qt.NoPen)
-            p.setBrush(QColor(8, 6, 18, 170))
+            p.setBrush(QColor(8, 7, 6, 170))
             p.drawEllipse(c, mw * 0.55, mh * 0.55)
             p.drawPixmap(int(c.x() - mw / 2), int(c.y() - mh / 2), marker)
         else:
@@ -215,7 +215,7 @@ class FarmWidget(OverlayWindow):
         p.drawText(QRectF(14, y0, self.W - 90, 22), Qt.AlignVCenter | Qt.AlignLeft,
                    self.pet_name or T("Escolha o pet"))
         stage = T(next((s[1] for s in STAGES if s[0] == c["stage"]), ""))
-        p.setPen(QColor("#b9b3d6"))
+        p.setPen(QColor("#c7bda8"))
         p.setFont(QFont("Segoe UI", 8))
         p.drawText(QRectF(self.W - 110, y0, 96, 22), Qt.AlignVCenter | Qt.AlignRight,
                    stage.replace("Afinidade ", "").replace("Affinity ", ""))
@@ -231,7 +231,7 @@ class FarmWidget(OverlayWindow):
             right = T("faltam ~{n} abates").format(n=round(left * c['kills'] / gained))
         else:
             right = T("faltam {n} almas").format(n=left)
-        p.setPen(QColor("#f5c542") if souls >= goal else QColor("#d7dce5"))
+        p.setPen(QColor("#f5c542") if souls >= goal else QColor("#e3ddd0"))
         p.drawText(QRectF(14, y0 + 22, self.W - 28, 20), Qt.AlignVCenter | Qt.AlignRight, right)
 
         bar = QRectF(14, y0 + 48, self.W - 28, 7)
@@ -240,7 +240,7 @@ class FarmWidget(OverlayWindow):
         p.drawRoundedRect(bar, 3.5, 3.5)
         p.setBrush(QColor("#5ee39a") if souls < goal else QColor("#f5c542"))
         p.drawRoundedRect(QRectF(bar.x(), bar.y(), bar.width() * min(1, souls / goal), bar.height()), 3.5, 3.5)
-        p.setPen(QColor("#958fb3"))
+        p.setPen(QColor("#9b9282"))
         p.setFont(QFont("Segoe UI", 8))
         p.drawText(QRectF(14, y0 + 58, self.W - 28, 18), Qt.AlignVCenter | Qt.AlignLeft,
                    T("Abates: {n}").format(n=c['kills']))
@@ -489,7 +489,7 @@ class FarmTab(QWidget):
         gained = max(0, souls - c.get("start_souls", souls))
         kills = c.get("kills", 0)
         lines = [f"<span style='font-size:15pt; font-weight:600'>{souls} / {goal}</span>"
-                 f"&nbsp;&nbsp;<span style='color:#958fb3'>{T('almas')}</span>"]
+                 f"&nbsp;&nbsp;<span style='color:#9b9282'>{T('almas')}</span>"]
         if left == 0:
             lines.append(f"<span style='color:#5ee39a'>{T('Meta alcançada!')}</span>")
         else:
@@ -502,7 +502,7 @@ class FarmTab(QWidget):
                     r=rate, m=int(round(left * rate)))
             lines.append(txt)
         else:
-            lines.append(f"<span style='color:#958fb3'>{T('Use +1 abate (ou Ctrl+Alt+K) a cada mob morto para ver quantos faltam.')}</span>")
+            lines.append(f"<span style='color:#9b9282'>{T('Use +1 abate (ou Ctrl+Alt+K) a cada mob morto para ver quantos faltam.')}</span>")
         self.progress.setText("<br>".join(lines))
 
     def stage_changed(self, i):

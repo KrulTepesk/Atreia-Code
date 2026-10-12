@@ -2,7 +2,7 @@ AION 2 OVERLAY
 ==============
 
 PARA QUEM VAI USAR
-1. Baixe o AtreiaCode-Setup.exe e abra.
+1. Baixe o MetaOverlay-Setup.exe e abra.
 2. Avançar > Instalar. Não pede senha de administrador, não precisa de Python nem de nada.
 3. O programa abre sozinho e fica no menu Iniciar e na área de trabalho.
    Fechar o painel não fecha o overlay: ele fica no ícone "A2" perto do relógio.
@@ -11,7 +11,7 @@ PARA QUEM VAI USAR
 PARA QUEM DISTRIBUI (gerar o instalador, uma vez por versão)
 - Dê dois cliques em CRIAR_INSTALADOR.bat e espere (5 a 15 min na primeira vez).
   Ele baixa sozinho, dentro da pasta build_tools, o que precisa para montar o programa.
-  No fim abre a pasta "saida" com o AtreiaCode-Setup.exe. É esse arquivo que você manda pro pessoal.
+  No fim abre a pasta "saida" com o MetaOverlay-Setup.exe. É esse arquivo que você manda pro pessoal.
 - Alternativa sem usar o seu PC: suba a pasta num repositório do GitHub e rode
   Actions > "Gerar instalador"; o Setup aparece para download no fim.
 - INICIAR.bat continua servindo para testar direto do código, sem gerar instalador.

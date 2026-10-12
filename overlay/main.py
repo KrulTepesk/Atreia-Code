@@ -1,4 +1,4 @@
-"""Atreia Code — painel de controle, ícone na bandeja e janelas de overlay."""
+"""Meta Overlay — painel de controle, ícone na bandeja e janelas de overlay."""
 import os
 import sys
 
@@ -94,7 +94,7 @@ class ControlPanel(QWidget):
     def __init__(self, app):
         super().__init__()
         self.app = app
-        self.setWindowTitle("Atreia Code")
+        self.setWindowTitle("Meta Overlay")
         self.setWindowIcon(make_icon())
         self.resize(960, 680)
 
@@ -105,7 +105,7 @@ class ControlPanel(QWidget):
 
         self.minimap = minimap.MinimapController()
         self._lock_icons = {False: theme.glyph_icon("unlock"), True: theme.glyph_icon("lock")}
-        tabs = self.tabs = theme.NavTabs("Atreia Code", "Ferramentas para Aion 2")
+        tabs = self.tabs = theme.NavTabs("Meta Overlay", "Ferramentas para Aion 2")
         tabs.addTab(self.tab_general(), "Geral", "general", "Idioma, monitores e trava dos overlays.")
         tabs.addTab(self.tab_shugo(), "Shugo", "shugo", "Aviso antes do Festival do Shugo começar.")
         tabs.addTab(self.tab_pvp(), "PvP", "pvp", "Toca um som quando você derrota alguém.")
@@ -153,7 +153,7 @@ class ControlPanel(QWidget):
             menu.addAction(a)
         self.tray.setContextMenu(menu)
         self.tray.activated.connect(lambda r: self.show_panel() if r == QSystemTrayIcon.DoubleClick else None)
-        self.tray.setToolTip("Atreia Code")
+        self.tray.setToolTip("Meta Overlay")
         self.tray.show()
 
         # atalhos globais do farm (Ctrl+Alt+S / X / K) e zerar DPS (Ctrl+Alt+R)
@@ -208,7 +208,7 @@ class ControlPanel(QWidget):
         fl.addRow("Idioma:", self.lang)
         rowl = QHBoxLayout()
         self.lang_note = QLabel("O idioma muda depois de reiniciar o programa.")
-        self.lang_note.setStyleSheet("color:#8a93a6;")
+        self.lang_note.setStyleSheet("color:#9b9282;")
         self.btn_restart = QPushButton("Reiniciar agora")
         self.btn_restart.clicked.connect(self.restart)
         self.btn_restart.hide()
@@ -430,7 +430,7 @@ class ControlPanel(QWidget):
                       "reconhecimento funciona em Verteron e Altgard, que são os mapas com imagem de fundo; os outros "
                       "passam a funcionar quando ganharem imagem de fundo.")
         note.setWordWrap(True)
-        note.setStyleSheet("color:#8a93a6;")
+        note.setStyleSheet("color:#9b9282;")
         f.addRow(note)
         lay.addWidget(box2)
         lay.addStretch()
@@ -609,7 +609,7 @@ class ControlPanel(QWidget):
     def closeEvent(self, e):
         e.ignore()
         self.hide()
-        self.tray.showMessage("Atreia Code", T("Continua rodando na bandeja."), QSystemTrayIcon.Information, 2000)
+        self.tray.showMessage("Meta Overlay", T("Continua rodando na bandeja."), QSystemTrayIcon.Information, 2000)
 
     def quit(self):
         self.dps_tab.shutdown()
@@ -647,12 +647,12 @@ def main():
     if not single_instance():
         from PySide6.QtWidgets import QMessageBox
         _app = QApplication(sys.argv)
-        QMessageBox.information(None, "Atreia Code",
-                                T("O Atreia Code já está aberto. Procure o ícone dele perto do relógio."))
+        QMessageBox.information(None, "Meta Overlay",
+                                T("O Meta Overlay já está aberto. Procure o ícone dele perto do relógio."))
         return
     app = QApplication(sys.argv)
     app.setQuitOnLastWindowClosed(False)
-    app.setApplicationName("Atreia Code")
+    app.setApplicationName("Meta Overlay")
     app.setWindowIcon(make_icon())
     theme.apply(app)
     panel = ControlPanel(app)

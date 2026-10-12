@@ -1,4 +1,4 @@
-﻿# Gera saida\AtreiaCode-Setup.exe. Baixa sozinho o que faltar (Python e Inno Setup)
+﻿# Gera saida\MetaOverlay-Setup.exe. Baixa sozinho o que faltar (Python e Inno Setup)
 # dentro de build_tools, sem mexer no resto do PC e sem pedir administrador.
 $ErrorActionPreference = "Stop"
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
@@ -78,10 +78,10 @@ Step "Baixando os ícones das habilidades (só na primeira vez)"
 & $vpy (Join-Path $Tools "baixar_icones.py")
 
 # ---------------------------------------------------------------- .exe
-Step "Montando o AtreiaCode.exe"
+Step "Montando o MetaOverlay.exe"
 & $vpy -m PyInstaller --noconfirm --clean `
     --distpath (Join-Path $Root "dist") --workpath (Join-Path $Tools "_work") `
-    (Join-Path $Tools "AtreiaCode.spec")
+    (Join-Path $Tools "MetaOverlay.spec")
 if ($LASTEXITCODE -ne 0) { throw "PyInstaller falhou" }
 
 # ---------------------------------------------------------------- instalador
@@ -137,13 +137,13 @@ if ($iscc) {
     Step "Gerando o instalador"
     & $iscc (Join-Path $Tools "instalador.iss")
     if ($LASTEXITCODE -ne 0) { throw "Inno Setup falhou" }
-    $out = Join-Path $Root "saida\AtreiaCode-Setup.exe"
+    $out = Join-Path $Root "saida\MetaOverlay-Setup.exe"
 } else {
     # sem Inno Setup: entrega a versão portátil (zip, é só extrair e abrir o .exe)
     Step "Inno Setup indisponível: gerando versão portátil (.zip)"
-    $out = Join-Path $Root "saida\AtreiaCode-Portatil.zip"
+    $out = Join-Path $Root "saida\MetaOverlay-Portatil.zip"
     Remove-Item $out -ErrorAction SilentlyContinue
-    Compress-Archive -Path (Join-Path $Root "dist\AtreiaCode") -DestinationPath $out
+    Compress-Archive -Path (Join-Path $Root "dist\MetaOverlay") -DestinationPath $out
     Write-Host "Para gerar o instalador, instale o Inno Setup (jrsoftware.org) e rode de novo." -ForegroundColor Yellow
 }
 

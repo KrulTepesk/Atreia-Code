@@ -12,7 +12,7 @@ class OverlayWindow(QWidget):
         self.key = key
         self._drag = None
         self._locked = False
-        self._bg = QColor(16, 13, 30)        # céu do Abismo
+        self._bg = QColor(12, 11, 9)        # céu do Abismo
         self._accent = QColor(0, 0, 0, 0)
         self.default_offset = default_offset
         self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Tool)
@@ -72,7 +72,7 @@ class OverlayWindow(QWidget):
         bg = QColor(self._bg)
         bg.setAlpha(215)
         p.setBrush(bg)
-        pen = QColor(self._accent) if self._accent.alpha() else (QColor(161, 132, 255, 55) if self._locked else QColor(111, 211, 255, 110))
+        pen = QColor(self._accent) if self._accent.alpha() else (QColor(168, 116, 42, 55) if self._locked else QColor(224, 176, 79, 110))
         p.setPen(pen)
         from PySide6.QtCore import QRectF
         from theme import chamfer_path
@@ -82,5 +82,5 @@ class OverlayWindow(QWidget):
         if not self._accent.alpha():
             from PySide6.QtCore import QPointF
             from PySide6.QtGui import QPen
-            p.setPen(QPen(QColor(111, 211, 255, 200), 1.4))
+            p.setPen(QPen(QColor(224, 176, 79, 200), 1.4))
             p.drawLine(QPointF(1, 13), QPointF(13, 1))

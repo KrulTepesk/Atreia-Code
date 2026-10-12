@@ -167,7 +167,7 @@ class EventToast(OverlayWindow):
         p.setPen(QColor("white"))
         p.setFont(QFont("Segoe UI", 14, QFont.Bold))
         p.drawText(QRectF(82, 28, 250, 26), Qt.AlignLeft | Qt.AlignVCenter, msg)
-        p.setPen(QColor("#b9b3d6"))
+        p.setPen(QColor("#c7bda8"))
         f = QFont("Segoe UI", 8)
         p.setFont(f)
         p.drawText(QRectF(82, 54, 250, 18), Qt.AlignLeft | Qt.AlignVCenter,
@@ -223,7 +223,7 @@ class LocationPopup(OverlayWindow):
         p.setPen(c)
         p.setFont(QFont("Segoe UI", 10, QFont.Bold))
         p.drawText(QRectF(14, 8, self.W - 28, 22), Qt.AlignLeft | Qt.AlignVCenter, self.title)
-        p.setPen(QColor("#b9b3d6"))
+        p.setPen(QColor("#c7bda8"))
         p.setFont(QFont("Segoe UI", 8))
         p.drawText(QRectF(14, 30, self.W - 28, 30), Qt.AlignLeft | Qt.TextWordWrap, self.sub)
         if self.pix:
@@ -347,7 +347,7 @@ class EventsTab(QWidget):
                             f"width='18' height='18' style='vertical-align:middle'>&nbsp; {T(ev['name'])}")
                 g.addWidget(lbl, row, 0)
             else:
-                g.addWidget(QLabel(f"<span style='color:{COLORS.get(ev['kind'], '#6fd3ff')}'>◆</span>&nbsp; {T(ev['name'])}"), row, 0)
+                g.addWidget(QLabel(f"<span style='color:{COLORS.get(ev['kind'], '#e0b04f')}'>◆</span>&nbsp; {T(ev['name'])}"), row, 0)
             for col, key in enumerate(("enabled", "pre", "at", "map"), 1):
                 cb = QCheckBox()
                 cb.setChecked(it.get(key, False))
@@ -396,7 +396,7 @@ class EventsTab(QWidget):
                       "Os chefes de campo comuns não têm horário fixo — renascem um tempo depois de mortos — "
                       "por isso não entram aqui.")
         note.setWordWrap(True)
-        note.setStyleSheet("color:#8a8f99;")
+        note.setStyleSheet("color:#9b9282;")
         lay.addWidget(note)
         lay.addStretch()
 

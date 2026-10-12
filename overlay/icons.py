@@ -64,13 +64,13 @@ def draw_resource(p, center, pix, size, left=None, total=300, collected=False, f
     p.save()
     # sombra redonda para destacar o ícone em qualquer fundo
     p.setPen(Qt.NoPen)
-    p.setBrush(QColor(8, 6, 18, 150))
+    p.setBrush(QColor(8, 7, 6, 150))
     p.drawEllipse(center, r * 0.95, r * 0.95)
     p.setOpacity(0.28 if collected else (0.42 if left else 1.0))
     if pix is not None and not pix.isNull():
         p.drawPixmap(QRectF(center.x() - r, center.y() - r, size, size), pix, QRectF(pix.rect()))
     else:
-        p.setBrush(QColor(fallback or "#6fd3ff"))
+        p.setBrush(QColor(fallback or "#e0b04f"))
         p.setPen(QPen(QColor(255, 255, 255, 220), 1.2))
         p.drawEllipse(center, r * 0.45, r * 0.45)
     p.setOpacity(1.0)
@@ -79,7 +79,7 @@ def draw_resource(p, center, pix, size, left=None, total=300, collected=False, f
         p.setBrush(Qt.NoBrush)
         p.setPen(QPen(QColor(255, 255, 255, 60), 2))
         p.drawEllipse(ring)
-        p.setPen(QPen(QColor("#6fd3ff"), 2.2, Qt.SolidLine, Qt.RoundCap))
+        p.setPen(QPen(QColor("#e0b04f"), 2.2, Qt.SolidLine, Qt.RoundCap))
         p.drawArc(ring, 90 * 16, int(-360 * 16 * left / total))
         txt = fmt(left)
         f = QFont("Segoe UI", max(7, int(size / 2.6)), QFont.Bold)
@@ -87,6 +87,6 @@ def draw_resource(p, center, pix, size, left=None, total=300, collected=False, f
         tr = QRectF(center.x() - 26, center.y() + r + 2, 52, f.pointSize() + 8)
         p.setPen(QColor(0, 0, 0, 200))
         p.drawText(tr.translated(1, 1), Qt.AlignHCenter | Qt.AlignTop, txt)
-        p.setPen(QColor("#e8f8ff"))
+        p.setPen(QColor("#fff6e2"))
         p.drawText(tr, Qt.AlignHCenter | Qt.AlignTop, txt)
     p.restore()

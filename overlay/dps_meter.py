@@ -26,7 +26,7 @@ CLASSES = {
     "cl": ("Clérigo", "#efe0a0"),
     "ch": ("Chanter", "#e07bb0"),
 }
-NO_CLASS = "#958fb3"
+NO_CLASS = "#9b9282"
 
 
 def fmt(n):
@@ -220,12 +220,12 @@ class DpsMeter(OverlayWindow):
         pad = 12
         # cabeçalho
         from theme import display_font, draw_diamond
-        draw_diamond(p, QPointF(pad + 4, 17), 3.5, "#6fd3ff")
-        p.setPen(QColor("#ece9f6"))
+        draw_diamond(p, QPointF(pad + 4, 17), 3.5, "#e0b04f")
+        p.setPen(QColor("#f2ede3"))
         p.setFont(display_font(11))
         p.drawText(pad + 14, 22, T("Medidor de dano"))
         m, s = divmod(int(self.elapsed), 60)
-        p.setPen(QColor("#b9b3d6"))
+        p.setPen(QColor("#c7bda8"))
         p.setFont(QFont("Segoe UI", 9))
         p.drawText(QRectF(0, 8, self.W - pad, 18), Qt.AlignRight, f"{m:02d}:{s:02d}")
         # botão zerar
@@ -238,7 +238,7 @@ class DpsMeter(OverlayWindow):
         p.drawText(rr, Qt.AlignCenter, "↺")
         p.setFont(QFont("Segoe UI", 10, QFont.DemiBold))
         p.drawText(pad, 44, self.target)
-        p.setPen(QColor("#958fb3"))
+        p.setPen(QColor("#9b9282"))
         p.setFont(QFont("Segoe UI", 8))
         x = self.W - pad - 8
         for txt, w in (("%", 44), (T("Total"), 58), ("DPS", 52), (T("Duplo"), 40), (T("Crít."), 40)):
@@ -283,7 +283,7 @@ class DpsMeter(OverlayWindow):
                 p.drawText(QRectF(x - w, r.y(), w, r.height()), Qt.AlignVCenter | Qt.AlignRight, txt)
                 x -= w
             y += self.ROW
-        p.setPen(QColor("#958fb3"))
+        p.setPen(QColor("#9b9282"))
         p.setFont(QFont("Segoe UI", 8))
         p.drawText(QRectF(pad, y + 2, self.W - 2 * pad, 18), Qt.AlignLeft | Qt.AlignVCenter,
                    f"{T('Total')}: {fmt(total)}  ·  {fmt(total / dur)}/s" + (f"   ·   {self.footer}" if self.footer else ""))
@@ -331,18 +331,18 @@ class SkillPanel(OverlayWindow):
         p.setRenderHint(QPainter.Antialiasing)
         p.setRenderHint(QPainter.SmoothPixmapTransform)
         pad = 12
-        draw_diamond(p, QPointF(pad + 4, 17), 3.5, CLASSES.get(self.cls, ("", "#6fd3ff"))[1])
-        p.setPen(QColor("#ece9f6"))
+        draw_diamond(p, QPointF(pad + 4, 17), 3.5, CLASSES.get(self.cls, ("", "#e0b04f"))[1])
+        p.setPen(QColor("#f2ede3"))
         p.setFont(display_font(11))
         p.drawText(pad + 14, 22, T("Habilidades") + (f" · {self.who}" if self.who else ""))
-        p.setPen(QColor("#958fb3"))
+        p.setPen(QColor("#9b9282"))
         p.setFont(QFont("Segoe UI", 8))
         x = self.W - pad - 8
         for txt, w in (("%", 44), (T("Valor"), 64), (T("Crít."), 40), (T("Golpes"), 46)):
             p.drawText(QRectF(x - w, 26, w, 16), Qt.AlignRight | Qt.AlignVCenter, txt)
             x -= w
         if not self.rows:
-            p.setPen(QColor("#958fb3"))
+            p.setPen(QColor("#9b9282"))
             p.setFont(QFont("Segoe UI", 9))
             p.drawText(QRectF(pad, 46, self.W - 2 * pad, self.ROW), Qt.AlignVCenter | Qt.AlignLeft,
                        T("Nenhuma habilidade ainda."))
@@ -362,7 +362,7 @@ class SkillPanel(OverlayWindow):
             elif r["heal"]:
                 val, tot, col, kind = r["heal"], tot_h, QColor("#5ee39a"), "heal"
             else:
-                val, tot, col, kind = r.get("shield", 0), tot_s, QColor("#6fd3ff"), "shield"
+                val, tot, col, kind = r.get("shield", 0), tot_s, QColor("#e0b04f"), "shield"
             rr = QRectF(pad, y, self.W - 2 * pad, self.ROW - 3)
             p.fillRect(rr, QColor(255, 255, 255, 14))
             col.setAlpha(90)
@@ -392,7 +392,7 @@ class SkillPanel(OverlayWindow):
                 if k == 1 and kind == "heal":
                     p.setPen(QColor("#8ff0b8"))
                 elif k == 1 and kind == "shield":
-                    p.setPen(QColor("#a9e6ff"))
+                    p.setPen(QColor("#f4d58c"))
                 else:
                     p.setPen(QColor("white") if k < 2 else QColor(255, 255, 255, 190))
                 p.drawText(QRectF(x - w, rr.y(), w, rr.height()), Qt.AlignVCenter | Qt.AlignRight, txt)
@@ -401,7 +401,7 @@ class SkillPanel(OverlayWindow):
         dmg = sum(r["dmg"] for r in self.rows)
         heal = sum(r["heal"] for r in self.rows)
         shield = sum(r.get("shield", 0) for r in self.rows)
-        p.setPen(QColor("#958fb3"))
+        p.setPen(QColor("#9b9282"))
         p.setFont(QFont("Segoe UI", 8))
         txt = f"{T('Dano')}: {fmt(dmg)}   ·   {T('Cura')}: {fmt(heal)}   ·   {T('Escudo')}: {fmt(shield) if shield else '—'}"
         p.drawText(QRectF(pad, y + 2, self.W - 2 * pad, 18), Qt.AlignLeft | Qt.AlignVCenter, txt)

@@ -1,12 +1,14 @@
-﻿; Inno Setup: transforma dist\AtreiaCode no instalador AtreiaCode-Setup.exe
-#define AppName "Atreia Code"
+﻿; Inno Setup: transforma dist\MetaOverlay no instalador MetaOverlay-Setup.exe
+#define AppName "Meta Overlay"
 #ifndef AppVersion
   #define AppVersion "1.0.0"
 #endif
-#define AppExe "AtreiaCode.exe"
-; nome antigo do programa (para atualizar quem já tinha instalado)
+#define AppExe "MetaOverlay.exe"
+; nomes antigos do programa (para atualizar quem já tinha instalado)
 #define OldExe "Aion2Overlay.exe"
 #define OldName "Aion 2 Overlay"
+#define OldExe2 "AtreiaCode.exe"
+#define OldName2 "Atreia Code"
 ; instalador oficial do Npcap (baixado na hora da instalação; a licença gratuita não permite embutir)
 #define NpcapUrl "https://npcap.com/dist/npcap-1.89.exe"
 
@@ -14,14 +16,16 @@
 AppId={{6C1E7A52-3F0B-4F57-9C2B-A2A10E2C0001}
 AppName={#AppName}
 AppVersion={#AppVersion}
-AppPublisher=Atreia Code
-DefaultDirName={localappdata}\Programs\AtreiaCode
+AppPublisher=Meta Overlay
+DefaultDirName={localappdata}\Programs\MetaOverlay
+; sempre na pasta nova: a versão anterior é desinstalada antes (ver PrepareToInstall)
+UsePreviousAppDir=no
 DefaultGroupName={#AppName}
 DisableProgramGroupPage=yes
 ; instala só para o usuário atual: não pede senha de administrador
 PrivilegesRequired=lowest
 OutputDir=..\saida
-OutputBaseFilename=AtreiaCode-Setup
+OutputBaseFilename=MetaOverlay-Setup
 SetupIconFile=..\overlay\icon.ico
 UninstallDisplayIcon={app}\{#AppExe}
 ; o programa cria esse "mutex" enquanto está aberto: o instalador avisa e pede para fechar
@@ -43,11 +47,19 @@ Name: "startup"; Description: "Abrir junto com o Windows"; GroupDescription: "Op
 Name: "npcap"; Description: "Instalar o Npcap (necessário para o medidor de DPS)"; GroupDescription: "Medidor de DPS:"; Check: not NpcapInstalled
 
 [Files]
-Source: "..\dist\AtreiaCode\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "..\dist\MetaOverlay\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [InstallDelete]
-; limpa a versão com o nome antigo (o AppId é o mesmo, então é uma atualização)
+; atualização: apaga TODOS os arquivos do programa da versão anterior antes de copiar os novos
+; (as configurações ficam em %APPDATA%\Aion2Overlay e não são apagadas)
+Type: filesandordirs; Name: "{app}\_internal"
+Type: files; Name: "{app}\*.exe"
+Type: files; Name: "{app}\*.dll"
 Type: files; Name: "{app}\{#OldExe}"
+Type: files; Name: "{group}\{#OldName2}.lnk"
+Type: files; Name: "{group}\Desinstalar {#OldName2}.lnk"
+Type: files; Name: "{userdesktop}\{#OldName2}.lnk"
+Type: files; Name: "{userstartup}\{#OldName2}.lnk"
 Type: files; Name: "{group}\{#OldName}.lnk"
 Type: files; Name: "{group}\Desinstalar {#OldName}.lnk"
 Type: files; Name: "{userdesktop}\{#OldName}.lnk"
@@ -70,6 +82,41 @@ var
   DownloadPage: TDownloadWizardPage;
   NpcapPage: TOutputMsgWizardPage;
   NpcapReady: Boolean;
+
+const
+  UninstKey = 'Software\Microsoft\Windows\CurrentVersion\Uninstall\{6C1E7A52-3F0B-4F57-9C2B-A2A10E2C0001}_is1';
+
+{ Desinstala a versão que já estava no PC (qualquer nome/pasta antiga) antes de instalar a nova,
+  para não sobrar arquivo velho misturado. As configurações do usuário não são tocadas. }
+procedure RemoveOldVersion;
+var
+  Cmd, OldDir: String;
+  R: Integer;
+begin
+  OldDir := '';
+  if not RegQueryStringValue(HKCU, UninstKey, 'InstallLocation', OldDir) then
+    RegQueryStringValue(HKLM, UninstKey, 'InstallLocation', OldDir);
+  if RegQueryStringValue(HKCU, UninstKey, 'UninstallString', Cmd) or
+     RegQueryStringValue(HKLM, UninstKey, 'UninstallString', Cmd) then
+  begin
+    Cmd := RemoveQuotes(Cmd);
+    if FileExists(Cmd) then
+    begin
+      Exec(Cmd, '/VERYSILENT /SUPPRESSMSGBOXES /NORESTART', '', SW_HIDE, ewWaitUntilTerminated, R);
+      Sleep(1500);   { o desinstalador termina num processo separado }
+    end;
+  end;
+  { sobras que o desinstalador não conhece: só os arquivos do programa, nunca outras coisas da pasta }
+  OldDir := RemoveBackslashUnlessRoot(OldDir);
+  if (OldDir <> '') and DirExists(OldDir) then
+  begin
+    DelTree(OldDir + '\_internal', True, True, True);
+    DeleteFile(OldDir + '\{#OldExe}');
+    DeleteFile(OldDir + '\{#OldExe2}');
+    DeleteFile(OldDir + '\{#AppExe}');
+    RemoveDir(OldDir);   { só some se ficou vazia }
+  end;
+end;
 
 function NpcapInstalled: Boolean;
 begin
@@ -100,7 +147,9 @@ begin
   { fecha o overlay se ainda estiver aberto (inclusive na bandeja) }
   Exec(ExpandConstant('{sys}\taskkill.exe'), '/IM {#AppExe} /F', '', SW_HIDE, ewWaitUntilTerminated, R);
   Exec(ExpandConstant('{sys}\taskkill.exe'), '/IM {#OldExe} /F', '', SW_HIDE, ewWaitUntilTerminated, R);
+  Exec(ExpandConstant('{sys}\taskkill.exe'), '/IM {#OldExe2} /F', '', SW_HIDE, ewWaitUntilTerminated, R);
   Sleep(800);
+  RemoveOldVersion;
   Result := '';
 end;
 
@@ -124,7 +173,7 @@ begin
       except
         NpcapReady := False;
         MsgBox('Não consegui baixar o Npcap agora (sem internet ou o site mudou o endereço).' + #13#10 +
-               'O Atreia Code será instalado normalmente. Depois é só usar o botão "Instalar Npcap" na aba DPS.',
+               'O Meta Overlay será instalado normalmente. Depois é só usar o botão "Instalar Npcap" na aba DPS.',
                mbInformation, MB_OK);
       end;
     finally

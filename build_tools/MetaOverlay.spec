@@ -1,4 +1,4 @@
-# PyInstaller: gera a pasta dist\AtreiaCode com o .exe e tudo que ele precisa.
+# PyInstaller: gera a pasta dist\MetaOverlay com o .exe e tudo que ele precisa.
 import os
 from PyInstaller.utils.hooks import collect_submodules
 
@@ -65,9 +65,9 @@ pyz = PYZ(a.pure)
 exe = EXE(
     pyz, a.scripts, [],
     exclude_binaries=True,
-    name="AtreiaCode",
+    name="MetaOverlay",
     icon=os.path.join(SRC, "icon.ico"),
     console=False,
     upx=False,
 )
-coll = COLLECT(exe, a.binaries, a.datas, name="AtreiaCode", upx=False)
+coll = COLLECT(exe, a.binaries, a.datas, name="MetaOverlay", upx=False)

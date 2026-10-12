@@ -1,4 +1,4 @@
-"""Visual do app: céu do Abismo (violeta escuro) com detalhes em éter (ciano → violeta).
+"""Visual do app: preto com detalhes em ouro (o "éter" virou dourado, como o símbolo do Meta Overlay).
 
 Tokens de cor, folha de estilo (QSS), ícones desenhados, menu lateral (NavTabs) e polish()
 que deixa os textos de ajuda num tom mais suave.
@@ -16,21 +16,21 @@ from PySide6.QtWidgets import (QFrame, QGroupBox, QHBoxLayout, QLabel, QPushButt
 from config import BASE_DIR
 
 # ---------------------------------------------------------------- cores
-INK = "#0d0b18"        # fundo da janela
-SKY = "#110e20"        # menu lateral
-CARD = "#17142a"       # cartões
-FIELD = "#1e1a36"      # campos / botões
-FIELD_HI = "#272246"   # hover
-LINE = "#2c2650"       # bordas
-TEXT = "#ece9f6"
-MUTED = "#958fb3"
-FAINT = "#5f5985"
-AETHER = "#6fd3ff"     # ciano do éter
-AETHER2 = "#a184ff"    # violeta do éter
+INK = "#0a0908"        # fundo da janela
+SKY = "#0d0c0a"        # menu lateral
+CARD = "#131210"       # cartões
+FIELD = "#1a1815"      # campos / botões
+FIELD_HI = "#23201b"   # hover
+LINE = "#2b2720"       # bordas
+TEXT = "#f2ede3"
+MUTED = "#9b9282"
+FAINT = "#5f584c"
+AETHER = "#e0b04f"     # ouro (destaque)
+AETHER2 = "#a8742a"    # bronze (destaque 2)
 GOLD = "#f2c14e"       # alertas (Shugo, eventos)
 
 # nomes antigos (outros módulos ainda importam)
-BG, PANEL, PANEL2, BORDER, ACCENT, ACCENT_DARK = INK, CARD, FIELD, LINE, AETHER, "#3aa6d6"
+BG, PANEL, PANEL2, BORDER, ACCENT, ACCENT_DARK = INK, CARD, FIELD, LINE, AETHER, "#a87b26"
 
 UI = os.path.join(BASE_DIR, "ui").replace("\\", "/")
 FONT = "'Segoe UI Variable Text', 'Segoe UI', 'Inter', sans-serif"
@@ -53,27 +53,27 @@ QLabel:disabled {{ color: {FAINT}; }}
 
 /* botões: "encaixes" escuros e retos, como os da interface do jogo */
 QPushButton {{
-    background: #19152f; border: 1px solid #352e5e; border-radius: 2px;
+    background: #171512; border: 1px solid #3a3328; border-radius: 2px;
     padding: 7px 16px; color: {TEXT}; min-height: 18px;
 }}
-QPushButton:hover {{ border-color: #6a5fb0; background: #201b3c; }}
-QPushButton:pressed {{ background: #110e22; }}
+QPushButton:hover {{ border-color: #8f7135; background: #1f1c17; }}
+QPushButton:pressed {{ background: #0c0b09; }}
 QPushButton:focus {{ border-color: {AETHER}; }}
 QPushButton:checked, QPushButton[primary="true"] {{
-    background: #0f2a3d; border: 1px solid {AETHER}; color: #d6f4ff; font-weight: 600;
+    background: #2a1f0b; border: 1px solid {AETHER}; color: #fff0cc; font-weight: 600;
 }}
-QPushButton[primary="true"]:hover {{ background: #143851; border-color: #a9e6ff; }}
-QPushButton:disabled {{ color: {FAINT}; border-color: #221e3c; background: #120f22; }}
+QPushButton[primary="true"]:hover {{ background: #3a2b10; border-color: #f4d58c; }}
+QPushButton:disabled {{ color: {FAINT}; border-color: #1e1b17; background: #0f0e0c; }}
 
 /* campos */
 QLineEdit, QSpinBox, QDoubleSpinBox, QComboBox {{
-    background: #120f22; border: 1px solid #2f2955; border-radius: 2px;
+    background: #0f0e0c; border: 1px solid #2e2922; border-radius: 2px;
     padding: 6px 10px; min-height: 18px;
     selection-background-color: {AETHER}; selection-color: {INK};
 }}
-QLineEdit:hover, QSpinBox:hover, QDoubleSpinBox:hover, QComboBox:hover {{ border-color: #4a4285; }}
+QLineEdit:hover, QSpinBox:hover, QDoubleSpinBox:hover, QComboBox:hover {{ border-color: #5c4b2b; }}
 QLineEdit:focus, QSpinBox:focus, QDoubleSpinBox:focus, QComboBox:focus {{ border-color: {AETHER}; }}
-QLineEdit:disabled, QSpinBox:disabled, QComboBox:disabled {{ color: {FAINT}; border-color: #221e3c; }}
+QLineEdit:disabled, QSpinBox:disabled, QComboBox:disabled {{ color: {FAINT}; border-color: #1e1b17; }}
 QSpinBox, QDoubleSpinBox {{ max-width: 170px; }}
 QComboBox::drop-down {{ border: none; width: 28px; }}
 QComboBox::down-arrow {{ image: url({UI}/down.svg); width: 10px; height: 6px; }}
@@ -83,8 +83,8 @@ QSpinBox::up-button, QSpinBox::down-button, QDoubleSpinBox::up-button, QDoubleSp
     width: 18px; border: none; background: transparent;
 }}
 QComboBox QAbstractItemView {{
-    background: #151229; border: 1px solid {LINE};
-    selection-background-color: #1e1a38; selection-color: {AETHER}; outline: none; padding: 4px;
+    background: #11100e; border: 1px solid {LINE};
+    selection-background-color: #221d14; selection-color: {AETHER}; outline: none; padding: 4px;
 }}
 
 /* interruptores: encaixe angular com losango */
@@ -101,21 +101,21 @@ QSlider::handle:horizontal {{
     image: url({UI}/diamond.svg); width: 16px; height: 16px; margin: -7px 0; background: transparent; border: none;
 }}
 
-QListWidget {{ background: #120f22; border: 1px solid #2f2955; padding: 4px; outline: none; }}
+QListWidget {{ background: #0f0e0c; border: 1px solid #2e2922; padding: 4px; outline: none; }}
 QListWidget::item {{ padding: 6px 8px; }}
-QListWidget::item:hover {{ background: #1b1734; }}
-QListWidget::item:selected {{ background: #0f2a3d; color: #d6f4ff; }}
+QListWidget::item:hover {{ background: #191612; }}
+QListWidget::item:selected {{ background: #2a1f0b; color: #fff0cc; }}
 
 QScrollArea {{ border: none; background: transparent; }}
 QScrollBar:vertical {{ background: transparent; width: 6px; margin: 4px 1px; }}
-QScrollBar::handle:vertical {{ background: #3a3462; min-height: 30px; }}
+QScrollBar::handle:vertical {{ background: #3b3428; min-height: 30px; }}
 QScrollBar::handle:vertical:hover {{ background: {AETHER}; }}
 QScrollBar::add-line, QScrollBar::sub-line, QScrollBar::add-page, QScrollBar::sub-page {{ height: 0; background: none; }}
 QScrollBar:horizontal {{ height: 0; }}
 
-QMenu {{ background: #151229; border: 1px solid {LINE}; padding: 5px; }}
+QMenu {{ background: #11100e; border: 1px solid {LINE}; padding: 5px; }}
 QMenu::item {{ padding: 7px 20px; }}
-QMenu::item:selected {{ background: #1e1a38; color: {AETHER}; }}
+QMenu::item:selected {{ background: #221d14; color: {AETHER}; }}
 QMessageBox, QDialog {{ background: {INK}; }}
 
 /* menu lateral: sem "pílulas"; o item aberto ganha um losango de éter */
@@ -126,9 +126,9 @@ QMessageBox, QDialog {{ background: {INK}; }}
 #NavBar QPushButton:hover {{ color: {TEXT}; background: transparent; }}
 #NavBar QPushButton:checked {{ color: {TEXT}; background: transparent; border: none; font-weight: 600; }}
 #NavBar QPushButton#LockPill {{
-    border: 1px solid {LINE}; background: rgba(13, 11, 24, 0.7); padding: 9px 12px; font-size: 9.5pt; border-radius: 2px;
+    border: 1px solid {LINE}; background: rgba(10, 9, 8, 0.7); padding: 9px 12px; font-size: 9.5pt; border-radius: 2px;
 }}
-#NavBar QPushButton#LockPill:checked {{ border-color: {AETHER}; color: #d6f4ff; background: rgba(15, 42, 61, 0.8); }}
+#NavBar QPushButton#LockPill:checked {{ border-color: {AETHER}; color: #fff0cc; background: rgba(42, 31, 11, 0.8); }}
 #Brand {{ color: {TEXT}; font-family: '{FONT_DISPLAY}'; font-size: 15pt; }}
 #BrandSub {{ color: {MUTED}; font-size: 8.5pt; }}
 #PageTitle {{ font-family: '{FONT_DISPLAY}'; font-size: 24pt; color: {TEXT}; }}
@@ -184,7 +184,7 @@ class CardFrame(QObject):
             p.setRenderHint(QPainter.Antialiasing)
             r = QRectF(w.rect()).adjusted(0.5, 8.5, -0.5, -0.5)
             path = chamfer_path(r, 12)
-            p.fillPath(path, QColor(CARD) if w.isEnabled() else QColor("#120f22"))
+            p.fillPath(path, QColor(CARD) if w.isEnabled() else QColor("#0f0e0c"))
             p.setPen(QPen(QColor(LINE), 1))
             p.drawPath(path)
             # canto de cima com um traço de éter (marca do "encaixe")
@@ -227,7 +227,7 @@ def apply(app):
     app.setStyleSheet(QSS)
 
 
-OLD_GREYS = ("#8a93a6", "#8a8f99", "#7d8696", "#c9cfdb")
+OLD_GREYS = ("#9b9282", "#9b9282", "#8a8272", "#d4ccbb")
 
 
 def polish(root):
@@ -270,7 +270,7 @@ def dark_titlebar(widget):
             if ctypes.windll.dwmapi.DwmSetWindowAttribute(hwnd, attr, ctypes.byref(val), ctypes.sizeof(val)) == 0:
                 break
         # cor da barra = céu do Abismo (Windows 11; no 10 é ignorado)
-        col = ctypes.c_int(0x00200E11)   # COLORREF 0x00BBGGRR de #110e20
+        col = ctypes.c_int(0x000A0C0D)   # COLORREF 0x00BBGGRR de #0d0c0a
         ctypes.windll.dwmapi.DwmSetWindowAttribute(hwnd, 35, ctypes.byref(col), ctypes.sizeof(col))
     except Exception:
         pass
@@ -434,7 +434,7 @@ class NavBar(QFrame):
         p.setRenderHint(QPainter.Antialiasing)
         r = self.rect()
         p.fillRect(r, QColor(SKY))
-        for cx, cy, rad, col, a in ((0.1, 0.0, 1.1, AETHER2, 70), (1.0, 1.0, 1.0, AETHER, 38)):
+        for cx, cy, rad, col, a in ((0.1, 0.0, 1.1, AETHER2, 34), (1.0, 1.0, 1.0, AETHER, 20)):
             g = QRadialGradient(QPointF(r.width() * cx, r.height() * cy), r.width() * rad)
             c = QColor(col)
             c.setAlpha(a)
@@ -479,7 +479,7 @@ class NavTabs(QWidget):
     """Menu lateral + páginas (substitui as abas); mesma interface básica do QTabWidget."""
     currentChanged = Signal(int)
 
-    def __init__(self, brand="Atreia Code", sub="Ferramentas para Aion 2"):
+    def __init__(self, brand="Meta Overlay", sub="Ferramentas para Aion 2"):
         super().__init__()
         from i18n import T
         self.T = T
