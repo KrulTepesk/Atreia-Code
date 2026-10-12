@@ -18,6 +18,7 @@ a = Analysis(
         (os.path.join(SRC, "ui"), "ui"),
         (os.path.join(SRC, "fonts"), "fonts"),
         (os.path.join(SRC, "icons"), "icons"),
+        (os.path.join(SRC, "classes"), "classes"),
     ] + ([(os.path.join(SRC, "skill_icons"), "skill_icons")] if os.path.isdir(os.path.join(SRC, "skill_icons")) else []) + [
     ],
     hiddenimports=collect_submodules("scapy.layers") + ["scapy.all", "scapy.arch.windows", "psutil", "zoneinfo", "tzdata", "lz4", "lz4.block", "dps_live", "icons", "respawn", "skills_db", "world_live", "net_hub", "field_bosses", "i18n_en", "i18n_es"],

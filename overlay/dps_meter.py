@@ -2,8 +2,9 @@
 
 Cada linha: ícone + cor da classe, nome, crítico %, dupla chance %, DPS, total e %.
 Botão de zerar no próprio painel (funciona mesmo com os overlays travados).
-Ícones: desenhos próprios; para usar outros, ponha PNGs em %APPDATA%/Aion2Overlay/classes/
-com os nomes gl.png, te.png, as.png, ra.png, so.png, el.png, cl.png, ch.png.
+Ícones: os emblemas oficiais das classes (pasta classes/, tirados da Aion 2 Wiki), sobre um disco
+na cor da classe. Para trocar, ponha PNGs em %APPDATA%/Aion2Overlay/classes/ com os nomes
+gl.png, te.png, as.png, ra.png, so.png, el.png, cl.png, ch.png. Sem PNG, usa um desenho simples.
 """
 import math
 import os
@@ -40,27 +41,42 @@ def fmt(n):
 _custom = {}
 
 
+def _load_png(folder, code):
+    path = os.path.join(folder, "classes", f"{code}.png")
+    if os.path.exists(path):
+        pm = QPixmap(path)
+        if not pm.isNull():
+            return pm
+    return None
+
+
 def custom_icon(code):
+    """(pixmap, do_usuario): primeiro o PNG do usuário, depois o emblema que vem com o app."""
     if code not in _custom:
-        _custom[code] = None
-        for folder in (os.path.join(APP_DIR, "classes"), os.path.join(BASE_DIR, "classes")):
-            path = os.path.join(folder, f"{code}.png")
-            if os.path.exists(path):
-                pm = QPixmap(path)
-                if not pm.isNull():
-                    _custom[code] = pm
-                    break
+        user = _load_png(APP_DIR, code)
+        _custom[code] = (user, True) if user else (_load_png(BASE_DIR, code), False)
     return _custom[code]
 
 
 def draw_class_icon(p, code, r):
-    """Círculo na cor da classe com um símbolo simples desenhado."""
+    """Emblema da classe sobre um disco escuro com anel na cor da classe."""
     p.save()
     p.setRenderHint(QPainter.Antialiasing)
+    p.setRenderHint(QPainter.SmoothPixmapTransform)
     color = QColor(CLASSES.get(code, ("", NO_CLASS))[1])
-    pm = custom_icon(code) if code else None
-    if pm:
+    pm, own = custom_icon(code) if code else (None, False)
+    if pm and own:
         p.drawPixmap(r.toRect(), pm)
+        p.restore()
+        return
+    if pm:
+        bg = QColor(color.darker(420))
+        bg.setAlpha(235)
+        p.setPen(QPen(color, max(1.0, r.width() / 16)))
+        p.setBrush(bg)
+        p.drawEllipse(r.adjusted(0.5, 0.5, -0.5, -0.5))
+        inner = r.adjusted(r.width() * 0.08, r.height() * 0.08, -r.width() * 0.08, -r.height() * 0.08)
+        p.drawPixmap(inner, pm, QRectF(pm.rect()))
         p.restore()
         return
     p.setPen(QPen(color.lighter(130), 1.2))
@@ -357,10 +373,15 @@ class SkillPanel(OverlayWindow):
         p.setRenderHint(QPainter.Antialiasing)
         p.setRenderHint(QPainter.SmoothPixmapTransform)
         pad = 12
-        draw_mark(p, QPointF(pad + 3, 17), CLASSES.get(self.cls, ("", "#d9a441"))[1])
+        if self.cls in CLASSES:
+            draw_class_icon(p, self.cls, QRectF(pad - 2, 7, 20, 20))
+            tx = pad + 22
+        else:
+            draw_mark(p, QPointF(pad + 3, 17), "#d9a441")
+            tx = pad + 14
         p.setPen(QColor("#f2ede3"))
         p.setFont(display_font(11))
-        p.drawText(pad + 14, 22, T("Habilidades") + (f" · {self.who}" if self.who else ""))
+        p.drawText(tx, 22, T("Habilidades") + (f" · {self.who}" if self.who else ""))
         p.setPen(QColor("#9b9282"))
         p.setFont(QFont("Segoe UI", 8))
         x = self.W - pad - 8
