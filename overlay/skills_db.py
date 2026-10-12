@@ -24,6 +24,10 @@ def _load():
     return _db
 
 
+import functools
+
+
+@functools.lru_cache(maxsize=4096)
 def lookup(skill):
     """-> (chave, classe, nome, ícone|None)"""
     db = _load()

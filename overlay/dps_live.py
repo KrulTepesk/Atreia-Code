@@ -365,7 +365,12 @@ class DpsReader(QThread):
         while self._run:
             time.sleep(0.5)
             try:
-                self.updated.emit(self.snapshot())
+                f = self.fight
+                key = (f.start, f.last, len(f.pair), self.find_self(), self.mode)
+                active = f.last is not None and time.time() - f.last < FIGHT_TIMEOUT
+                if key != getattr(self, "_last_key", None) or active != getattr(self, "_last_active", None):
+                    self._last_key, self._last_active = key, active
+                    self.updated.emit(self.snapshot())
             except Exception as e:          # nunca deixa o medidor congelar por um erro de leitura
                 self.status.emit(f"aviso: {e}")
         try:

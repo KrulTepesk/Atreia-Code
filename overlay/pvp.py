@@ -65,6 +65,10 @@ class KillWatcher(QThread):
                 if box["width"] < ref.shape[1] or box["height"] < ref.shape[0]:
                     self.error.emit("Área menor que a referência")
                     return
+                # área grande (ex.: monitor inteiro): compara em meia resolução, ~6x menos CPU
+                half = box["width"] * box["height"] > 900 * 600 and min(ref.shape) >= 24
+                if half:
+                    ref = cv2.resize(ref, None, fx=0.5, fy=0.5, interpolation=cv2.INTER_AREA)
                 armed = True
                 last = 0.0
                 while self._run:
@@ -75,6 +79,8 @@ class KillWatcher(QThread):
                         time.sleep(1.0)          # tela bloqueada / resolução mudou: tenta de novo
                         continue
                     gray = cv2.cvtColor(shot, cv2.COLOR_BGRA2GRAY)
+                    if half:
+                        gray = cv2.resize(gray, None, fx=0.5, fy=0.5, interpolation=cv2.INTER_AREA)
                     res = cv2.matchTemplate(gray, ref, cv2.TM_CCOEFF_NORMED)
                     best = float(res.max())
                     self.score.emit(best)

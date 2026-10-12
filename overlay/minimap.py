@@ -41,18 +41,46 @@ class Matcher:
     def build(self, backgrounds):
         """backgrounds: {wid: (path, x, y, scale)}"""
         for wid, (path, bx, by, bs) in backgrounds.items():
-            img = cv2.imdecode(np.fromfile(path, dtype=np.uint8), cv2.IMREAD_GRAYSCALE)
-            if img is None:
-                continue
-            small = cv2.resize(img, None, fx=FEAT_SCALE, fy=FEAT_SCALE, interpolation=cv2.INTER_AREA)
-            kp, des = self.sift.detectAndCompute(small, None)
+            xy, des = self._features(wid, path)
             if des is None:
                 continue
             fl = cv2.FlannBasedMatcher(dict(algorithm=1, trees=4), dict(checks=40))
             fl.add([des])
             fl.train()
-            xy = np.float32([k.pt for k in kp]) / FEAT_SCALE   # em pixels da imagem de fundo original
             self.maps[wid] = (xy, fl, bx, by, bs)
+
+    def _features(self, wid, path):
+        """Pontos do fundo; guardados em cache (só recalcula se a imagem mudar) -> liga bem mais rápido."""
+        from config import APP_DIR
+        try:
+            st = os.stat(path)
+            cache = os.path.join(APP_DIR, "cache", f"feat_{wid}_{int(st.st_mtime)}_{st.st_size}.npz")
+        except OSError:
+            cache = None
+        if cache and os.path.exists(cache):
+            try:
+                d = np.load(cache)
+                return d["xy"], d["des"]
+            except Exception:
+                pass
+        img = cv2.imdecode(np.fromfile(path, dtype=np.uint8), cv2.IMREAD_GRAYSCALE)
+        if img is None:
+            return None, None
+        small = cv2.resize(img, None, fx=FEAT_SCALE, fy=FEAT_SCALE, interpolation=cv2.INTER_AREA)
+        kp, des = self.sift.detectAndCompute(small, None)
+        if des is None:
+            return None, None
+        xy = np.float32([k.pt for k in kp]) / FEAT_SCALE   # em pixels da imagem de fundo original
+        if cache:
+            try:
+                os.makedirs(os.path.dirname(cache), exist_ok=True)
+                for old in os.listdir(os.path.dirname(cache)):          # apaga caches velhos deste mapa
+                    if old.startswith(f"feat_{wid}_"):
+                        os.remove(os.path.join(os.path.dirname(cache), old))
+                np.savez(cache, xy=xy, des=des)
+            except OSError:
+                pass
+        return xy, des
 
     def locate(self, gray, prefer=None, mask=None):
         """Retorna (wid, A, inliers): A leva pixel do minimapa -> coordenada de cena (x, -y do mundo).
@@ -109,6 +137,10 @@ class MinimapWorker(QThread):
         self.status.emit(T("Procurando..."))
         with mss.mss() as sct:
             fails = 0
+            prev = None          # miniatura do quadro anterior
+            last = None          # último resultado
+            last_full = 0.0      # quando rodou o reconhecimento completo pela última vez
+            misses = 0
             while self._run:
                 t0 = time.time()
                 try:
@@ -123,6 +155,14 @@ class MinimapWorker(QThread):
                     time.sleep(1.0)
                     continue
                 gray = cv2.cvtColor(shot, cv2.COLOR_BGRA2GRAY)
+                # parado no mesmo lugar: a imagem quase não muda -> reaproveita o resultado (economiza CPU)
+                thumb = cv2.resize(gray, (64, 64), interpolation=cv2.INTER_AREA).astype(np.int16)
+                still = prev is not None and float(np.abs(thumb - prev).mean()) < 2.0
+                prev = thumb
+                if still and last is not None and t0 - last_full < 3.0:
+                    self.located.emit(last)
+                    self._sleep(t0, c)
+                    continue
                 # o print inclui os ícones que o overlay desenhou: tapa esses pontos para não confundir
                 mask = None
                 marks = self.marks
@@ -136,12 +176,22 @@ class MinimapWorker(QThread):
                 except Exception as e:
                     self.status.emit(str(e))
                     res = None
+                last_full = t0
                 if res:
                     self.prefer = res[0]
+                    misses = 0
+                else:
+                    misses += 1
+                last = res
                 self.located.emit(res)
-                wait = 1 / max(1, c.get("fps", 4)) - (time.time() - t0)
-                if wait > 0:
-                    time.sleep(wait)
+                # mapa fechado há um tempo: procura só 1x por segundo até ele aparecer de novo
+                self._sleep(t0, c, slow=misses > 8)
+
+    def _sleep(self, t0, c, slow=False):
+        period = 1.0 if slow else 1 / max(1, c.get("fps", 4))
+        wait = period - (time.time() - t0)
+        if wait > 0:
+            time.sleep(wait)
 
 
 def exclude_from_capture(widget):
