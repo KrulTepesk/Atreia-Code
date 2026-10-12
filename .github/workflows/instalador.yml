@@ -21,6 +21,23 @@ jobs:
       - run: python -m pip install -r requirements.txt pyinstaller
       - run: python -m pip install pillow && python build_tools/baixar_icones.py
       - run: python -m PyInstaller --noconfirm --distpath dist --workpath build_tools/_work build_tools/AtreiaCode.spec
+      - name: Tamanho do programa (maiores arquivos)
+        shell: pwsh
+        run: |
+          $all = Get-ChildItem dist\AtreiaCode -Recurse -File
+          $tot = ($all | Measure-Object Length -Sum).Sum / 1MB
+          echo ("::notice title=Total::{0:N1} MB em {1} arquivos" -f $tot, $all.Count)
+          $all | Sort-Object Length -Descending | Select-Object -First 15 | ForEach-Object {
+            echo ("::notice title=Arquivo::{0:N1} MB  {1}" -f ($_.Length/1MB), $_.FullName.Substring((Resolve-Path dist\AtreiaCode).Path.Length))
+          }
+      - name: Abrir o programa (confere que não falta nada)
+        shell: pwsh
+        run: |
+          $p = Start-Process dist\AtreiaCode\AtreiaCode.exe -PassThru
+          Start-Sleep -Seconds 15
+          if ($p.HasExited) { throw "O AtreiaCode.exe fechou sozinho (código $($p.ExitCode))" }
+          echo "::notice title=Teste::o programa abriu e continuou rodando"
+          Stop-Process -Id $p.Id -Force
       - run: choco install innosetup -y --no-progress
       - run: '& "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" /DAppVersion=1.0.${{ github.run_number }} build_tools\instalador.iss'
       - uses: actions/upload-artifact@v4
