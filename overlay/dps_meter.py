@@ -527,6 +527,9 @@ class SkillPanel(OverlayWindow):
         pass
 
     def set_data(self, who, cls, rows):
+        # totais de TODAS as habilidades (só as MAX primeiras aparecem; antes o % e o rodapé somavam só elas)
+        self.tot = (sum(r["dmg"] for r in rows), sum(r["heal"] for r in rows),
+                    sum(r.get("shield", 0) for r in rows))
         self.who, self.cls, self.rows = who, cls, rows[:self.MAX]
         self._resize()
         self.update()
@@ -566,9 +569,10 @@ class SkillPanel(OverlayWindow):
                        T("Nenhuma habilidade ainda."))
             p.end()
             return
-        tot_d = sum(r["dmg"] for r in self.rows) or 1
-        tot_h = sum(r["heal"] for r in self.rows) or 1
-        tot_s = sum(r.get("shield", 0) for r in self.rows) or 1
+        all_d, all_h, all_s = getattr(self, "tot", (0, 0, 0))
+        tot_d = all_d or sum(r["dmg"] for r in self.rows) or 1
+        tot_h = all_h or sum(r["heal"] for r in self.rows) or 1
+        tot_s = all_s or sum(r.get("shield", 0) for r in self.rows) or 1
         top = max(max(r["dmg"], r["heal"], r.get("shield", 0)) for r in self.rows) or 1
         ccol = QColor(CLASSES.get(self.cls, ("", NO_CLASS))[1])
         y = 46
@@ -605,7 +609,8 @@ class SkillPanel(OverlayWindow):
             p.drawText(rr.adjusted(ic.width() + 10, 0, -200, -1), Qt.AlignVCenter | Qt.AlignLeft,
                        p.fontMetrics().elidedText(name, Qt.ElideRight, int(rr.width() - ic.width() - 210)))
             hits = r["hits"] if kind == "dmg" else r.get("heals", 0)
-            crit = f"{r['crit'] / r['hits'] * 100:.0f}%" if kind == "dmg" and r["hits"] else "—"
+            dh = r.get("direct", r["hits"])          # só golpes diretos (dano ao longo do tempo não tem crítico)
+            crit = f"{r['crit'] / dh * 100:.0f}%" if kind == "dmg" and dh else "—"
             sign = "+" if kind == "heal" else ""
             vcol = QColor("#8ff0b8") if kind == "heal" else QColor("#f4d58c") if kind == "shield" else HUD_TEXT
             cols = [(f"{val / tot * 100:.1f}%", 42, num_font(9.5, QFont.Medium), HUD_MUTED),
@@ -619,9 +624,7 @@ class SkillPanel(OverlayWindow):
                 p.drawText(QRectF(x - w, rr.y(), w, rr.height() - 1), Qt.AlignVCenter | Qt.AlignRight, txt)
                 x -= w
             y += self.ROW
-        dmg = sum(r["dmg"] for r in self.rows)
-        heal = sum(r["heal"] for r in self.rows)
-        shield = sum(r.get("shield", 0) for r in self.rows)
+        dmg, heal, shield = getattr(self, "tot", (0, 0, 0))
         p.setPen(QPen(HUD_LINE, 1))
         p.drawLine(QPointF(pad, y + 1), QPointF(self.W - pad - CUT, y + 1))
         p.setPen(HUD_MUTED)

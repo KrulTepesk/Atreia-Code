@@ -310,10 +310,10 @@ class Fight:
         self.start = None
         self.last = None
         self.active = 0.0     # segundos lutando (pausas maiores que FIGHT_TIMEOUT não contam)
-        self.pair = {}        # (atacante, alvo) -> [dano, golpes, críticos, múltiplos]
+        self.pair = {}        # (atacante, alvo) -> [dano, golpes, críticos, múltiplos, golpes diretos]
         self.heal = {}        # quem curou -> total
         self.act = {}         # jogador -> [último golpe, segundos lutando] (DPS de cada um pelo próprio tempo)
-        self.skills = {}      # (jogador, habilidade) -> [dano, golpes, críticos, cura, curas]
+        self.skills = {}      # (jogador, habilidade) -> [dano, golpes, críticos, cura, curas, golpes diretos]
         self.first = {}       # jogador -> primeiro golpe nesta luta
 
     def _touch(self, t):
@@ -328,32 +328,41 @@ class Fight:
             self.start = t
         self.last = t
 
-    def add(self, t, atk, tgt, dmg, crit=False, multi=False, skill=None, mine=True):
-        if mine or self.start is None:
-            self._touch(t)            # só você e o seu grupo mantêm a luta aberta
+    def ended(self, t):
+        return self.last is None or t - self.last > FIGHT_TIMEOUT
+
+    def add(self, t, atk, tgt, dmg, crit=False, multi=False, skill=None, mine=True, tick=False):
+        if mine:
+            self._touch(t)            # só você e o seu grupo abrem e mantêm a luta aberta
+        elif self.ended(t):
+            # golpe de outros (ou de monstro) sem luta sua aberta: antes abria a luta (o relógio começava
+            # antes do seu 1º golpe) ou ia se somando na "última luta" já encerrada
+            return
         self.first.setdefault(atk, t)
         a = self.act.setdefault(atk, [t, 0.0])
         gap = t - a[0]
         if 0 < gap <= FIGHT_TIMEOUT:
             a[1] += gap
         a[0] = t
-        v = self.pair.setdefault((atk, tgt), [0, 0, 0, 0])
+        v = self.pair.setdefault((atk, tgt), [0, 0, 0, 0, 0])
         v[0] += dmg
         v[1] += 1
         v[2] += crit
         v[3] += multi
+        v[4] += not tick              # dano ao longo do tempo não tem crítico: não entra na conta do crítico %
         if skill is not None:
-            s = self.skills.setdefault((atk, skill), [0, 0, 0, 0, 0])
+            s = self.skills.setdefault((atk, skill), [0, 0, 0, 0, 0, 0])
             s[0] += dmg
             s[1] += 1
             s[2] += crit
+            s[5] += not tick
 
     def add_heal(self, t, atk, tgt, val, skill=None):
-        if self.start is None:
-            return                      # cura fora de luta não abre luta
+        if self.start is None or (self.resets and self.ended(t)):
+            return                      # cura fora de luta não abre luta nem entra na luta que já acabou
         self.heal[atk] = self.heal.get(atk, 0) + val
         if skill is not None:
-            s = self.skills.setdefault((atk, skill), [0, 0, 0, 0, 0])
+            s = self.skills.setdefault((atk, skill), [0, 0, 0, 0, 0, 0])
             s[3] += val
             s[4] += 1
 
@@ -361,13 +370,13 @@ class Fight:
         """Junta tudo de 'old' em 'new' (o mesmo jogador voltou com outro id: morreu e reviveu, teleporte,
         entrou numa instância...). Sem isso ele virava uma linha a mais, sem nome, no medidor."""
         for (a, t), v in [kv for kv in self.pair.items() if kv[0][0] == old]:
-            w = self.pair.setdefault((new, t), [0, 0, 0, 0])
-            for i in range(4):
+            w = self.pair.setdefault((new, t), [0, 0, 0, 0, 0])
+            for i in range(5):
                 w[i] += v[i]
             del self.pair[(a, t)]
         for (a, sk), v in [kv for kv in self.skills.items() if kv[0][0] == old]:
-            w = self.skills.setdefault((new, sk), [0, 0, 0, 0, 0])
-            for i in range(5):
+            w = self.skills.setdefault((new, sk), [0, 0, 0, 0, 0, 0])
+            for i in range(6):
                 w[i] += v[i]
             del self.skills[(a, sk)]
         if old in self.heal:
@@ -635,6 +644,10 @@ class DpsReader(QThread):
                 if len(lst) > 8:
                     del lst[:-8]
 
+    def _is_npc(self, eid):
+        """Monstro (ou invocação): nunca é alvo de cura de jogador."""
+        return eid >= self.PLAYER_ID_MAX and eid not in self.names and eid not in self.cls
+
     def _apply_hit(self, h, now):
         tgt, atk, skill, dmg = h["tgt"], h["atk"], h["skill"], h["dmg"]
         c = skill_class(skill)
@@ -642,8 +655,12 @@ class DpsReader(QThread):
             self.active_t[atk] = now
             if len(self.active_t) > 20_000:
                 self.active_t = {k: v for k, v in self.active_t.items() if now - v < 60}
-        if c:
-            self.cls[atk] = c
+            if tgt != atk:
+                self.cls[atk] = c
+            else:
+                # efeito em si mesmo pode ser buff de OUTRA classe (ex.: proc do buff do Chanter no Feiticeiro):
+                # não troca a classe (antes o ícone/cor do jogador piscava para a classe de quem deu o buff)
+                self.cls.setdefault(atk, c)
         if tgt == atk:
             if dmg and dmg > 0:
                 # efeito em si mesmo com valor = cura (ex.: roubo de vida). A habilidade é anotada,
@@ -660,7 +677,8 @@ class DpsReader(QThread):
                 (tgt < self.PLAYER_ID_MAX or tgt in self.names))
         if ally and c:
             self.heal_skills.add(skill)              # valor positivo num aliado do grupo = cura
-        if is_known_heal(skill) or ally or (skill in self.heal_skills and tgt not in self.enemies):
+        if not self._is_npc(tgt) and (is_known_heal(skill) or ally or
+                                      (skill in self.heal_skills and tgt not in self.enemies)):
             self._link(atk, tgt)
             self.fight.add_heal(now, atk, tgt, dmg, skill)
             self.session.add_heal(now, atk, tgt, dmg, skill)
@@ -676,8 +694,9 @@ class DpsReader(QThread):
             self.enemies.add(tgt)                  # quem leva dano de jogador é inimigo/monstro
         self._unlink(atk, tgt)
         mine = bool(c) and self._mine(atk)
-        self.fight.add(now, atk, tgt, dmg, h["crit"], h["multi"], skill, mine)
-        self.session.add(now, atk, tgt, dmg, h["crit"], h["multi"], skill, mine)
+        tick = h.get("tick", False)
+        self.fight.add(now, atk, tgt, dmg, h["crit"], h["multi"], skill, mine, tick)
+        self.session.add(now, atk, tgt, dmg, h["crit"], h["multi"], skill, mine, tick)
 
     def _handle_tick(self, body, now):
         """Dano/cura ao longo do tempo (0x3805): entra no medidor como golpe/cura da habilidade."""
@@ -687,6 +706,8 @@ class DpsReader(QThread):
         kind, tgt, caster, skill, val = t
         if not skill_class(skill):
             return                                   # monstro, item, poção...
+        if tgt == caster and self._is_summon(caster):
+            return                                   # efeito da invocação nela mesma
         if self._is_summon(caster):
             caster = self._owner_of(caster, skill, now)
             if caster is None:
@@ -698,7 +719,7 @@ class DpsReader(QThread):
             if tgt == caster or (not npc and (caster, tgt) not in self.harmed):
                 return
             self._apply_hit({"tgt": tgt, "atk": caster, "skill": skill, "dmg": val,
-                             "crit": False, "multi": False}, now)
+                             "crit": False, "multi": False, "tick": True}, now)
         else:
             self.cls.setdefault(caster, skill_class(skill))
             if tgt != caster and tgt not in self.enemies:
@@ -724,7 +745,17 @@ class DpsReader(QThread):
                     if len(self.summons) > 5000:
                         self.summons.clear()
                     self.summons.add(summon)
+                    tgt = h["tgt"]
+                    if tgt == summon:
+                        return                       # efeito da invocação nela mesma
                     owner = self._owner_of(summon, h["skill"], now)
+                    if not self._is_npc(tgt) and not (owner is not None and tgt in self.enemies and
+                                                      tgt not in self.links.get(owner, ())):
+                        # invocação mexendo num jogador: quase sempre o espírito/servo agindo no próprio dono
+                        # (o dono é adivinhado pela família da habilidade e, com dois Elementalistas por perto,
+                        # ia para o outro: marcava o jogador como inimigo e quebrava o grupo). Só conta como
+                        # dano se for num inimigo já conhecido (PvP).
+                        return
                     if owner is None:
                         # ainda não deu para saber de quem é: guarda um pouco e entrega quando descobrir
                         lst = self.pending_summon.setdefault(summon, [])
@@ -740,10 +771,14 @@ class DpsReader(QThread):
                 self._handle_tick(body, time.time())
             elif op == 0x364A:
                 # mensagem que o servidor só manda sobre o seu próprio personagem
-                new, _ = varint(body, 0)
-                if self.auto_self is not None and new != self.auto_self:
-                    self.rename(self.auto_self, new)          # você voltou com outro id: continua sendo você
-                self.auto_self = new
+                self._set_self(varint(body, 0)[0])
+            elif op == 0x8D00:
+                # vida/mana: dos outros vem no formato 02 ..; do seu personagem vem 01 .. ou 03 .. (com mana etc.).
+                # Em várias capturas a 0x364a nem chegava e o medidor ficava em "procurando o seu personagem"
+                # sem mostrar nada; conferido em todas: esse formato só aparece para você.
+                eid, i = varint(body, 0)
+                if i < len(body) and body[i] in (1, 3) and eid < self.PLAYER_ID_MAX:
+                    self._set_self(eid)
             elif op in (0x3645, 0x8D04):
                 r = decode_names(op, body)
                 if r:
@@ -764,6 +799,11 @@ class DpsReader(QThread):
                         self.names[pid] = name
         except Exception:
             pass
+
+    def _set_self(self, new):
+        if self.auto_self is not None and new != self.auto_self:
+            self.rename(self.auto_self, new)          # você voltou com outro id: continua sendo você
+        self.auto_self = new
 
     def rename(self, old, new):
         """O jogador 'old' agora é 'new': junta luta, sessão, grupo e classe no id novo."""
@@ -828,8 +868,8 @@ class DpsReader(QThread):
     def _mine(self, atk):
         """Golpe seu / do seu grupo? (sem saber quem é você, vale qualquer jogador)"""
         me = self.find_self()
-        if me is None:
-            return True
+        if me is None or self.mode == "all":
+            return True                     # "todos por perto": a luta de qualquer jogador conta
         if atk == me:
             return True
         now = time.time()
@@ -852,18 +892,18 @@ class DpsReader(QThread):
         st = {}
         for (a, _t), v in f.pair.items():
             if a in players:
-                s_ = st.setdefault(a, [0, 0, 0, 0])
-                for k in range(4):
+                s_ = st.setdefault(a, [0, 0, 0, 0, 0])
+                for k in range(5):
                     s_[k] += v[k]
         order = sorted(st.items(), key=lambda kv: -kv[1][0])
         top = order[:8]
         if me in st and all(a != me for a, _ in top):
             top = order[:7] + [(me, st[me])]       # você sempre aparece
         rows = []
-        for a, (d, h, c, mu) in top:
+        for a, (d, h, c, mu, dh) in top:
             rows.append({"id": a, "name": self.names.get(a, ""), "cls": self.cls.get(a), "dmg": d, "hits": h,
                          "dps": d / f.player_time(a, now),
-                         "crit": c / h if h else 0, "multi": mu / h if h else 0,
+                         "crit": c / dh if dh else 0, "multi": mu / dh if dh else 0,
                          "heal": f.heal.get(a, 0), "me": a == me})
         return {"elapsed": f.elapsed(now), "rows": rows, "skills": self.skill_rows([r["id"] for r in rows]),
                 "found_me": me is not None, "my_heal": f.heal.get(me, 0) if me is not None else 0,
@@ -883,12 +923,13 @@ class DpsReader(QThread):
                 key, cls, name, icon = "other", None, T("Outros (itens e efeitos)"), None
             row = out.setdefault(a, {}).setdefault(key, {"skill": key, "cls": cls, "name": name, "icon": icon,
                                                          "dmg": 0, "hits": 0, "crit": 0, "heal": 0,
-                                                         "heals": 0, "shield": 0})
+                                                         "heals": 0, "shield": 0, "direct": 0})
             row["dmg"] += v[0]
             row["hits"] += v[1]
             row["crit"] += v[2]
             row["heal"] += v[3]
             row["heals"] += v[4]
+            row["direct"] += v[5]
         return {a: sorted(d.values(), key=lambda r: -(r["dmg"] + r["heal"])) for a, d in out.items()}
 
     def reset(self):
