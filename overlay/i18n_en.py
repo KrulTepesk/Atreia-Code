@@ -409,4 +409,5 @@ EN = {
     'Tempos do servidor coreano (valores reduzidos desde 17/12/2025); no seu servidor podem ser outros — dá para mudar na aba.': 'Korean server times (reduced values since 12/17/2025); your server may differ — you can change them here.',
     'O programa reconhece qual parte do mapa aparece no minimapa do Alt+M e desenha os recursos por cima dele, seguindo quando você anda ou dá zoom. Usa os mesmos filtros do mapa completo (tipos, material, esconder coletados) e mostra também os spawns do farm de pet. Só olha a tela.': 'The app recognizes which part of the map is showing on the Alt+M minimap and draws the resources on top of it, following as you move or zoom. It uses the same filters as the full map (types, material, hide gathered) and also shows the pet farming spawns. It only looks at the screen.',
     'Avisar do Festival Shugo': 'Alert for the Shugo Festival',
+    'Outros (itens e efeitos)': 'Other (items and effects)',
 }

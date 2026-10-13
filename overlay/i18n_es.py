@@ -459,4 +459,5 @@ ES = {
     'Tempos do servidor coreano (valores reduzidos desde 17/12/2025); no seu servidor podem ser outros — dá para mudar na aba.': 'Tiempos del servidor coreano (valores reducidos desde el 17/12/2025); en tu servidor pueden ser otros — puedes cambiarlos aquí.',
     'O programa reconhece qual parte do mapa aparece no minimapa do Alt+M e desenha os recursos por cima dele, seguindo quando você anda ou dá zoom. Usa os mesmos filtros do mapa completo (tipos, material, esconder coletados) e mostra também os spawns do farm de pet. Só olha a tela.': 'El programa reconoce qué parte del mapa aparece en el minimapa del Alt+M y dibuja los recursos encima, siguiéndote cuando caminas o haces zoom. Usa los mismos filtros del mapa completo (tipos, material, ocultar recolectados) y también muestra las apariciones del farmeo de mascotas. Solo mira la pantalla.',
     'Avisar do Festival Shugo': 'Avisar del Festival Shugo',
+    'Outros (itens e efeitos)': 'Otros (objetos y efectos)',
 }

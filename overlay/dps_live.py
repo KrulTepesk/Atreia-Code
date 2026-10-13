@@ -804,6 +804,10 @@ class DpsReader(QThread):
             if a not in ids:
                 continue
             key, cls, name, icon = skills_db.lookup(sk)
+            if not name and not skill_class(sk):
+                # item, poção, efeito de equipamento... (ids fora das habilidades de classe): uma linha só
+                from i18n import T
+                key, cls, name, icon = "other", None, T("Outros (itens e efeitos)"), None
             row = out.setdefault(a, {}).setdefault(key, {"skill": key, "cls": cls, "name": name, "icon": icon,
                                                          "dmg": 0, "hits": 0, "crit": 0, "heal": 0,
                                                          "heals": 0, "shield": 0})
