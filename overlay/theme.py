@@ -246,8 +246,7 @@ _card_frame = None
 def apply(app):
     global _card_frame
     load_fonts()
-    _card_frame = CardFrame(app)
-    app.installEventFilter(_card_frame)      # todos os cartões do app, inclusive os criados depois
+    _card_frame = CardFrame(app)             # instalado só nos cartões (QGroupBox), em polish()
     app.setStyle(QStyleFactory.create("Fusion"))
     pal = QPalette()
     for role, col in ((QPalette.Window, INK), (QPalette.Base, FIELD), (QPalette.AlternateBase, CARD),
@@ -267,6 +266,13 @@ def polish(root):
     """Textos de ajuda (rótulos com quebra de linha) ficam no tom suave; cinzas antigos viram o lilás do tema;
     o dourado antigo de destaque vira o ciano do éter."""
     from PySide6.QtWidgets import QGroupBox as _G, QLabel as _L
+    # antes o pintor dos cartões ficava no app inteiro: todo evento de toda janela (inclusive os overlays
+    # redesenhando) passava pelo Python. Agora só os cartões passam por ele.
+    if _card_frame is not None:
+        for gb in ([root] if isinstance(root, _G) else []) + root.findChildren(_G):
+            if not gb.property("_card"):
+                gb.setProperty("_card", True)
+                gb.installEventFilter(_card_frame)
     for w in [root] + root.findChildren(QWidget):
         ss = w.styleSheet()
         if ss:

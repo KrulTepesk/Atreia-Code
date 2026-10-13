@@ -456,7 +456,9 @@ class DpsReader(QThread):
 
     def run(self):
         try:
-            from scapy.all import IP, TCP, AsyncSniffer, conf
+            import netlib
+            _n = netlib.load()
+            IP, TCP, AsyncSniffer, conf = _n.IP, _n.TCP, _n.AsyncSniffer, _n.conf
         except Exception as e:
             self.status.emit(f"scapy: {e}")
             return

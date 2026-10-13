@@ -21,8 +21,8 @@ def _material_index(name):
     global _names
     if _names is None:
         try:
-            with open(os.path.join(BASE_DIR, "data", "resources.json"), encoding="utf-8") as f:
-                _names = json.load(f)["names"]
+            import gamedata
+            _names = gamedata.resources()["names"]
         except Exception:
             _names = []
     try:
@@ -55,12 +55,58 @@ def world_boss(size=40):
     return _pix("world_boss.png", size)
 
 
+_stamps = {}
+
+
+def _stamp(pix, size, collected, fallback, dpr):
+    from PySide6.QtCore import QPointF, QRectF
+    from PySide6.QtGui import QColor, QPainter, QPen, QPixmap
+    fb = QColor(fallback).name() if fallback is not None else None      # QColor não serve de chave
+    key = (pix.cacheKey() if pix is not None and not pix.isNull() else None, size, collected, fb, dpr)
+    st = _stamps.get(key)
+    if st is None:
+        side = size + 2
+        st = QPixmap(int(round(side * dpr)), int(round(side * dpr)))
+        st.setDevicePixelRatio(dpr)
+        st.fill(Qt.transparent)
+        q = QPainter(st)
+        q.setRenderHint(QPainter.Antialiasing)
+        q.setRenderHint(QPainter.SmoothPixmapTransform)
+        c = QPointF(side / 2, side / 2)
+        r = size / 2
+        q.setPen(Qt.NoPen)
+        q.setBrush(QColor(8, 7, 6, 150))
+        q.drawEllipse(c, r * 0.95, r * 0.95)
+        q.setOpacity(0.28 if collected else 1.0)
+        if pix is not None and not pix.isNull():
+            q.drawPixmap(QRectF(c.x() - r, c.y() - r, size, size), pix, QRectF(pix.rect()))
+        else:
+            q.setBrush(QColor(fallback or "#e0b04f"))
+            q.setPen(QPen(QColor(255, 255, 255, 220), 1.2))
+            q.drawEllipse(c, r * 0.45, r * 0.45)
+        q.end()
+        if len(_stamps) > 2000:
+            _stamps.clear()
+        _stamps[key] = st
+    return st
+
+
 def draw_resource(p, center, pix, size, left=None, total=300, collected=False, fallback=None):
     """Desenha o ícone do recurso. Com timer: ícone apagado + anel de contagem + tempo embaixo."""
     from PySide6.QtCore import QPointF, QRectF
     from PySide6.QtGui import QColor, QFont, QPen
     from respawn import fmt
     r = size / 2
+    if not left:
+        # caso comum (sem timer): um "carimbo" pronto (sombra + ícone) desenhado de uma vez.
+        # Antes cada ponto do mapa refazia sombra, opacidade e ícone a cada pintura (milhares por mapa).
+        try:
+            dpr = p.device().devicePixelRatioF()
+        except Exception:
+            dpr = 1.0
+        stamp = _stamp(pix, size, collected, fallback, dpr)
+        p.drawPixmap(QPointF(center.x() - r - 1, center.y() - r - 1), stamp)
+        return
     p.save()
     # sombra redonda para destacar o ícone em qualquer fundo
     p.setPen(Qt.NoPen)

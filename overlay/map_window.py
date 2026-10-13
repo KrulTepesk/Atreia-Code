@@ -22,8 +22,8 @@ MOB_COLOR = QColor("#ff4d5e")
 
 
 def load_mobs():
-    with open(os.path.join(BASE_DIR, "data", "mobs.json"), encoding="utf-8") as f:
-        return json.load(f)
+    import gamedata
+    return gamedata.mobs()
 
 try:
     with open(os.path.join(BASE_DIR, "fundos", "presets.json"), encoding="utf-8") as _f:
@@ -36,8 +36,19 @@ CAT_LABEL = {k: n for k, n, _ in CATEGORIES}
 
 
 def load_data():
-    with open(os.path.join(BASE_DIR, "data", "resources.json"), encoding="utf-8") as f:
-        return json.load(f)
+    import gamedata
+    return gamedata.resources()
+
+
+import icons as _icons      # noqa: E402  (usados a cada pintura dos pontos: import fora do paint)
+import respawn as _respawn  # noqa: E402
+
+
+def _dpr(p):
+    try:
+        return p.device().devicePixelRatioF()
+    except Exception:
+        return 1.0
 
 
 class Dot(QGraphicsItem):
@@ -77,12 +88,19 @@ class Dot(QGraphicsItem):
         self.setZValue(12 if respawn.remaining(self.key) else 10)   # com timer fica por cima
         super().update(*a)
 
+    _ORIGIN = QPointF(0, 0)
+
     def paint(self, p, _opt, _w=None):
-        import icons
-        import respawn
+        left = _respawn.remaining(self.key)
+        if not left:
+            # caminho rápido (quase todos os pontos): só o carimbo pronto do ícone
+            st = _icons._stamp(self.pix, self.size, self.collected, CAT_COLOR[self.cat], _dpr(p))
+            r = self.size / 2 + 1
+            p.drawPixmap(QPointF(-r, -r), st)
+            return
         p.setRenderHint(QPainter.SmoothPixmapTransform)
-        icons.draw_resource(p, QPointF(0, 0), self.pix, self.size, respawn.remaining(self.key),
-                            respawn.total(), self.collected, CAT_COLOR[self.cat])
+        _icons.draw_resource(p, self._ORIGIN, self.pix, self.size, left, _respawn.total(), self.collected,
+                             CAT_COLOR[self.cat])
 
 
 class MapView(QGraphicsView):

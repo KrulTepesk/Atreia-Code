@@ -21,7 +21,7 @@ a = Analysis(
         (os.path.join(SRC, "classes"), "classes"),
     ] + ([(os.path.join(SRC, "skill_icons"), "skill_icons")] if os.path.isdir(os.path.join(SRC, "skill_icons")) else []) + [
     ],
-    hiddenimports=collect_submodules("scapy.layers") + ["scapy.all", "scapy.arch.windows", "psutil", "zoneinfo", "tzdata", "lz4", "lz4.block", "dps_live", "icons", "respawn", "skills_db", "world_live", "net_hub", "field_bosses", "i18n_en", "i18n_es", "instance", "region_select"],
+    hiddenimports=collect_submodules("scapy.layers") + ["scapy.all", "scapy.arch.windows", "psutil", "zoneinfo", "tzdata", "lz4", "lz4.block", "dps_live", "icons", "respawn", "skills_db", "world_live", "net_hub", "field_bosses", "i18n_en", "i18n_es", "instance", "region_select", "netlib", "gamedata", "scapy.layers.ppp", "scapy.layers.l2"],
     excludes=[
         "tkinter", "matplotlib", "scipy", "pandas", "IPython", "yaml", "cryptography", "PySide6.QtWebEngineCore", "PySide6.QtWebEngineWidgets",
         "PySide6.QtWebEngineQuick", "PySide6.Qt3DCore", "PySide6.Qt3DRender", "PySide6.QtQuick",

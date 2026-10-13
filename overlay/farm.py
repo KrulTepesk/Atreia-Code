@@ -43,10 +43,8 @@ def farm_cfg():
 
 
 def _resources():
-    if _cache["res"] is None:
-        with open(os.path.join(BASE_DIR, "data", "resources.json"), encoding="utf-8") as f:
-            _cache["res"] = json.load(f)
-    return _cache["res"]
+    import gamedata
+    return gamedata.resources()
 
 
 def _background(wid):
@@ -271,8 +269,8 @@ class FarmTab(QWidget):
         self.panel = panel
         self.hub = panel.hub
         self.card = FarmWidget()
-        with open(os.path.join(BASE_DIR, "data", "mobs.json"), encoding="utf-8") as f:
-            self.mobdata = json.load(f)
+        import gamedata
+        self.mobdata = gamedata.mobs()
         self.pets = self.mobdata["pets"]
         self.pet_names = {pid: PET(pid, name) for pid, name, _ in self.pets}
         self.suggest = self.mobdata["suggest"]

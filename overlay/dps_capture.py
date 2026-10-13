@@ -106,7 +106,8 @@ def verify_npcap(path, sha=""):
 def deps_ok():
     try:
         import psutil  # noqa: F401
-        import scapy.all  # noqa: F401
+        import netlib
+        netlib.load()
         return True, ""
     except Exception as e:
         return False, str(e)
@@ -175,7 +176,9 @@ class CaptureThread(QThread):
 
     def run(self):
         try:
-            from scapy.all import AsyncSniffer, PcapWriter, conf
+            import netlib
+            _n = netlib.load()
+            AsyncSniffer, PcapWriter, conf = _n.AsyncSniffer, _n.PcapWriter, _n.conf
             eps = remote_endpoints(self.pid)
             if not eps:
                 self.error.emit("O processo não tem conexões com servidores de fora")

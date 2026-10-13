@@ -78,8 +78,12 @@ class Spawns:
     """Pontos de nascimento de todos os monstros, por mapa."""
 
     def __init__(self, path=None):
-        with open(path or os.path.join(BASE_DIR, "data", "mobs.json"), encoding="utf-8") as f:
-            d = json.load(f)
+        if path:
+            with open(path, encoding="utf-8") as f:
+                d = json.load(f)
+        else:
+            import gamedata
+            d = gamedata.mobs()
         self.suggest = d.get("suggest", {})
         self.grid = {}            # mundo -> {(cx, cy): [(x, y, nome, categoria)]}
         self.by_name = {}         # (mundo, nome) -> coords

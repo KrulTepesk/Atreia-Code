@@ -10,8 +10,6 @@ Só funciona nos mapas que têm imagem de fundo.
 import os
 import time
 
-import cv2
-import mss
 import numpy as np
 from PySide6.QtCore import QPointF, QRectF, Qt, QThread, QTimer, Signal
 from PySide6.QtGui import QColor, QFont, QPainter, QPen
@@ -31,15 +29,22 @@ def mm_cfg():
     return c
 
 
+def _cv2():
+    import cv2                      # só carrega quando o minimapa é ligado (abre o programa mais rápido)
+    return cv2
+
+
 class Matcher:
     """Pontos característicos de cada mapa com fundo; acha onde está um recorte do minimapa."""
 
     def __init__(self):
+        cv2 = _cv2()
         self.maps = {}      # wid -> (kp_xy, descriptors, flann, bg_x, bg_y, bg_scale)
         self.sift = cv2.SIFT_create(nfeatures=30000)
 
     def build(self, backgrounds):
         """backgrounds: {wid: (path, x, y, scale)}"""
+        cv2 = _cv2()
         for wid, (path, bx, by, bs) in backgrounds.items():
             xy, des = self._features(wid, path)
             if des is None:
@@ -51,6 +56,7 @@ class Matcher:
 
     def _features(self, wid, path):
         """Pontos do fundo; guardados em cache (só recalcula se a imagem mudar) -> liga bem mais rápido."""
+        cv2 = _cv2()
         from config import APP_DIR
         try:
             st = os.stat(path)
@@ -85,6 +91,7 @@ class Matcher:
     def locate(self, gray, prefer=None, mask=None):
         """Retorna (wid, A, inliers): A leva pixel do minimapa -> coordenada de cena (x, -y do mundo).
         mask: áreas com 0 são ignoradas (onde o próprio overlay desenhou ícones)."""
+        cv2 = _cv2()
         kp, des = self.sift.detectAndCompute(gray, mask)
         if des is None or len(kp) < 12:
             return None
@@ -125,7 +132,10 @@ class MinimapWorker(QThread):
         self.wait(3000)
 
     TRACK_FPS = 24        # acompanhamento rápido do mapa (deslocamento quadro a quadro)
-    SIFT_EVERY = 0.35     # reconhecimento completo (em segundo plano) no máximo a cada X s
+    IDLE_FPS = 6          # parado: menos quadros (volta para 24 assim que o mapa mexe)
+    SIFT_EVERY = 0.35     # reconhecimento completo (em segundo plano) no máximo a cada X s...
+    SIFT_TRACKING = 0.6   # ...ou a cada 0,6 s quando já reconheceu e o acompanhamento rápido está firme
+    SIFT_LOST = 2.5       # minimapa fechado faz tempo: tenta de vez em quando
     SHOW_AFTER_OK = 1.5   # mostra por X s depois do último reconhecimento completo...
     SHOW_TRACKED = 8.0    # ...ou até X s se o acompanhamento rápido continuar firme
 
@@ -136,6 +146,8 @@ class MinimapWorker(QThread):
         - completo (SIFT, em outra thread): descobre onde o mapa está de verdade e corrige o rápido.
         Antes só existia o completo: correndo, ele ficava para trás ou falhava e os ícones sumiam."""
         import threading
+        import mss
+        cv2 = _cv2()
         self.status.emit(T("Preparando o reconhecimento do mapa..."))
         m = Matcher()
         m.build(self.backgrounds)
@@ -169,6 +181,8 @@ class MinimapWorker(QThread):
             sift_ok = 0.0            # último reconhecimento completo que deu certo
             sift_fails = 0           # falhas seguidas do completo
             still_since = time.time()
+            track_ok = 0.0           # última vez que a correlação rápida foi confiável
+            lost_since = None
             shown = False
             while self._run:
                 t0 = time.time()
@@ -195,6 +209,7 @@ class MinimapWorker(QThread):
                     (dx, dy), resp = cv2.phaseCorrelate(prev, small, win)
                     d = np.array([dx * 2, dy * 2])
                     if resp > 0.12 and abs(d[0]) < gray.shape[1] * 0.4 and abs(d[1]) < gray.shape[0] * 0.4:
+                        track_ok = t0
                         if abs(d[0]) > 0.6 or abs(d[1]) > 0.6:
                             moved = True
                             cum += d
@@ -224,9 +239,14 @@ class MinimapWorker(QThread):
 
                 # ---- dispara outro completo (parado há um tempo e já reconhecido: não precisa)
                 idle = t0 - still_since > 1.0 and t0 - sift_ok < 3.0
+                if sift_fails >= 8:                       # não está achando (minimapa fechado?)
+                    every = self.SIFT_LOST if lost_since and t0 - lost_since > 20 else 1.0
+                elif t0 - sift_ok < 2.5 and t0 - track_ok < 0.5:
+                    every = self.SIFT_TRACKING            # já reconhecido e acompanhando firme
+                else:
+                    every = self.SIFT_EVERY
                 with lock:
-                    go = (not job["busy"] and not idle and
-                          t0 - job["t"] >= (self.SIFT_EVERY if sift_fails < 8 else 1.0))
+                    go = (not job["busy"] and not idle and t0 - job["t"] >= every)
                     if go:
                         job.update(busy=True, t=t0)
                 if go:
@@ -250,7 +270,12 @@ class MinimapWorker(QThread):
                     self.located.emit(None)
                     shown = False
                 lost = sift_fails > 8 and not ok
-                wait = (1.0 if lost else 1 / self.TRACK_FPS) - (time.time() - t0)
+                if lost:
+                    lost_since = lost_since or t0
+                else:
+                    lost_since = None
+                fps = self.TRACK_FPS if t0 - still_since < 1.5 else self.IDLE_FPS
+                wait = (1.0 if lost else 1 / fps) - (time.time() - t0)
                 if wait > 0:
                     time.sleep(wait)
             for _ in range(30):          # espera o completo em andamento terminar antes de sair
@@ -319,7 +344,7 @@ class MinimapOverlay(QWidget):
     def update_pose(self, res):
         if res:
             self.wid, A, _n = res
-            self.A = cv2.invertAffineTransform(A)      # cena -> pixel do minimapa
+            self.A = _cv2().invertAffineTransform(A)      # cena -> pixel do minimapa
             self.last_ok = time.time()
         else:
             self.A = None                              # o reconhecimento já esperou o suficiente
