@@ -29,6 +29,7 @@ from farm import FarmTab
 from field_bosses import FieldBossManager, FieldBossTab
 from net_hub import NetHub
 from hotkeys import Hotkeys
+import hotkey_ui
 from map_window import MapWindow
 from region_select import RegionSelector
 from shugo import ShugoWidget
@@ -182,35 +183,60 @@ class ControlPanel(QWidget):
         self.tray.setToolTip("Meta Overlay")
         self.tray.show()
 
-        # atalho global: zerar DPS (Ctrl+Alt+R)
+        # teclas de atalho globais (configuráveis na aba Geral)
         self.hotkeys = Hotkeys(app)
-        self._hk_wanted = {10: ("ctrl+alt", "R")}
         self._hk_tries = 0
-        self._hk_base = self.hk_label.text()
         self.register_hotkeys()
-        self.hotkeys.pressed.connect(lambda hid: self.dps_tab.reset_fight() if hid == 10 else None)
+        self.hotkeys.pressed.connect(self.on_hotkey)
 
-    def register_hotkeys(self):
-        """Registra os atalhos que faltam. Se outro programa (ou a cópia anterior do próprio app que ainda está
-        fechando, ex.: depois de "Reiniciar") estiver usando, tenta de novo a cada 2 s por até 30 s."""
+    def register_hotkeys(self, retry=True):
+        """(Re)registra todos os atalhos configurados. Se outro programa (ou a cópia anterior do próprio app que
+        ainda está fechando, ex.: depois de "Reiniciar") estiver usando, tenta de novo a cada 2 s por até 30 s."""
         if not self.hotkeys.ok:
             return
+        self.hotkeys.clear()
         failed = []
-        for hid, (mods, k) in self._hk_wanted.items():
-            if hid in self.hotkeys.ids:
-                continue
-            if not self.hotkeys.add(hid, mods, k):
-                failed.append(f"Ctrl+Alt+{k}")
-        lbl = self.hk_label
-        if failed:
+        for name, v in hotkey_ui.hk_cfg().items():
+            if v and name in hotkey_ui.IDS:
+                if not self.hotkeys.add(hotkey_ui.IDS[name], v["mods"], v["vk"]):
+                    failed.append(name)
+        self.hk_box.show_failed(failed)
+        if failed and retry:
             self._hk_tries += 1
-            msg = T("Em uso por outro programa: {k}").format(k=", ".join(failed))
             if self._hk_tries < 15:
-                msg += " " + T("(tentando de novo...)")
                 QTimer.singleShot(2000, self.register_hotkeys)
-            lbl.setText(self._hk_base + f"<br><span style='color:#f0883e'>{msg}</span>")
+        elif not failed:
+            self._hk_tries = 0
+
+    def hotkeys_capturing(self, on):
+        """Enquanto escolhe uma tecla, solta os atalhos (senão o Windows pega a tecla antes do botão)."""
+        if on:
+            self.hotkeys.clear()
         else:
-            lbl.setText(self._hk_base)
+            self.register_hotkeys(retry=False)
+
+    def on_hotkey(self, hid):
+        name = hotkey_ui.NAMES.get(hid)
+        if name == "dps_reset":
+            self.dps_tab.reset_fight()
+        elif name == "dps_toggle":
+            self.dps_tab.chk_show.toggle()
+        elif name == "dps_view":
+            v = "session" if cfg.get("dps", {}).get("view", "fight") == "fight" else "fight"
+            self.dps_tab.meter.view = v
+            self.dps_tab.set_view(v)
+            self.dps_tab.meter.update()
+        elif name == "lock":
+            self.toggle_lock()
+        elif name == "minimap":
+            self.mm_on.toggle()
+        elif name == "map":
+            if self.map is not None and self.map.isVisible():
+                self.map.hide()
+            else:
+                self.open_map()
+        elif name == "panel":
+            self.show_panel()
 
     # ------------------------------------------------------------------ abas
     def tab_general(self):
@@ -261,14 +287,13 @@ class ControlPanel(QWidget):
                                             ("Todos", None))):
             b = QPushButton(text)
             b.clicked.connect(lambda _=False, t=target: self.send_to_screen(t))
-            row.addWidget(b, i // 4, i % 4)
+            row.addWidget(b, i // 3, i % 3)
         f.addRow("Mover:", row)
         lay.addWidget(box)
 
-        self.hk_label = QLabel("Atalho (funciona dentro do jogo): Ctrl+Alt+R = zerar o medidor de DPS")
-        self.hk_label.setWordWrap(True)
-        self.hk_label.setStyleSheet("color:#9b9282;")
-        lay.addWidget(self.hk_label)
+        self.hk_box = hotkey_ui.HotkeysBox(lambda: self.register_hotkeys(retry=False),
+                                           lambda on: self.hotkeys_capturing(on))
+        lay.addWidget(self.hk_box)
         lay.addStretch()
         lay.addWidget(QLabel("Fechar esta janela não fecha o overlay — ele fica no ícone da bandeja."))
         return w

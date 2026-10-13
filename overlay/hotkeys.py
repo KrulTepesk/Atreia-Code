@@ -24,7 +24,7 @@ class _Filter(QAbstractNativeEventFilter):
 
 
 class Hotkeys(QObject):
-    """hk = Hotkeys(app); hk.add(1, 'ctrl+alt', 'S'); hk.pressed.connect(fn)"""
+    """hk = Hotkeys(app); hk.add(1, ['ctrl', 'alt'], 0x53); hk.pressed.connect(fn)  (tecla: VK ou letra)"""
     pressed = Signal(int)
 
     def __init__(self, app):
@@ -45,7 +45,7 @@ class Hotkeys(QObject):
             m |= MOD_ALT
         if "shift" in mods:
             m |= MOD_SHIFT
-        vk = ord(key.upper()) if len(key) == 1 else key
+        vk = key if isinstance(key, int) else (ord(key.upper()) if len(key) == 1 else key)
         if ctypes.windll.user32.RegisterHotKey(None, hid, m, vk):
             self.ids.append(hid)
             return True
