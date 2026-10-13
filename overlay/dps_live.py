@@ -357,6 +357,29 @@ class Fight:
             s[3] += val
             s[4] += 1
 
+    def merge(self, old, new):
+        """Junta tudo de 'old' em 'new' (o mesmo jogador voltou com outro id: morreu e reviveu, teleporte,
+        entrou numa instância...). Sem isso ele virava uma linha a mais, sem nome, no medidor."""
+        for (a, t), v in [kv for kv in self.pair.items() if kv[0][0] == old]:
+            w = self.pair.setdefault((new, t), [0, 0, 0, 0])
+            for i in range(4):
+                w[i] += v[i]
+            del self.pair[(a, t)]
+        for (a, sk), v in [kv for kv in self.skills.items() if kv[0][0] == old]:
+            w = self.skills.setdefault((new, sk), [0, 0, 0, 0, 0])
+            for i in range(5):
+                w[i] += v[i]
+            del self.skills[(a, sk)]
+        if old in self.heal:
+            self.heal[new] = self.heal.get(new, 0) + self.heal.pop(old)
+        if old in self.first:
+            t = self.first.pop(old)
+            self.first[new] = min(t, self.first.get(new, t))
+        if old in self.act:
+            a_old = self.act.pop(old)
+            a_new = self.act.get(new)
+            self.act[new] = [max(a_old[0], a_new[0]), a_old[1] + a_new[1]] if a_new else a_old
+
     def _end(self, now):
         """Até quando a luta conta: agora (se ainda está acontecendo) ou o último golpe (se já acabou)."""
         if self.last is None:
@@ -449,6 +472,10 @@ class DpsReader(QThread):
         self.pending_summon = {}  # invocação sem dono ainda -> golpes guardados
         self.summons = set()      # ids que se mostraram invocações (a morte delas não é abate de monstro)
         self.first_seen = {}      # invocação que não vimos aparecer -> primeira vez que bateu
+        # o mesmo personagem ganha outro id ao trocar de mapa, morrer e reviver, teleportar... (nas capturas o
+        # seu foi 15220, 12836, 3284 no mesmo dia). Sem juntar, o id antigo ficava como um jogador a mais.
+        self.by_name = {}         # nome -> id atual (0x3645)
+        self.active_t = {}        # id -> última vez que bateu/curou (dois vivos com o mesmo nome não se juntam)
 
     def stop(self):
         self._run = False
@@ -612,6 +639,10 @@ class DpsReader(QThread):
         tgt, atk, skill, dmg = h["tgt"], h["atk"], h["skill"], h["dmg"]
         c = skill_class(skill)
         if c:
+            self.active_t[atk] = now
+            if len(self.active_t) > 20_000:
+                self.active_t = {k: v for k, v in self.active_t.items() if now - v < 60}
+        if c:
             self.cls[atk] = c
         if tgt == atk:
             if dmg and dmg > 0:
@@ -709,17 +740,57 @@ class DpsReader(QThread):
                 self._handle_tick(body, time.time())
             elif op == 0x364A:
                 # mensagem que o servidor só manda sobre o seu próprio personagem
-                self.auto_self, _ = varint(body, 0)
+                new, _ = varint(body, 0)
+                if self.auto_self is not None and new != self.auto_self:
+                    self.rename(self.auto_self, new)          # você voltou com outro id: continua sendo você
+                self.auto_self = new
             elif op in (0x3645, 0x8D04):
                 r = decode_names(op, body)
                 if r:
                     pid, name = r
                     if op == 0x8D04 and self.self_name and name.lower() == self.self_name.lower():
                         self.self_id = pid
+                    if op == 0x3645:
+                        old = self.by_name.get(name)
+                        # mesmo nome com id novo = o mesmo jogador voltou (a não ser que o antigo ainda esteja
+                        # batendo agora: aí são dois jogadores diferentes com o mesmo nome)
+                        if (old is not None and old != pid and
+                                time.time() - self.active_t.get(old, 0) > 2.0):
+                            self.rename(old, pid)
+                        self.by_name[name] = pid
+                        if len(self.by_name) > 20_000:
+                            self.by_name = {name: pid}
                     if op == 0x3645 or pid not in self.names:
                         self.names[pid] = name
         except Exception:
             pass
+
+    def rename(self, old, new):
+        """O jogador 'old' agora é 'new': junta luta, sessão, grupo e classe no id novo."""
+        if old is None or new is None or old == new:
+            return
+        self.fight.merge(old, new)
+        self.session.merge(old, new)
+        if old in self.cls:
+            self.cls.setdefault(new, self.cls.pop(old))
+        for y in self.links.pop(old, set()):
+            self.links.get(y, set()).discard(old)
+            if y != new:
+                self._link(new, y)
+        if old in self.names:
+            self.names.setdefault(new, self.names.pop(old))
+        for k, v in list(self.owner.items()):
+            if v == old:
+                self.owner[k] = new
+        for lst in self.casts.values():
+            for i, (t, who) in enumerate(lst):
+                if who == old:
+                    lst[i] = (t, new)
+        if old in self.active_t:
+            self.active_t[new] = max(self.active_t.pop(old), self.active_t.get(new, 0))
+        if self.self_id == old:
+            self.self_id = new
+        self._grp_t = 0                       # recalcula o grupo na próxima leitura
 
     def _link(self, a, b):
         self.links.setdefault(a, set()).add(b)
