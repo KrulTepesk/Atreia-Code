@@ -13,7 +13,8 @@ import time
 from PySide6.QtCore import QPoint, QPointF, QRectF, Qt, QTimer
 from PySide6.QtGui import QColor, QFont, QFontMetrics, QPainter, QPainterPath, QPen, QPixmap, QPolygonF
 from PySide6.QtWidgets import (QCheckBox, QComboBox, QCompleter, QFormLayout, QGroupBox, QHBoxLayout, QHeaderView,
-                               QLabel, QPushButton, QTreeWidget, QTreeWidgetItem, QVBoxLayout, QWidget)
+                               QLabel, QMessageBox, QPushButton, QSpinBox, QTreeWidget, QTreeWidgetItem, QVBoxLayout,
+                               QWidget)
 
 from base_window import OverlayWindow
 from i18n import N, PET, T
@@ -25,6 +26,9 @@ DEFAULTS = {
     "tally": {},                 # mob -> {"kills": n, "first": t, "last": t}  (sessão atual)
     "soul_tally": {},            # pet -> almas ganhas nesta sessão (lidas do jogo, 0x900d)
     "soul_total": {},            # pet -> almas contadas pelo programa desde sempre
+    "history": {},               # mob -> {"kills", "souls", "world", "last"}  (desde sempre, fica salvo)
+    "pet_have": {},              # pet -> almas que você tem (sobe sozinho a cada alma; dá para corrigir)
+    "soul_goal": {},             # pet -> almas que você precisa (0 = sem meta)
     "opacity": 0.92, "pos": None,
 }
 OLD_KEYS = ("souls", "goal", "start_souls", "stage", "detect", "reference", "region", "monitor", "threshold",
@@ -39,7 +43,25 @@ def farm_cfg():
         c.pop(k, None)
     for k, v in DEFAULTS.items():
         c.setdefault(k, v)
+        if isinstance(v, dict) and not isinstance(c[k], dict):     # config.json estragado
+            c[k] = {}
     return c
+
+
+def hist(mob):
+    """Linha do histórico de um mob (cria se não existir)."""
+    h = farm_cfg()["history"].setdefault(mob, {})
+    for k in ("kills", "souls"):
+        if not isinstance(h.get(k), int):
+            h[k] = 0
+    return h
+
+
+def ratio_text(kills, souls):
+    """'1 a cada 12' (abates por alma)."""
+    if not kills or not souls:
+        return ""
+    return T("1 a cada {r}").format(r=f"{kills / souls:.1f}".rstrip("0").rstrip("."))
 
 
 def _resources():
@@ -203,8 +225,10 @@ class FarmWidget(OverlayWindow):
     def __init__(self):
         farm_cfg()
         super().__init__("farm", QPoint(40, 200))
-        self.setFixedSize(self.W, self.MAP_H + 90)
+        self.setFixedSize(self.W, self.MAP_H + 126)
         self.souls = ""
+        self.total = ""         # "Desde sempre: 120 abates · 9 almas"
+        self.goal = ""          # "Faltam 3 almas · ~36 abates"
         self.minimap = None
         self.region = ""
         self.pet_name = ""
@@ -259,6 +283,16 @@ class FarmWidget(OverlayWindow):
         p.setPen(QColor("#f4d58c"))
         p.setFont(QFont("Segoe UI", 9, QFont.DemiBold))
         p.drawText(QRectF(14, y0 + 62, self.W - 28, 18), Qt.AlignVCenter | Qt.AlignLeft, self.souls)
+        f3 = QFont("Segoe UI", 8)
+        p.setFont(f3)
+        p.setPen(QColor("#c7bda8"))
+        p.drawText(QRectF(14, y0 + 80, self.W - 28, 18), Qt.AlignVCenter | Qt.AlignLeft,
+                   QFontMetrics(f3).elidedText(self.total, Qt.ElideRight, self.W - 28))
+        f4 = QFont("Segoe UI", 10, QFont.Bold)
+        p.setFont(f4)
+        p.setPen(QColor("#5ee39a"))
+        p.drawText(QRectF(14, y0 + 98, self.W - 28, 20), Qt.AlignVCenter | Qt.AlignLeft,
+                   QFontMetrics(f4).elidedText(self.goal, Qt.ElideRight, self.W - 28))
         p.end()
 
 
@@ -330,6 +364,31 @@ class FarmTab(QWidget):
         row.addStretch()
         row.addWidget(self.show_card)
         v1.addLayout(row)
+        grow = QHBoxLayout()
+        self.goal_label = QLabel("")
+        self.have_spin = QSpinBox()
+        self.have_spin.setRange(0, 99999)
+        self.have_spin.valueChanged.connect(lambda v: self.set_pet_num("pet_have", v))
+        self.goal_spin = QSpinBox()
+        self.goal_spin.setRange(0, 99999)
+        self.goal_spin.setSpecialValueText(T("sem meta"))
+        self.goal_spin.valueChanged.connect(lambda v: self.set_pet_num("soul_goal", v))
+        grow.addWidget(self.goal_label)
+        grow.addWidget(QLabel("Tenho"))
+        grow.addWidget(self.have_spin)
+        grow.addWidget(QLabel("de"))
+        grow.addWidget(self.goal_spin)
+        grow.addStretch()
+        self.goal_w = QWidget()
+        self.goal_w.setLayout(grow)
+        grow.setContentsMargins(0, 4, 0, 0)
+        v1.addWidget(self.goal_w)
+        ghint = QLabel("Coloque quantas almas você precisa desse pet: o farm mostra quantas faltam e quantos abates, "
+                       "mais ou menos, isso dá (pela sorte que você teve até agora com esse mob). "
+                       "\"Tenho\" sobe sozinho a cada alma; corrija se já tinha almas antes.")
+        ghint.setWordWrap(True)
+        ghint.setProperty("hint", True)
+        v1.addWidget(ghint)
         lay.addWidget(box1)
 
         # ---- mobs de pet onde você está
@@ -341,19 +400,48 @@ class FarmTab(QWidget):
         self.here = QTreeWidget()
         self.here.setRootIsDecorated(False)
         self.here.setUniformRowHeights(True)
-        self.here.setHeaderLabels([T("Monstro"), T("Alma de"), T("Distância"), T("Seus abates"), T("Almas")])
+        self.here.setHeaderLabels([T("Monstro"), T("Alma de"), T("Distância"), T("Seus abates"), T("Almas"),
+                                   T("Faltam")])
         hh = self.here.header()
         hh.setSectionResizeMode(0, QHeaderView.Stretch)
         hh.setSectionResizeMode(1, QHeaderView.Stretch)
-        for i in (2, 3, 4):
+        for i in (2, 3, 4, 5):
             hh.setSectionResizeMode(i, QHeaderView.ResizeToContents)
         self.here.setMinimumHeight(150)
         self.here.itemDoubleClicked.connect(self.pick_here)
         v2.addWidget(self.here)
-        tip = QLabel("Duplo clique: farmar esse monstro e ver onde ele nasce.")
+        tip = QLabel("Abates e almas contam desde sempre (ficam salvos). Duplo clique: farmar esse monstro e ver "
+                     "onde ele nasce.")
+        tip.setWordWrap(True)
         tip.setProperty("hint", True)
         v2.addWidget(tip)
         lay.addWidget(box2, 1)
+
+        # ---- histórico (desde sempre)
+        box4 = QGroupBox("Histórico dos mobs de pet (fica salvo)")
+        v4 = QVBoxLayout(box4)
+        self.hist_tree = QTreeWidget()
+        self.hist_tree.setRootIsDecorated(False)
+        self.hist_tree.setUniformRowHeights(True)
+        self.hist_tree.setHeaderLabels([T("Monstro"), T("Alma de"), T("Abates"), T("Almas"), T("Sorte"),
+                                        T("Faltam")])
+        hh = self.hist_tree.header()
+        hh.setSectionResizeMode(0, QHeaderView.Stretch)
+        hh.setSectionResizeMode(1, QHeaderView.Stretch)
+        for i in (2, 3, 4, 5):
+            hh.setSectionResizeMode(i, QHeaderView.ResizeToContents)
+        self.hist_tree.setMinimumHeight(130)
+        self.hist_tree.itemDoubleClicked.connect(self.pick_hist)
+        v4.addWidget(self.hist_tree)
+        hrow = QHBoxLayout()
+        self.hist_label = QLabel("")
+        self.hist_label.setProperty("hint", True)
+        hclear = QPushButton("Apagar histórico")
+        hclear.clicked.connect(self.clear_history)
+        hrow.addWidget(self.hist_label, 1)
+        hrow.addWidget(hclear)
+        v4.addLayout(hrow)
+        lay.addWidget(box4)
 
         # ---- procurar um pet específico
         box3 = QGroupBox("Procurar um pet")
@@ -395,6 +483,7 @@ class FarmTab(QWidget):
         self.timer.start(3000)
 
         self.fill_where()
+        self.refresh_history()
         self.refresh_all(rebuild=True)
         self.card.restore_position()
         self.card.set_locked(cfg.get("locked", False))
@@ -426,6 +515,69 @@ class FarmTab(QWidget):
             txt += " · " + T("1 a cada {r} abates").format(r=f"{k / n:.1f}".rstrip("0").rstrip("."))
         return txt
 
+    # ------------------------------------------------------------------ desde sempre / meta de almas
+    def have(self, pid):
+        c = farm_cfg()
+        if not isinstance(c["pet_have"].get(pid), int):
+            c["pet_have"][pid] = int(c["soul_total"].get(pid, 0) or 0)
+        return c["pet_have"][pid]
+
+    def kills_per_soul(self, pid, mob=None):
+        """Abates por alma: do próprio mob se ele já deu alma; senão de todos os mobs desse pet."""
+        h = farm_cfg()["history"]
+        if mob and h.get(mob, {}).get("souls"):
+            return h[mob]["kills"] / h[mob]["souls"]
+        k = s = 0
+        for m, t in h.items():
+            if self.suggest.get(m) == pid:
+                k += t.get("kills", 0)
+                s += t.get("souls", 0)
+        return k / s if s else None
+
+    def remaining(self, pid, mob=None):
+        """(almas que faltam, abates estimados ou None) — None se não tem meta."""
+        goal = farm_cfg()["soul_goal"].get(pid, 0)
+        if not pid or not isinstance(goal, int) or goal <= 0:
+            return None
+        left = max(0, goal - self.have(pid))
+        r = self.kills_per_soul(pid, mob)
+        return left, (math.ceil(left * r) if r and left else None)
+
+    def remaining_text(self, pid, mob=None, short=False):
+        rem = self.remaining(pid, mob)
+        if rem is None:
+            return ""
+        left, kills = rem
+        if not left:
+            return T("Meta completa!") if short else T("Meta de almas completa!")
+        if short:
+            return f"{left}" + (f" (~{kills})" if kills else "")
+        txt = T("Faltam {n} alma(s)").format(n=left)
+        if kills:
+            txt += " · " + T("~{k} abates").format(k=kills)
+        return txt
+
+    def total_text(self, mob):
+        h = farm_cfg()["history"].get(mob)
+        if not h or not h.get("kills"):
+            return ""
+        txt = T("Desde sempre: {k} abates · {s} alma(s)").format(k=h["kills"], s=h.get("souls", 0))
+        r = ratio_text(h["kills"], h.get("souls", 0))
+        return txt + (f" · {r}" if r else "")
+
+    def set_pet_num(self, key, v):
+        if getattr(self, "_syncing", False):
+            return
+        pid = self.pet_of(farm_cfg()["mob"])[0]
+        if not pid:
+            return
+        farm_cfg()[key][pid] = int(v)
+        save()
+        self.refresh_all()
+        self._here_key = None
+        self.refresh_here()
+        self.refresh_history()
+
     def refresh_all(self, rebuild=False):
         c = farm_cfg()
         if c["active"]:
@@ -440,10 +592,24 @@ class FarmTab(QWidget):
                 + f"<br><span style='font-size:15pt; font-weight:600'>{t.get('kills', 0)}</span> "
                 + T("abates nesta sessão") + (f" &nbsp;·&nbsp; <span style='color:#5ee39a'>{rate}</span>" if rate else "")
                 + (f"<br><span style='font-size:13pt; font-weight:600; color:#f4d58c'>{self.soul_line(_pid)}</span>"
-                   if _pid else ""))
+                   if _pid else "")
+                + (f"<br><span style='color:#c7bda8'>{self.total_text(c['mob'])}</span>"
+                   if self.total_text(c["mob"]) else "")
+                + (f"<br><span style='font-size:13pt; font-weight:600; color:#5ee39a'>"
+                   f"{self.remaining_text(_pid, c['mob'])}</span>" if self.remaining_text(_pid, c["mob"]) else ""))
             self.card.souls = self.soul_line(_pid) if _pid else ""
+            self.card.total = self.total_text(c["mob"])
+            self.card.goal = self.remaining_text(_pid, c["mob"])
             self.card.refresh(rebuild_map=rebuild, pet_name=pname)
+            self.goal_w.setVisible(bool(_pid))
+            if _pid:
+                self._syncing = True
+                self.goal_label.setText(T("Almas de {p}:").format(p=pname))
+                self.have_spin.setValue(self.have(_pid))
+                self.goal_spin.setValue(int(c["soul_goal"].get(_pid, 0) or 0))
+                self._syncing = False
         else:
+            self.goal_w.setVisible(False)
             self.now_label.setText(T("Nenhum farm ainda. Mate um monstro de pet (veja a lista abaixo) "
                                      "e o farm começa sozinho."))
 
@@ -486,6 +652,13 @@ class FarmTab(QWidget):
         t["kills"] += 1
         t["last"] = now
         pid, _pname = self.pet_of(mob)
+        if pid:                                   # histórico desde sempre (só mobs que dão alma de pet)
+            h = hist(mob)
+            h["kills"] += 1
+            h["world"] = wid
+            h["last"] = now
+            self._last_kill = (mob, now)
+            self.refresh_history()
         if pid and (not c["active"] or c["mob"] != mob):
             data = self.panel.hub.reader.world.sp.by_name.get((wid, mob)) if self.hub.reader and self.hub.reader.world else None
             coords = data[1] if data else []
@@ -502,7 +675,18 @@ class FarmTab(QWidget):
         pid, n = ev["pet"], ev["n"]
         c["soul_tally"][pid] = c["soul_tally"].get(pid, 0) + n
         c["soul_total"][pid] = c["soul_total"].get(pid, 0) + n
+        c["pet_have"][pid] = self.have(pid) + n
+        # a alma vem logo depois do abate: fica com o último mob morto que dá esse pet
+        mob = None
+        last = getattr(self, "_last_kill", None)
+        if last and self.suggest.get(last[0]) == pid and time.time() - last[1] < 20:
+            mob = last[0]
+        elif c["active"] and self.suggest.get(c["mob"]) == pid:
+            mob = c["mob"]
+        if mob:
+            hist(mob)["souls"] += n
         save()
+        self.refresh_history()
         self.refresh_all()
         self._here_key = None
         self.refresh_here()
@@ -563,8 +747,8 @@ class FarmTab(QWidget):
             return
         region = region_at(wid, *pos) if pos else ""
         key = (wid, region, int(pos[0] // 2000) if pos else 0, int(pos[1] // 2000) if pos else 0,
-               tuple(sorted((m, t["kills"]) for m, t in c["tally"].items())), c["mob"],
-               tuple(sorted(c["soul_tally"].items())))
+               tuple(sorted((m, t.get("kills", 0), t.get("souls", 0)) for m, t in c["history"].items())), c["mob"],
+               tuple(sorted(c["pet_have"].items())), tuple(sorted(c["soul_goal"].items())))
         if key == getattr(self, "_here_key", None):
             return
         self._here_key = key
@@ -586,19 +770,56 @@ class FarmTab(QWidget):
         rows.sort(key=lambda r: r[0])
         self.here.clear()
         for dist, name, pid, n, co in rows[:40]:
-            kills = c["tally"].get(name, {}).get("kills", 0)
+            h = c["history"].get(name, {})
+            kills, souls = h.get("kills", 0), h.get("souls", 0)
             d = (f"{dist / 100:.0f} m" if dist < 100000 else f"{dist / 100000:.1f} km") if pos else f"{n} spawns"
-            souls = c["soul_tally"].get(pid, 0)
             it = QTreeWidgetItem([N(name), self.pet_names.get(pid, ""), d, str(kills) if kills else "",
-                                  str(souls) if souls else ""])
+                                  str(souls) if souls else "", self.remaining_text(pid, name, short=True)])
             it.setData(0, Qt.UserRole, (wid, name))
             if c["active"] and c["mob"] == name:
-                for col in range(5):
+                for col in range(6):
                     it.setForeground(col, QColor("#f4d58c"))
             self.here.addTopLevelItem(it)
         where = world_name(wid) + (f" · {N(region)}" if region else "")
         self.here_label.setText(T("Você está em {w}: {n} monstro(s) que dão alma de pet.").format(w=where, n=len(rows))
                                 if pos else T("{w}: {n} monstro(s) que dão alma de pet.").format(w=where, n=len(rows)))
+
+    def refresh_history(self):
+        c = farm_cfg()
+        items = sorted(c["history"].items(), key=lambda kv: -(kv[1].get("last") or 0))
+        self.hist_tree.clear()
+        for mob, h in items:
+            pid = self.suggest.get(mob, "")
+            it = QTreeWidgetItem([N(mob), self.pet_names.get(pid, ""), str(h.get("kills", 0)),
+                                  str(h.get("souls", 0)), ratio_text(h.get("kills", 0), h.get("souls", 0)),
+                                  self.remaining_text(pid, mob, short=True)])
+            it.setData(0, Qt.UserRole, (h.get("world") or "", mob))
+            if c["active"] and c["mob"] == mob:
+                for col in range(6):
+                    it.setForeground(col, QColor("#f4d58c"))
+            self.hist_tree.addTopLevelItem(it)
+        k = sum(h.get("kills", 0) for h in c["history"].values())
+        s = sum(h.get("souls", 0) for h in c["history"].values())
+        self.hist_label.setText(T("{m} mob(s) · {k} abates · {s} alma(s) no total").format(m=len(items), k=k, s=s)
+                                if items else T("Nada ainda: cada mob de pet que você matar entra aqui."))
+
+    def pick_hist(self, it, _col=0):
+        wid, name = it.data(0, Qt.UserRole)
+        if wid:
+            self.start_farm(wid, name, None)
+            self.show_on_map(wid, name)
+
+    def clear_history(self):
+        if QMessageBox.question(self, T("Apagar histórico"),
+                                T("Apagar todos os abates e almas salvos dos mobs de pet? Isso não dá para desfazer.")
+                                ) != QMessageBox.Yes:
+            return
+        farm_cfg()["history"] = {}
+        save()
+        self._here_key = None
+        self.refresh_history()
+        self.refresh_all()
+        self.refresh_here()
 
     def pick_here(self, it, _col=0):
         wid, name = it.data(0, Qt.UserRole)

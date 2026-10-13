@@ -29,6 +29,44 @@ CLASSES = {
 }
 NO_CLASS = "#9b9282"
 
+# Aparência do medidor (aba DPS Meter → "Aparência do medidor")
+COLUMNS = [            # da direita para a esquerda: (chave, título, largura)
+    ("pct", "%", 42), ("total", "Total", 56), ("dps", "DPS", 58), ("multi", "Duplo", 40), ("crit", "Crít.", 38),
+]
+LOOK_DEFAULTS = {
+    "scale": 100,          # tamanho, em %
+    "bg": 92,              # fundo, em % (0 = só os números e as barras)
+    "rows": 0,             # máximo de jogadores (0 = todos)
+    "cols": {k: True for k, _t, _w in COLUMNS},
+    "bars": "class",       # "class" = cor da classe; "gold" = uma cor só
+    "hide_names": False,   # mostra a classe no lugar do nome dos outros (bom para gravar / stream)
+    "compact": False,      # linhas mais baixas
+}
+
+
+def look():
+    """Configuração de aparência, sempre completa e dentro dos limites (config.json pode ter sido editado)."""
+    d = cfg.setdefault("dps", {})
+    L = d.get("look")
+    if not isinstance(L, dict):
+        L = d["look"] = {}
+    for k, v in LOOK_DEFAULTS.items():
+        if k == "cols":
+            c = L.get("cols")
+            if not isinstance(c, dict):
+                c = L["cols"] = {}
+            for ck, cv in v.items():
+                if not isinstance(c.get(ck), bool):
+                    c[ck] = cv
+        elif type(L.get(k)) is not type(v):
+            L[k] = v
+    L["scale"] = max(70, min(160, L["scale"]))
+    L["bg"] = max(0, min(100, L["bg"]))
+    L["rows"] = max(0, min(24, L["rows"]))
+    if L["bars"] not in ("class", "gold"):
+        L["bars"] = "class"
+    return L
+
 
 def fmt(n):
     if n >= 1_000_000:
@@ -172,11 +210,17 @@ def hud_path(r, cut=CUT):
     return path
 
 
-def draw_hud_panel(p, rect):
+def draw_hud_panel(p, rect, bg=None):
     from PySide6.QtGui import QLinearGradient
     r = QRectF(rect).adjusted(0.5, 0.5, -0.5, -0.5)
-    p.setPen(QPen(HUD_LINE, 1))
-    p.setBrush(HUD_BG)
+    fill = QColor(HUD_BG)
+    if bg is not None:                     # 0–100 (%), vindo da aparência
+        fill.setAlpha(int(255 * bg / 100))
+    line = QColor(HUD_LINE)
+    if bg is not None and bg < 40:         # fundo quase sumindo: a borda some junto
+        line.setAlpha(int(HUD_LINE.alpha() * bg / 40))
+    p.setPen(QPen(line, 1))
+    p.setBrush(fill)
     p.drawPath(hud_path(r))
     # a única linha "futurista": ouro no topo, apagando para a direita
     g = QLinearGradient(r.left() + CUT, 0, r.left() + r.width() * 0.7, 0)
@@ -210,7 +254,7 @@ class DpsMeter(OverlayWindow):
     ROW = 26
     reset_requested = Signal()
     view_requested = Signal(str)   # "fight" ou "session" (clique no seletor do cabeçalho)
-    row_clicked = Signal(int)      # índice da linha clicada (para o detalhe de habilidades)
+    row_clicked = Signal(object)   # id do jogador da linha clicada (para o detalhe de habilidades)
 
     def __init__(self):
         cfg.setdefault("dps", {}).setdefault("opacity", 0.9)
@@ -221,12 +265,27 @@ class DpsMeter(OverlayWindow):
         self.setMouseTracking(True)
         self.target = T("Bata em algo para começar")
         self.elapsed = 0
-        self.rows = []          # [(nome, classe, dano_total, é_você, crítico%, múltiplo%)]
+        self.rows = []          # [(nome, classe, dano_total, é_você, crítico%, múltiplo%, dps, id)]
+        self.total_all = 0      # dano de todos (mesmo os que ficaram fora pelo limite de linhas)
         self.footer = ""
         self.view = cfg["dps"].get("view", "fight")
         self._hover_reset = False
-        self.setFixedWidth(self.W)
+        self.s = 1.0
+        self.apply_look()
+
+    def apply_look(self):
+        """Relê a aparência (tamanho, linhas, fundo...) e redesenha."""
+        L = look()
+        self.L = L
+        self.s = L["scale"] / 100
+        self.ROW = 21 if L["compact"] else 26
+        self.setFixedWidth(round(self.W * self.s))
         self._resize()
+        self.update()
+
+    def _p(self, e):
+        """Posição do mouse em coordenadas do desenho (sem o tamanho aplicado)."""
+        return e.position() / self.s
 
     # o painel continua clicável mesmo travado (só para o botão); travado = não arrasta
     def set_locked(self, locked):
@@ -242,18 +301,19 @@ class DpsMeter(OverlayWindow):
         return {"fight": QRectF(x, 8, 46, 20), "session": QRectF(x + 48, 8, 58, 20)}
 
     def mousePressEvent(self, e):
-        if e.button() == Qt.LeftButton and self.reset_rect().contains(e.position()):
+        pos = self._p(e)
+        if e.button() == Qt.LeftButton and self.reset_rect().contains(pos):
             self.reset_requested.emit()
             return
         if e.button() == Qt.LeftButton:
             for v, r in self.view_rects().items():
-                if r.contains(e.position()):
+                if r.contains(pos):
                     if v != self.view:
                         self.view = v
                         self.view_requested.emit(v)
                         self.update()
                     return
-        self._press_pos = e.position()
+        self._press_pos = pos
         super().mousePressEvent(e)
 
     def mouseReleaseEvent(self, e):
@@ -262,11 +322,13 @@ class DpsMeter(OverlayWindow):
         self._press_pos = None
         if start is None or e.button() != Qt.LeftButton:
             return
-        if (e.position() - start).manhattanLength() < 5:        # clique (não arraste) numa linha
-            y = e.position().y()
+        pos = self._p(e)
+        if (pos - start).manhattanLength() < 5:        # clique (não arraste) numa linha
+            y = pos.y()
             i = int((y - 56) // self.ROW)
             if y >= 56 and 0 <= i < len(self.rows):
-                self.row_clicked.emit(i)
+                row = self.rows[i]
+                self.row_clicked.emit(row[7] if len(row) > 7 else None)
 
     # o detalhe de habilidades fica sempre colado embaixo
     docked = None
@@ -284,8 +346,8 @@ class DpsMeter(OverlayWindow):
         self._dock()
 
     def mouseMoveEvent(self, e):
-        h = self.reset_rect().contains(e.position()) or any(
-            r.contains(e.position()) for r in self.view_rects().values())
+        pos = self._p(e)
+        h = self.reset_rect().contains(pos) or any(r.contains(pos) for r in self.view_rects().values())
         if h != self._hover_reset:
             self._hover_reset = h
             self.setCursor(Qt.PointingHandCursor if h else Qt.ArrowCursor)
@@ -294,18 +356,35 @@ class DpsMeter(OverlayWindow):
 
     def set_data(self, target, elapsed, rows, footer=""):
         self.target, self.elapsed, self.footer = target, elapsed, footer
-        self.rows = sorted(rows, key=lambda r: -r[2])
+        rows = sorted(rows, key=lambda r: -r[2])
+        self.total_all = sum(r[2] for r in rows)
+        n = look()["rows"]
+        if n and len(rows) > n:
+            shown = rows[:n]
+            if not any(r[3] for r in shown):            # você sempre aparece, mesmo fora do limite
+                mine = next((r for r in rows if r[3]), None)
+                if mine:
+                    shown[-1] = mine
+            rows = shown
+        self.rows = rows
         self._resize()
         self.update()
 
+    def _lh(self):
+        return 56 + max(1, len(self.rows)) * self.ROW + 28
+
     def _resize(self):
-        self.setFixedHeight(56 + max(1, len(self.rows)) * self.ROW + 28)
+        self.setFixedHeight(round(self._lh() * self.s))
 
     def paintEvent(self, e):
         p = QPainter(self)
         p.setRenderHint(QPainter.Antialiasing)
         p.setRenderHint(QPainter.TextAntialiasing)
-        draw_hud_panel(p, self.rect())
+        p.scale(self.s, self.s)
+        L = self.L
+        cols_on = [(k, t, w) for k, t, w in COLUMNS if L["cols"].get(k, True)]
+        cols_w = sum(w for _k, _t, w in cols_on)
+        draw_hud_panel(p, QRectF(0, 0, self.W, self._lh()), L["bg"])
         pad = 14
         # ---- cabeçalho: título, Luta | Sessão, relógio, zerar
         p.setPen(HUD_TEXT)
@@ -338,17 +417,17 @@ class DpsMeter(OverlayWindow):
         p.drawEllipse(QPointF(pad + 4, 43), 3, 3)
         p.setPen(HUD_TEXT if live else HUD_MUTED)
         p.setFont(label_font(8))
-        state_w = self.W - pad - 6 - 234 - (pad + 12) - 8          # até onde começam as colunas
+        state_w = self.W - pad - 6 - cols_w - (pad + 12) - 8       # até onde começam as colunas
         p.drawText(QRectF(pad + 12, 35, state_w, 16), Qt.AlignLeft | Qt.AlignVCenter,
                    p.fontMetrics().elidedText(self.target, Qt.ElideRight, state_w))
         p.setPen(HUD_MUTED)
         p.setFont(label_font(7.5))
         x = self.W - pad - 6
-        for txt, w in (("%", 42), (T("Total"), 56), ("DPS", 58), (T("Duplo"), 40), (T("Crít."), 38)):
-            p.drawText(QRectF(x - w, 35, w, 16), Qt.AlignRight | Qt.AlignVCenter, txt)
+        for _k, txt, w in cols_on:
+            p.drawText(QRectF(x - w, 35, w, 16), Qt.AlignRight | Qt.AlignVCenter, T(txt))
             x -= w
 
-        total = sum(r[2] for r in self.rows) or 1
+        total = self.total_all or sum(r[2] for r in self.rows) or 1
         top = self.rows[0][2] if self.rows else 1
         dur = max(1, self.elapsed)
         y = 56
@@ -363,7 +442,7 @@ class DpsMeter(OverlayWindow):
             name, cls, dmg, me = row[:4]
             crit, multi = (row[4], row[5]) if len(row) > 5 else (None, None)
             r = QRectF(pad, y, self.W - 2 * pad, self.ROW - 4)
-            c = QColor(CLASSES.get(cls, ("", NO_CLASS))[1])
+            c = QColor(HUD_GOLD) if L["bars"] == "gold" else QColor(CLASSES.get(cls, ("", NO_CLASS))[1])
             # trilho + preenchimento suave na cor da classe + linha fina embaixo
             p.fillRect(r, QColor(255, 255, 255, 9))
             frac = max(0.0, min(1.0, dmg / top))
@@ -384,12 +463,12 @@ class DpsMeter(OverlayWindow):
             ic = QRectF(r.x() + 4, r.y() + 2, r.height() - 4, r.height() - 4)
             draw_class_icon(p, cls, ic)
             dps = row[6] if len(row) > 6 and row[6] else dmg / dur
-            cols = [(f"{dmg / total * 100:.1f}%", 42, num_font(9.5, QFont.Medium), HUD_MUTED),
-                    (fmt(dmg), 56, num_font(10, QFont.Medium), QColor(255, 255, 255, 200)),
-                    (fmt(dps), 58, num_font(11.5), HUD_TEXT)]
-            if crit is not None:
-                cols += [(f"{multi * 100:.0f}%", 40, num_font(9.5, QFont.Medium), HUD_MUTED),
-                         (f"{crit * 100:.0f}%", 38, num_font(9.5, QFont.Medium), HUD_MUTED)]
+            cell = {"pct": (f"{dmg / total * 100:.1f}%", num_font(9.5, QFont.Medium), HUD_MUTED),
+                    "total": (fmt(dmg), num_font(10, QFont.Medium), QColor(255, 255, 255, 200)),
+                    "dps": (fmt(dps), num_font(11.5), HUD_TEXT),
+                    "multi": ("" if multi is None else f"{multi * 100:.0f}%", num_font(9.5, QFont.Medium), HUD_MUTED),
+                    "crit": ("" if crit is None else f"{crit * 100:.0f}%", num_font(9.5, QFont.Medium), HUD_MUTED)}
+            cols = [(cell[k][0], w, cell[k][1], cell[k][2]) for k, _t, w in cols_on]
             p.setPen(HUD_TEXT)
             p.setFont(f_name)
             name_w = int(r.width() - ic.width() - 16 - sum(c_[1] for c_ in cols))
@@ -407,7 +486,7 @@ class DpsMeter(OverlayWindow):
         p.drawLine(QPointF(pad, y + 1), QPointF(self.W - pad - CUT, y + 1))
         p.setPen(HUD_MUTED)
         p.setFont(label_font(7.5))
-        shown = sum(r[2] for r in self.rows)
+        shown = self.total_all or sum(r[2] for r in self.rows)
         p.drawText(QRectF(pad, y + 4, self.W - 2 * pad, 18), Qt.AlignLeft | Qt.AlignVCenter,
                    f"{T('Total')} {fmt(shown)}   ·   {fmt(shown / dur)}/s" + (f"   ·   {self.footer}" if self.footer else ""))
         p.end()
@@ -428,8 +507,17 @@ class SkillPanel(OverlayWindow):
         self.who = ""
         self.cls = None
         self.rows = []
-        self.setFixedWidth(self.W)
+        self.s = 1.0
+        self.apply_look()
+
+    def apply_look(self):
+        L = look()
+        self.L = L
+        self.s = L["scale"] / 100
+        self.ROW = 21 if L["compact"] else 24
+        self.setFixedWidth(round(self.W * self.s))
         self._resize()
+        self.update()
 
     def set_locked(self, locked):          # vai junto com o medidor; não se arrasta sozinho
         self._locked = locked
@@ -443,15 +531,19 @@ class SkillPanel(OverlayWindow):
         self._resize()
         self.update()
 
+    def _lh(self):
+        return 46 + max(1, len(self.rows)) * self.ROW + 28
+
     def _resize(self):
-        self.setFixedHeight(46 + max(1, len(self.rows)) * self.ROW + 28)
+        self.setFixedHeight(round(self._lh() * self.s))
 
     def paintEvent(self, e):
         import skills_db
         p = QPainter(self)
         p.setRenderHint(QPainter.Antialiasing)
         p.setRenderHint(QPainter.SmoothPixmapTransform)
-        draw_hud_panel(p, self.rect())
+        p.scale(self.s, self.s)
+        draw_hud_panel(p, QRectF(0, 0, self.W, self._lh()), self.L["bg"])
         pad = 14
         tx = pad + 2
         if self.cls in CLASSES:

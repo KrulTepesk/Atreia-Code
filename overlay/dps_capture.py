@@ -20,7 +20,7 @@ from PySide6.QtWidgets import (QCheckBox, QComboBox, QFormLayout, QGroupBox, QHB
 from i18n import T
 from config import APP_DIR, cfg, save
 from dps_live import GAME_PORT
-from dps_meter import CLASSES, DpsMeter, SkillPanel
+from dps_meter import CLASSES, COLUMNS, LOOK_DEFAULTS, DpsMeter, SkillPanel, look
 
 CAPTURE_DIR = os.path.join(APP_DIR, "capturas")
 
@@ -332,11 +332,6 @@ class DpsTab(QWidget):
         self.chk_auto.setChecked(d["autostart"])
         self.chk_auto.toggled.connect(lambda on: (cfg["dps"].__setitem__("autostart", on), save()))
         f.addRow(self.chk_auto)
-        op = QSlider(Qt.Horizontal)
-        op.setRange(30, 100)
-        op.setValue(int(cfg["dps"].get("opacity", 0.9) * 100))
-        op.valueChanged.connect(self.set_opacity)
-        f.addRow("Transparência:", op)
         self.live_status = QLabel("")
         self.live_status.setWordWrap(True)
         self.live_status.setStyleSheet("color:#9b9282;")
@@ -348,6 +343,7 @@ class DpsTab(QWidget):
         note_live.setStyleSheet("color:#9b9282;")
         f.addRow(note_live)
         bl.addWidget(g_live)
+        bl.addWidget(self._look_box())
 
         # ---- gravação (diagnóstico)
         g_rec = QGroupBox("Gravar captura (diagnóstico, para corrigir o medidor depois de atualizações)")
@@ -405,6 +401,163 @@ class DpsTab(QWidget):
         if self.enable.isChecked() and d["autostart"] and npcap_installed() and is_admin():
             QTimer.singleShot(1500, self.toggle_live)
 
+    # ------------------------------------------------------------------ aparência
+    def _look_box(self):
+        L = look()
+        g = QGroupBox("Aparência do medidor")
+        f = QFormLayout(g)
+        self.look_w = {}
+
+        def slider(key, lo, hi, suffix, getter, setter):
+            row = QHBoxLayout()
+            sl = QSlider(Qt.Horizontal)
+            sl.setRange(lo, hi)
+            sl.setValue(getter())
+            val = QLabel(f"{getter()}{suffix}")
+            val.setMinimumWidth(42)
+            val.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+
+            def changed(v):
+                val.setText(f"{v}{suffix}")
+                setter(v)
+            sl.valueChanged.connect(changed)
+            row.addWidget(sl, 1)
+            row.addWidget(val)
+            self.look_w[key] = sl
+            return row
+
+        f.addRow("Tamanho:", slider("scale", 70, 160, "%", lambda: look()["scale"],
+                                    lambda v: self.set_look("scale", v)))
+        f.addRow("Fundo:", slider("bg", 0, 100, "%", lambda: look()["bg"], lambda v: self.set_look("bg", v)))
+        f.addRow("Transparência geral:", slider("opacity", 30, 100, "%",
+                                                lambda: int(round(cfg["dps"].get("opacity", 0.9) * 100)),
+                                                self.set_opacity))
+        rows = QComboBox()
+        rows.addItem(T("Todos"), 0)
+        for n in (3, 4, 5, 6, 8, 10):
+            rows.addItem(T("Até {n}").format(n=n), n)
+        rows.setCurrentIndex(max(0, rows.findData(L["rows"])))
+        rows.currentIndexChanged.connect(lambda _i: self.set_look("rows", rows.currentData()))
+        self.look_w["rows"] = rows
+        f.addRow("Jogadores na lista:", rows)
+        bars = QComboBox()
+        bars.addItem(T("Cor da classe"), "class")
+        bars.addItem(T("Uma cor só (dourado)"), "gold")
+        bars.setCurrentIndex(max(0, bars.findData(L["bars"])))
+        bars.currentIndexChanged.connect(lambda _i: self.set_look("bars", bars.currentData()))
+        self.look_w["bars"] = bars
+        f.addRow("Cor das barras:", bars)
+
+        cols = QHBoxLayout()
+        names = {"crit": "Crítico", "multi": "Duplo", "dps": "DPS", "total": "Total", "pct": "%"}
+        for key, _t, _w in reversed(COLUMNS):                 # na ordem em que aparecem (esquerda → direita)
+            cb = QCheckBox(T(names[key]))
+            cb.setChecked(L["cols"].get(key, True))
+            cb.toggled.connect(lambda on, k=key: self.set_look_col(k, on))
+            self.look_w["col_" + key] = cb
+            cols.addWidget(cb)
+        cols.addStretch()
+        f.addRow("Colunas:", cols)
+        compact = QCheckBox("Linhas compactas")
+        compact.setChecked(L["compact"])
+        compact.toggled.connect(lambda on: self.set_look("compact", on))
+        self.look_w["compact"] = compact
+        f.addRow(compact)
+        hide = QCheckBox("Esconder o nome dos outros jogadores (mostra só a classe — bom para gravar ou fazer live)")
+        hide.setChecked(L["hide_names"])
+        hide.toggled.connect(lambda on: self.set_look("hide_names", on))
+        self.look_w["hide_names"] = hide
+        f.addRow(hide)
+
+        row = QHBoxLayout()
+        prev = QPushButton("Ver prévia na tela")
+        prev.clicked.connect(self.preview_look)
+        rst = QPushButton("Restaurar padrão")
+        rst.clicked.connect(self.reset_look)
+        row.addWidget(prev)
+        row.addStretch()
+        row.addWidget(rst)
+        f.addRow(row)
+        hint = QLabel("As mudanças aparecem na hora. A prévia mostra o medidor com dados de exemplo por 10 s "
+                      "(destrave os overlays para arrastá-lo).")
+        hint.setWordWrap(True)
+        hint.setStyleSheet("color:#9b9282;")
+        f.addRow(hint)
+        return g
+
+    def _apply_look(self):
+        save()
+        self.meter.apply_look()
+        self.skills.apply_look()
+        if self._last and (self.reader or self._previewing):
+            self.on_live(self._last)
+
+    def set_look(self, key, value):
+        look()[key] = value
+        self._apply_look()
+
+    def set_look_col(self, key, on):
+        look()["cols"][key] = on
+        self._apply_look()
+
+    def reset_look(self):
+        import copy
+        cfg["dps"]["look"] = copy.deepcopy(LOOK_DEFAULTS)
+        cfg["dps"]["opacity"] = 0.9
+        L = look()
+        w = self.look_w
+        for key in ("scale", "bg"):
+            w[key].setValue(L[key])
+        w["opacity"].setValue(90)
+        w["rows"].setCurrentIndex(max(0, w["rows"].findData(L["rows"])))
+        w["bars"].setCurrentIndex(max(0, w["bars"].findData(L["bars"])))
+        for key, _t, _w in COLUMNS:
+            w["col_" + key].setChecked(True)
+        w["compact"].setChecked(L["compact"])
+        w["hide_names"].setChecked(L["hide_names"])
+        self._apply_look()
+
+    _previewing = False
+
+    def preview_look(self):
+        """Mostra o medidor com dados de exemplo por 10 s (só quando ele não está lendo o jogo)."""
+        if self.reader:
+            self._show_overlays()
+            return
+        demo = [(1, "Krul", "gl", 1_284_500, True, 0.34, 0.21), (2, "Aeris", "so", 1_102_300, False, 0.29, 0.12),
+                (3, "Lunna", "ra", 865_900, False, 0.41, 0.09), (4, "Thoran", "te", 512_400, False, 0.18, 0.15),
+                (5, "Mirae", "cl", 143_700, False, 0.12, 0.04), (6, "Kael", "as", 98_200, False, 0.37, 0.25)]
+        snap = {"rows": [{"id": i, "name": n, "cls": c, "dmg": d, "me": me, "crit": cr, "multi": mu,
+                          "dps": d / 75} for i, n, c, d, me, cr, mu in demo],
+                "found_me": True, "active": True, "elapsed": 75, "my_heal": 0,
+                "skills": {1: [{"skill": 1, "name": T("Golpe de exemplo"), "dmg": 642_000, "heal": 0, "hits": 31,
+                                "crit": 11, "cls": "gl"},
+                               {"skill": 2, "name": T("Outro golpe"), "dmg": 401_500, "heal": 0, "hits": 18,
+                                "crit": 6, "cls": "gl"}]}}
+        self._previewing = True
+        self.sel_id = None
+        self.on_live(snap)
+        self.meter.restore_position()
+        self._show_overlays()
+        self.meter.set_locked(cfg.get("locked", False))
+        QTimer.singleShot(10000, self._end_preview)
+
+    def _end_preview(self):
+        if not self._previewing:
+            return
+        self._previewing = False
+        if not self.reader:
+            self._hide_overlays()
+            self._last = None
+            self.meter.set_data(T("Bata em algo para começar"), 0, [])
+            self.skills.set_data("", None, [])
+
+    def display_name(self, r):
+        cname = T(CLASSES[r["cls"]][0]) if r.get("cls") in CLASSES else ""
+        if not r["me"] and look()["hide_names"]:
+            return cname or T("Jogador")
+        return r["name"] or (T("Você") if r["me"] else (cname or f"#{r['id']}"))
+
     # ------------------------------------------------------------------ medidor ao vivo
     def save_char_name(self):
         cfg["dps"]["char_name"] = self.char_name.text().strip()
@@ -434,13 +587,12 @@ class DpsTab(QWidget):
         else:
             self.skills.hide()
 
-    def select_row(self, i):
+    def select_row(self, pid):
         snap = self._last
-        if not snap:
+        if not snap or pid is None:
             return
-        rows = sorted(snap["rows"], key=lambda r: -r["dmg"])
-        if 0 <= i < len(rows):
-            self.sel_id = rows[i]["id"]
+        if any(r["id"] == pid for r in snap["rows"]):
+            self.sel_id = pid
             self.on_live(snap)
 
     def set_mode(self, _i):
@@ -519,9 +671,8 @@ class DpsTab(QWidget):
     def on_live(self, snap):
         rows = []
         for r in snap["rows"]:
-            cname = T(CLASSES[r["cls"]][0]) if r.get("cls") in CLASSES else ""
-            name = r["name"] or (T("Você") if r["me"] else (cname or f"#{r['id']}"))
-            rows.append((name, r.get("cls"), r["dmg"], r["me"], r["crit"], r["multi"], r.get("dps")))
+            rows.append((self.display_name(r), r.get("cls"), r["dmg"], r["me"], r["crit"], r["multi"], r.get("dps"),
+                         r["id"]))
         if cfg["dps"].get("mode") == "party" and not snap.get("found_me"):
             state = T("Procurando o seu personagem...")
         else:
@@ -539,9 +690,7 @@ class DpsTab(QWidget):
             who = me[0] if me else (max(snap["rows"], key=lambda r: r["dmg"])["id"] if snap["rows"] else None)
         r = next((x for x in snap["rows"] if x["id"] == who), None)
         if r:
-            cname = T(CLASSES[r["cls"]][0]) if r.get("cls") in CLASSES else ""
-            name = r["name"] or (T("Você") if r["me"] else (cname or f"#{r['id']}"))
-            self.skills.set_data(name, r.get("cls"), snap.get("skills", {}).get(who, []))
+            self.skills.set_data(self.display_name(r), r.get("cls"), snap.get("skills", {}).get(who, []))
         else:
             self.skills.set_data("", None, [])
 
