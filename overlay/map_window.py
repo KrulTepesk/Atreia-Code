@@ -262,8 +262,8 @@ class MapWindow(QWidget):
             cb.setIconSize(QSize(22, 22))
             cb.toggled.connect(self.apply_filters)
             if k == "cube":
-                cb.setToolTip(T("Locais onde o Hidden Cube PODE nascer (dados do interactivemap.app / "
-                                "gamers4.life). Não é garantido: o cubo aparece só em alguns deles."))
+                cb.setToolTip(T("Locais onde o Hidden Cube PODE nascer. Não é garantido: o cubo aparece só em "
+                                "alguns deles."))
             self.cat_checks[k] = cb
             cl.addWidget(cb)
         cube_note = QLabel("Hidden Cube: são locais onde ele pode nascer, não aparece em todos.")

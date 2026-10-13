@@ -98,7 +98,7 @@ ES = {
     'amanhã': 'mañana',
     'Posicionar': 'Posicionar',
     'Some em 10 s': 'Desaparece en 10 s',
-    'Toca um som quando você mata alguém. Não aparece nada na tela, é só o som. Funciona reconhecendo a mensagem de abate do jogo: só olha a tela (como o OBS), não lê memória, pacotes nem arquivos do jogo.': 'Reproduce un sonido cuando matas a alguien. No aparece nada en pantalla, solo el sonido. Funciona reconociendo el mensaje de muerte del juego: solo mira la pantalla (como OBS), no lee memoria, paquetes ni archivos del juego.',
+    
     '1. Imagem de referência da mensagem de abate': '1. Imagen de referencia del mensaje de muerte',
     'Definir referência a partir de um print...': 'Definir referencia desde una captura...',
     'Nenhuma referência definida ainda.': 'Todavía no hay referencia definida.',
@@ -240,7 +240,7 @@ ES = {
     'Etapa 1 — gravar uma captura para mapear os pacotes de dano': 'Paso 1 — grabar una captura para mapear los paquetes de daño',
     'Instalar Npcap': 'Instalar Npcap',
     'Reabrir como administrador': 'Reabrir como administrador',
-    '<b>Por que precisa do Npcap?</b> O medidor de DPS calcula o dano lendo o tráfego de rede do jogo. O Npcap é um driver de rede para Windows (o mesmo usado pelo Wireshark) que deixa um programa ler uma <i>cópia</i> dos dados que passam pela sua internet. O overlay usa isso para ler só o tráfego do Aion 2: não altera, não bloqueia e não envia nada, e não mexe nos arquivos do jogo. Sem o Npcap só o DPS deixa de funcionar; o resto do overlay continua normal.': '<b>¿Por qué hace falta Npcap?</b> El medidor de DPS calcula el daño leyendo el tráfico de red del juego. Npcap es un controlador de red para Windows (el mismo que usa Wireshark) que deja a un programa leer una <i>copia</i> de los datos que pasan por tu internet. El overlay lo usa para leer solo el tráfico de Aion 2: no cambia, no bloquea ni envía nada, y no toca los archivos del juego. Sin Npcap solo deja de funcionar el DPS; el resto del overlay sigue normal.',
+    
     '1. Instale o Npcap (botão acima) deixando marcado "WinPcap API-compatible Mode".\n2. Clique em "Reabrir como administrador" (a captura precisa dessa permissão).\n3. Entre no jogo, vá até um boneco de treino e escolha o processo do jogo abaixo.\n4. Clique em Gravar. Bata no boneco uns 20–30 s, usando 2 ou 3 habilidades diferentes.\n   Aperte "Marcar" no instante do primeiro golpe (e escreva o dano que apareceu, se der).\n5. Pare a gravação e envie o arquivo .pcap + alguns prints com os números de dano ao desenvolvedor.': '1. Instala Npcap (botón de arriba) dejando marcado "WinPcap API-compatible Mode".\n2. Haz clic en "Reabrir como administrador" (la captura necesita ese permiso).\n3. Entra al juego, ve a un muñeco de entrenamiento y elige el proceso del juego abajo.\n4. Haz clic en Grabar. Golpea el muñeco unos 20–30 s, usando 2 o 3 habilidades distintas.\n   Pulsa "Marcar" en el instante del primer golpe (y escribe el daño que apareció, si puedes).\n5. Detén la grabación y envía el archivo .pcap + algunas capturas con los números de daño al desarrollador.',
     'Processo:': 'Proceso:',
     'Atualizar lista': 'Actualizar lista',
@@ -412,12 +412,12 @@ ES = {
     'morto às {h} (defina o tempo)': 'murió a las {h} (define el tiempo)',
     'renasce em {t} ({h})': 'reaparece en {t} ({h})',
     'vivo (renasceu às {h})': 'vivo (reapareció a las {h})',
-    'Tempos do servidor coreano (thegameswiki.com, valores reduzidos desde 17/12/2025); no seu servidor podem ser outros — dá para mudar na aba.': 'Tiempos del servidor coreano (thegameswiki.com, valores reducidos desde el 17/12/2025); en tu servidor pueden ser otros — puedes cambiarlos aquí.',
+    
     'Atalho (funciona dentro do jogo): Ctrl+Alt+R = zerar o medidor de DPS': 'Atajo (funciona dentro del juego): Ctrl+Alt+R = reiniciar el medidor de DPS',
     'Español': 'Español',
     'Hidden Cube (possível)': 'Cubo oculto (posible)',
     'Local onde o cubo pode nascer — não aparece sempre.': 'Lugar donde el cubo puede aparecer — no siempre está.',
-    'Locais onde o Hidden Cube PODE nascer (dados do interactivemap.app / gamers4.life). Não é garantido: o cubo aparece só em alguns deles.': 'Lugares donde el Hidden Cube PUEDE aparecer (datos de interactivemap.app / gamers4.life). No es seguro: el cubo solo aparece en algunos.',
+    
     'Hidden Cube: são locais onde ele pode nascer, não aparece em todos.': 'Hidden Cube: son lugares donde puede aparecer, no aparece en todos.',
     '{n} alma(s)': '{n} alma(s)',
     '1 a cada {r} abates': '1 cada {r} bajas',
@@ -453,4 +453,10 @@ ES = {
     'Não deu para baixar ou conferir o instalador agora; abrindo a página oficial.': 'No se pudo descargar o verificar el instalador ahora; abriendo la página oficial.',
     'Farm de pet (experimental)': 'Farm de mascotas (experimental)',
     'experimental': 'experimental',
+    # ---- textos sem menção a outros sites/programas
+    '<b>Por que precisa do Npcap?</b> O medidor de DPS calcula o dano lendo o tráfego de rede do jogo. O Npcap é um driver de rede para Windows que deixa um programa ler uma <i>cópia</i> dos dados que passam pela sua internet. O overlay usa isso para ler só o tráfego do Aion 2: não altera, não bloqueia e não envia nada, e não mexe nos arquivos do jogo. Sem o Npcap só o DPS deixa de funcionar; o resto do overlay continua normal.': '<b>¿Por qué hace falta Npcap?</b> El medidor de DPS calcula el daño leyendo el tráfico de red del juego. Npcap es un controlador de red para Windows que deja a un programa leer una <i>copia</i> de los datos que pasan por tu internet. El overlay lo usa para leer solo el tráfico de Aion 2: no cambia, no bloquea ni envía nada, y no toca los archivos del juego. Sin Npcap solo deja de funcionar el DPS; el resto del overlay sigue normal.',
+    'Locais onde o Hidden Cube PODE nascer. Não é garantido: o cubo aparece só em alguns deles.': 'Lugares donde el Hidden Cube PUEDE aparecer. No es seguro: el cubo solo aparece en algunos.',
+    'Tempos do servidor coreano (valores reduzidos desde 17/12/2025); no seu servidor podem ser outros — dá para mudar na aba.': 'Tiempos del servidor coreano (valores reducidos desde el 17/12/2025); en tu servidor pueden ser otros — puedes cambiarlos aquí.',
+    'O programa reconhece qual parte do mapa aparece no minimapa do Alt+M e desenha os recursos por cima dele, seguindo quando você anda ou dá zoom. Usa os mesmos filtros do mapa completo (tipos, material, esconder coletados) e mostra também os spawns do farm de pet. Só olha a tela.': 'El programa reconoce qué parte del mapa aparece en el minimapa del Alt+M y dibuja los recursos encima, siguiéndote cuando caminas o haces zoom. Usa los mismos filtros del mapa completo (tipos, material, ocultar recolectados) y también muestra las apariciones del farmeo de mascotas. Solo mira la pantalla.',
+    'Avisar do Festival Shugo': 'Avisar del Festival Shugo',
 }

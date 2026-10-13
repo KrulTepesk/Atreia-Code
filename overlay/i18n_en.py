@@ -69,10 +69,7 @@ EN = {
     "{t} no seu relógio": "{t} on your clock", "hoje": "today", "amanhã": "tomorrow",
     "Posicionar": "Position", "Some em 10 s": "Disappears in 10 s",
     # ---- pvp
-    "Toca um som quando você mata alguém. Não aparece nada na tela, é só o som. Funciona reconhecendo a mensagem "
-    "de abate do jogo: só olha a tela (como o OBS), não lê memória, pacotes nem arquivos do jogo.":
-        "Plays a sound when you kill someone. Nothing shows on screen, just the sound. It works by recognizing the "
-        "game's kill message: it only looks at the screen (like OBS), it doesn't read memory, packets or game files.",
+    
     "1. Imagem de referência da mensagem de abate": "1. Reference image of the kill message",
     "Definir referência a partir de um print...": "Set reference from a screenshot...",
     "Nenhuma referência definida ainda.": "No reference set yet.", "2. Onde procurar": "2. Where to look",
@@ -187,16 +184,7 @@ EN = {
     "Ligar módulo DPS": "Enable DPS module",
     "Etapa 1 — gravar uma captura para mapear os pacotes de dano": "Step 1 — record a capture to map the damage packets",
     "Instalar Npcap": "Install Npcap", "Reabrir como administrador": "Reopen as administrator",
-    "<b>Por que precisa do Npcap?</b> O medidor de DPS calcula o dano lendo o tráfego de rede do jogo. O Npcap é um "
-    "driver de rede para Windows (o mesmo usado pelo Wireshark) que deixa um programa ler uma <i>cópia</i> dos dados "
-    "que passam pela sua internet. O overlay usa isso para ler só o tráfego do Aion 2: não altera, não bloqueia e não "
-    "envia nada, e não mexe nos arquivos do jogo. Sem o Npcap só o DPS deixa de funcionar; o resto do overlay "
-    "continua normal.":
-        "<b>Why is Npcap needed?</b> The DPS meter calculates damage by reading the game's network traffic. Npcap is a "
-        "Windows network driver (the same one used by Wireshark) that lets a program read a <i>copy</i> of the data "
-        "going through your internet connection. The overlay uses it to read only Aion 2's traffic: it doesn't change, "
-        "block or send anything, and it doesn't touch the game files. Without Npcap only the DPS stops working; the "
-        "rest of the overlay works normally.",
+    
     "1. Instale o Npcap (botão acima) deixando marcado \"WinPcap API-compatible Mode\".\n"
     "2. Clique em \"Reabrir como administrador\" (a captura precisa dessa permissão).\n"
     "3. Entre no jogo, vá até um boneco de treino e escolha o processo do jogo abaixo.\n"
@@ -374,12 +362,12 @@ EN = {
     'morto às {h} (defina o tempo)': 'died at {h} (set the time)',
     'renasce em {t} ({h})': 'respawns in {t} ({h})',
     'vivo (renasceu às {h})': 'alive (respawned at {h})',
-    'Tempos do servidor coreano (thegameswiki.com, valores reduzidos desde 17/12/2025); no seu servidor podem ser outros — dá para mudar na aba.': 'Korean server times (thegameswiki.com, reduced values since 12/17/2025); your server may differ — you can change them here.',
+    
     'Atalho (funciona dentro do jogo): Ctrl+Alt+R = zerar o medidor de DPS': 'Shortcut (works inside the game): Ctrl+Alt+R = reset the DPS meter',
     'Español': 'Español',
     'Hidden Cube (possível)': 'Hidden Cube (possible)',
     'Local onde o cubo pode nascer — não aparece sempre.': "A spot where the cube can spawn — it doesn't always appear.",
-    'Locais onde o Hidden Cube PODE nascer (dados do interactivemap.app / gamers4.life). Não é garantido: o cubo aparece só em alguns deles.': 'Spots where the Hidden Cube CAN spawn (data from interactivemap.app / gamers4.life). Not guaranteed: the cube only appears in some of them.',
+    
     'Hidden Cube: são locais onde ele pode nascer, não aparece em todos.': "Hidden Cube: these are spots where it can spawn, it doesn't appear in all of them.",
     '{n} alma(s)': '{n} soul(s)',
     '1 a cada {r} abates': '1 every {r} kills',
@@ -415,4 +403,10 @@ EN = {
     'Não deu para baixar ou conferir o instalador agora; abrindo a página oficial.': "Couldn't download or verify the installer right now; opening the official page.",
     "Farm de pet (experimental)": "Pet farming (experimental)",
     "experimental": "experimental",
+    # ---- textos sem menção a outros sites/programas
+    '<b>Por que precisa do Npcap?</b> O medidor de DPS calcula o dano lendo o tráfego de rede do jogo. O Npcap é um driver de rede para Windows que deixa um programa ler uma <i>cópia</i> dos dados que passam pela sua internet. O overlay usa isso para ler só o tráfego do Aion 2: não altera, não bloqueia e não envia nada, e não mexe nos arquivos do jogo. Sem o Npcap só o DPS deixa de funcionar; o resto do overlay continua normal.': "<b>Why is Npcap needed?</b> The DPS meter calculates damage by reading the game's network traffic. Npcap is a Windows network driver that lets a program read a <i>copy</i> of the data going through your internet connection. The overlay uses it to read only Aion 2's traffic: it doesn't change, block or send anything, and it doesn't touch the game files. Without Npcap only the DPS stops working; the rest of the overlay works normally.",
+    'Locais onde o Hidden Cube PODE nascer. Não é garantido: o cubo aparece só em alguns deles.': 'Spots where the Hidden Cube CAN spawn. Not guaranteed: the cube only appears in some of them.',
+    'Tempos do servidor coreano (valores reduzidos desde 17/12/2025); no seu servidor podem ser outros — dá para mudar na aba.': 'Korean server times (reduced values since 12/17/2025); your server may differ — you can change them here.',
+    'O programa reconhece qual parte do mapa aparece no minimapa do Alt+M e desenha os recursos por cima dele, seguindo quando você anda ou dá zoom. Usa os mesmos filtros do mapa completo (tipos, material, esconder coletados) e mostra também os spawns do farm de pet. Só olha a tela.': 'The app recognizes which part of the map is showing on the Alt+M minimap and draws the resources on top of it, following as you move or zoom. It uses the same filters as the full map (types, material, hide gathered) and also shows the pet farming spawns. It only looks at the screen.',
+    'Avisar do Festival Shugo': 'Alert for the Shugo Festival',
 }

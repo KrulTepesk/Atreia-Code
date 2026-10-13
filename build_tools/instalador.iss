@@ -169,8 +169,7 @@ begin
     'Sobre o Npcap', 'Componente usado pelo medidor de DPS',
     'O medidor de DPS precisa de um componente chamado Npcap para funcionar.' + #13#10 + #13#10 +
     'O que ele faz: o Npcap é um driver de rede para Windows que deixa um programa ler uma CÓPIA ' +
-    'dos dados que chegam e saem pela sua internet (o mesmo usado pelo Wireshark, um programa ' +
-    'conhecido de análise de rede). O medidor de DPS usa isso para ler só o tráfego do Aion 2 e ' +
+    'dos dados que chegam e saem pela sua internet. O medidor de DPS usa isso para ler só o tráfego do Aion 2 e ' +
     'calcular o dano. Ele não altera, não bloqueia e não envia nada para lugar nenhum, e não mexe ' +
     'nos arquivos do jogo.' + #13#10 + #13#10 +
     'Se você marcar a opção na próxima tela, o instalador baixa o Npcap do site oficial e abre o ' +

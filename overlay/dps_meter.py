@@ -2,7 +2,7 @@
 
 Cada linha: ícone + cor da classe, nome, crítico %, dupla chance %, DPS, total e %.
 Botão de zerar no próprio painel (funciona mesmo com os overlays travados).
-Ícones: os emblemas oficiais das classes (pasta classes/, tirados da Aion 2 Wiki), sobre um disco
+Ícones: os emblemas das classes (pasta classes/), sobre um disco
 na cor da classe. Para trocar, ponha PNGs em %APPDATA%/Aion2Overlay/classes/ com os nomes
 gl.png, te.png, as.png, ra.png, so.png, el.png, cl.png, ch.png. Sem PNG, usa um desenho simples.
 """

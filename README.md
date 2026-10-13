@@ -12,7 +12,7 @@ Não lê a memória do jogo nem mexe em arquivos dele.
 - **Farm de pet automático (experimental)** — lê o tráfego do jogo: ao matar um monstro que dá alma de pet o farm começa
   sozinho; cada abate e cada alma que você ganha são contados; lista os monstros de pet da região onde você está.
 - **Hidden Cubes** — no mapa de coletáveis, os locais onde o cubo *pode* nascer (Verteron, Altgard, Eltnen e
-  Morheim; dados do interactivemap.app / gamers4.life). Não é garantido que o cubo esteja em todos.
+  Morheim). Não é garantido que o cubo esteja em todos.
 - **Chefes de campo** — percebe sozinho quando um field boss morre perto de você e avisa 5 min antes e na hora
   em que ele renasce, com mini-mapa do local (ou marque "Morreu agora").
 - **Medidor de DPS (desligado por padrão)** — lê o tráfego do jogo pelo Npcap; mostra

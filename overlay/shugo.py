@@ -88,6 +88,11 @@ class ShugoWidget(OverlayWindow):
         return datetime.now() + timedelta(minutes=cfg["shugo"].get("offset_minutes", 0))
 
     def tick(self):
+        if not cfg["shugo"].get("enabled", True):     # aviso desligado na aba Shugo
+            if self.isVisible() and self._hide_at is not None and datetime.now() >= self._hide_at:
+                self._hide_at = None
+                self.hide()
+            return
         now = self.server_now()
         nxt = (now + timedelta(hours=1)).replace(minute=0, second=0, microsecond=0)
         left = (nxt - now).total_seconds()

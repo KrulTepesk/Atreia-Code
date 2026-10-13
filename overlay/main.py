@@ -281,6 +281,9 @@ class ControlPanel(QWidget):
                        "um aviso aparece com som nos minutos escolhidos e some sozinho (duplo clique fecha antes).")
         intro.setWordWrap(True)
         lay.addWidget(intro)
+        self.shugo_on = QCheckBox("Avisar do Festival Shugo")
+        self.shugo_on.setChecked(cfg["shugo"].get("enabled", True))
+        lay.addWidget(self.shugo_on)
 
         box = QGroupBox("Quando avisar")
         f = QFormLayout(box)
@@ -305,6 +308,7 @@ class ControlPanel(QWidget):
         box2 = QGroupBox("Como o aviso aparece")
         f2 = QFormLayout(box2)
         f2.addRow("Som:", SoundRow("shugo"))
+        self._shugo_boxes = [box, box2]
         secs = QSpinBox()
         secs.setRange(2, 60)
         secs.setSuffix(" s")
@@ -335,6 +339,16 @@ class ControlPanel(QWidget):
         lay.addSpacing(6)
         lay.addLayout(row)
         lay.addStretch()
+        def set_shugo(on):
+            cfg["shugo"]["enabled"] = on
+            save()
+            for b in self._shugo_boxes:
+                b.setEnabled(on)
+            if not on:
+                self.shugo.hide()
+        self.shugo_on.toggled.connect(set_shugo)
+        for b in self._shugo_boxes:
+            b.setEnabled(self.shugo_on.isChecked())
         return w
 
     def tab_pvp(self):
@@ -414,7 +428,7 @@ class ControlPanel(QWidget):
         info = QLabel("O programa reconhece qual parte do mapa aparece no minimapa do Alt+M e desenha os "
                       "recursos por cima dele, seguindo quando você anda ou dá zoom. Usa os mesmos filtros do "
                       "mapa completo (tipos, material, esconder coletados) e mostra também os spawns do farm "
-                      "de pet. Só olha a tela, igual ao som de abate.")
+                      "de pet. Só olha a tela.")
         info.setWordWrap(True)
         f.addRow(info)
         row = QHBoxLayout()

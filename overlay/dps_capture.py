@@ -273,7 +273,7 @@ class DpsTab(QWidget):
         b.addLayout(req)
         about = QLabel(
             "<b>Por que precisa do Npcap?</b> O medidor de DPS calcula o dano lendo o tráfego de rede do jogo. "
-            "O Npcap é um driver de rede para Windows (o mesmo usado pelo Wireshark) que deixa um programa ler "
+            "O Npcap é um driver de rede para Windows que deixa um programa ler "
             "uma <i>cópia</i> dos dados que passam pela sua internet. O overlay usa isso para ler só o tráfego do "
             "Aion 2: não altera, não bloqueia e não envia nada, e não mexe nos arquivos do jogo. "
             "Sem o Npcap só o DPS deixa de funcionar; o resto do overlay continua normal.")

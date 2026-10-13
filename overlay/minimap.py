@@ -1,7 +1,7 @@
 """Mapa sobre o minimapa do jogo (Alt+M).
 
 O usuário marca a área da tela onde fica o minimapa. O programa tira prints dessa
-área (como o OBS), reconhece qual parte do mapa está aparecendo comparando com a
+área da tela, reconhece qual parte do mapa está aparecendo comparando com a
 imagem de fundo do mapa (reconhecimento por pontos característicos, SIFT) e desenha
 os recursos por cima, numa janela transparente. O clique atravessa tudo, menos os ícones:
 clique esquerdo num ícone = coletei (timer de renascimento de 5 min); clique direito = cancela.
