@@ -12,7 +12,7 @@ from PySide6.QtCore import QSize, Qt, QTimer
 from PySide6.QtGui import QAction, QColor, QFont, QGuiApplication, QIcon, QPainter, QPixmap
 from PySide6.QtWidgets import (QApplication, QCheckBox, QComboBox, QDoubleSpinBox, QFileDialog,
                                QFormLayout, QGroupBox, QHBoxLayout, QLabel, QMenu, QMessageBox,
-                               QPushButton, QSlider, QSpinBox, QSystemTrayIcon, QTabWidget,
+                               QPushButton, QRadioButton, QSlider, QSpinBox, QSystemTrayIcon, QTabWidget,
                                QVBoxLayout, QWidget)
 
 import config
@@ -113,6 +113,7 @@ class ControlPanel(QWidget):
     def __init__(self, app):
         super().__init__()
         self.app = app
+        self._quitting = False
         self.setWindowTitle("Meta Overlay")
         self.setWindowIcon(make_icon())
         # tamanho compacto; em telas pequenas (ou com zoom do Windows) nunca passa de ~75% da tela
@@ -142,6 +143,8 @@ class ControlPanel(QWidget):
                        "Quando cada field boss renasce, com aviso e mapa do local.")
         tabs.addTab(self.dps_tab, "DPS Meter", "dps", "Medidor de dano seu e do seu grupo, lido do tráfego do jogo.")
         tabs.addTab(self.tab_pvp(), "PvP (experimental)", "pvp", "Um som quando você mata um jogador e outro quando dá assistência.")
+        tabs.addTab(self.tab_settings(), "Configurações", "settings", "Como o Meta Overlay se comporta ao fechar a janela.")
+        self.dps_tab.quit_app = self.quit
         # trava dos overlays sempre à mão, no rodapé do menu
         self.lock_pill = QPushButton()
         self.lock_pill.setObjectName("LockPill")
@@ -295,8 +298,39 @@ class ControlPanel(QWidget):
                                            lambda on: self.hotkeys_capturing(on))
         lay.addWidget(self.hk_box)
         lay.addStretch()
-        lay.addWidget(QLabel("Fechar esta janela não fecha o overlay — ele fica no ícone da bandeja."))
         return w
+
+    # ------------------------------------------------------------ Configurações
+    def tab_settings(self):
+        w = QWidget()
+        lay = QVBoxLayout(w)
+        box = QGroupBox("Ao fechar a janela (botão X)")
+        v = QVBoxLayout(box)
+        self.close_tray = QRadioButton("Deixar rodando em segundo plano (ícone perto do relógio)")
+        self.close_quit = QRadioButton("Fechar o Meta Overlay")
+        (self.close_quit if close_action() == "quit" else self.close_tray).setChecked(True)
+        self.close_tray.toggled.connect(lambda on: on and self.set_close_action("tray"))
+        self.close_quit.toggled.connect(lambda on: on and self.set_close_action("quit"))
+        v.addWidget(self.close_tray)
+        v.addWidget(self.close_quit)
+        hint = QLabel("Em segundo plano, os avisos, o DPS Meter e as teclas de atalho continuam funcionando. "
+                      "Para fechar de vez, use \"Sair\" no menu do ícone perto do relógio.")
+        hint.setWordWrap(True)
+        v.addWidget(hint)
+        lay.addWidget(box)
+
+        row = QHBoxLayout()
+        row.addStretch()
+        b = QPushButton("Sair do Meta Overlay agora")
+        b.clicked.connect(self.quit)
+        row.addWidget(b)
+        lay.addLayout(row)
+        lay.addStretch()
+        return w
+
+    def set_close_action(self, action):
+        cfg.setdefault("app", {})["close_action"] = action
+        save()
 
     def tab_shugo(self):
         w = QWidget()
@@ -680,21 +714,34 @@ class ControlPanel(QWidget):
         self.activateWindow()
 
     def closeEvent(self, e):
+        if self._quitting:
+            e.accept()
+            return
         e.ignore()
+        if close_action() == "quit":
+            self.quit()
+            return
         self.hide()
         self.tray.showMessage("Meta Overlay", T("Continua rodando na bandeja."), QSystemTrayIcon.Information, 2000)
 
     def quit(self):
+        if self._quitting:
+            return
+        self._quitting = True
         # cada parte fecha por conta própria: um erro numa delas não pode impedir o programa de sair
         # (senão ele ficava escondido rodando e, ao abrir de novo, eram dois)
-        steps = [self.dps_tab.shutdown, self.hub.stop, self.minimap.stop, self.farm_tab.shutdown,
-                 self.hotkeys.clear, lambda: self.map and self.map.closeEvent(None), save]
+        steps = [self.hide, self.tray.hide, self.dps_tab.shutdown, self.hub.stop, self.minimap.stop,
+                 self.farm_tab.shutdown, self.hotkeys.clear, lambda: self.map and self.map.closeEvent(None), save]
         for step in steps:
             try:
                 step()
             except Exception as e:
                 print("ao fechar:", e)
-        self.app.quit()
+        # exit() e não quit(): no Qt 6 o quit() pede para cada janela fechar e é cancelado se alguma recusa
+        # (o painel recusa para ir à bandeja) — era por isso que "reabrir como administrador" deixava a
+        # cópia antiga rodando escondida. Se mesmo assim algo travar o laço, o processo sai sozinho.
+        QTimer.singleShot(4000, lambda: os._exit(0))
+        self.app.exit(0)
 
     def check_instance(self):
         """Outra cópia pediu: 'show' = abriram de novo pelo atalho; 'quit' = a cópia nova vai assumir."""
@@ -706,6 +753,11 @@ class ControlPanel(QWidget):
             self.tray.hide()
             instance.release()
             self.quit()
+
+
+def close_action():
+    a = cfg.get("app", {}).get("close_action", "tray")
+    return a if a in ("tray", "quit") else "tray"
 
 
 def main():

@@ -210,6 +210,7 @@ class DpsTab(QWidget):
     def __init__(self, hub):
         super().__init__()
         self.hub = hub
+        self.quit_app = None             # o painel liga aqui o "fechar de vez" (usado ao reabrir como admin)
         d = cfg.setdefault("dps", {})
         d.setdefault("enabled", False)
         d.setdefault("char_name", "")
@@ -633,8 +634,14 @@ class DpsTab(QWidget):
         import instance
         instance.release()
         if restart_as_admin():
-            from PySide6.QtWidgets import QApplication
-            QApplication.instance().quit()
+            # A cópia nova (administrador) já está abrindo: esta fecha de vez. Antes era só um
+            # QApplication.quit(), que o Qt 6 cancela quando a janela do painel recusa fechar (ela vai
+            # para a bandeja) — o programa antigo ficava rodando escondido.
+            if self.quit_app:
+                self.quit_app()
+            else:
+                from PySide6.QtWidgets import QApplication
+                QApplication.instance().exit(0)
         else:
             instance.acquire()           # recusou o pedido do Windows: continua aberto e volta a marcar que está
 

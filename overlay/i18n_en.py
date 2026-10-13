@@ -14,8 +14,6 @@ EN = {
     "Mandar para outro monitor": "Send to another monitor", "Monitor:": "Monitor:", "Mover:": "Move:",
     "Aviso do Shugo": "Shugo alert", "Avisos de rifts/chefes": "Rift/boss alerts",
     "Mini-mapa dos chefes": "Boss mini-map", "Card do farm": "Farm card", "Mapa": "Map", "Todos": "All",
-    "Fechar esta janela não fecha o overlay — ele fica no ícone da bandeja.":
-        "Closing this window doesn't close the overlay — it stays in the tray icon.",
     "Idioma": "Language", "Idioma:": "Language:",
     "O idioma muda depois de reiniciar o programa.": "The language changes after restarting the app.",
     "Reiniciar agora": "Restart now",
@@ -427,4 +425,11 @@ EN = {
     'Use com Ctrl, Alt ou Shift': 'Use with Ctrl, Alt or Shift',
     'Já usado em: {a}': 'Already used by: {a}',
     'Em uso por outro programa': 'In use by another program',
+    'Configurações': 'Settings',
+    'Como o Meta Overlay se comporta ao fechar a janela.': 'How Meta Overlay behaves when you close its window.',
+    'Ao fechar a janela (botão X)': 'When closing the window (X button)',
+    'Deixar rodando em segundo plano (ícone perto do relógio)': 'Keep running in the background (icon next to the clock)',
+    'Fechar o Meta Overlay': 'Close Meta Overlay',
+    'Em segundo plano, os avisos, o DPS Meter e as teclas de atalho continuam funcionando. Para fechar de vez, use "Sair" no menu do ícone perto do relógio.': 'In the background, alerts, the DPS Meter and hotkeys keep working. To close it for good, use "Quit" in the menu of the icon next to the clock.',
+    'Sair do Meta Overlay agora': 'Exit Meta Overlay now',
 }

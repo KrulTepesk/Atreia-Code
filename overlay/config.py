@@ -27,6 +27,9 @@ CATEGORIES = [
 DEFAULTS = {
     "locked": False,
     "ui_scale": 1.0,
+    "app": {
+        "close_action": "tray",  # X da janela: "tray" = continua na bandeja, "quit" = fecha o programa
+    },
     "dps": {"enabled": False},
     "events": {"sound": "sounds/shugo.wav", "volume": 80},
     "farm": {"sound": "sounds/shugo.wav", "volume": 80},

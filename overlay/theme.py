@@ -98,6 +98,11 @@ QCheckBox::indicator:checked {{ image: url({UI}/switch_on.svg); }}
 QCheckBox::indicator:disabled {{ image: url({UI}/switch_off_dis.svg); }}
 QCheckBox::indicator:checked:disabled {{ image: url({UI}/switch_on_dis.svg); }}
 QCheckBox:disabled {{ color: {FAINT}; }}
+QRadioButton {{ spacing: 9px; background: transparent; padding: 3px 0; }}
+QRadioButton::indicator {{ width: 14px; height: 14px; border-radius: 8px; border: 1px solid {LINE}; background: {FIELD}; }}
+QRadioButton::indicator:hover {{ border-color: {MUTED}; }}
+QRadioButton::indicator:checked {{ border-color: {AETHER};
+    background: qradialgradient(cx:0.5, cy:0.5, radius:0.5, fx:0.5, fy:0.5, stop:0 {GOLD_HI}, stop:0.42 {AETHER}, stop:0.5 {FIELD}, stop:1 {FIELD}); }}
 
 QSlider::groove:horizontal {{ height: 4px; background: #222226; border-radius: 2px; }}
 QSlider::sub-page:horizontal {{ background: {AETHER}; border-radius: 2px; }}
@@ -394,6 +399,14 @@ def draw_glyph(p, name, r, color):
         path.closeSubpath()
         p.drawPath(path)
         p.drawLine(P(0.2, 0.66), P(0.8, 0.66))
+    elif name == "settings":        # engrenagem
+        c = P(0.5, 0.5)
+        for k in range(8):
+            ang = k * math.pi / 4
+            p.drawLine(QPointF(c.x() + math.cos(ang) * w * 0.27, c.y() + math.sin(ang) * h * 0.27),
+                       QPointF(c.x() + math.cos(ang) * w * 0.4, c.y() + math.sin(ang) * h * 0.4))
+        p.drawEllipse(c, w * 0.27, h * 0.27)
+        p.drawEllipse(c, w * 0.1, h * 0.1)
     elif name == "lock":            # cadeado
         p.drawRoundedRect(QRectF(P(0.2, 0.45), P(0.8, 0.88)), w * 0.08, w * 0.08)
         p.drawArc(QRectF(P(0.32, 0.14), P(0.68, 0.6)), 0, 180 * 16)
