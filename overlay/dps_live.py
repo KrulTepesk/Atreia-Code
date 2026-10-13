@@ -400,6 +400,14 @@ class DpsReader(QThread):
         self.enemies = set()      # quem já levou dano de habilidade de jogador
         self.mode = "party"       # "party" = você + grupo; "all" = todos os jogadores por perto
         self.world = None         # WorldTracker (criado no start, para não pesar quem só usa o DPS)
+        # invocações (ventania da Bittercold Wind, espíritos do Elementalista, aura do Clérigo...): o jogo
+        # cria uma "criatura" separada (0x3641) que bate com a habilidade do dono. Antes ela virava um
+        # jogador a mais, sem nome, no medidor. Agora o dano vai para quem invocou.
+        self.spawned = {}         # entidade criada como NPC/invocação -> hora em que apareceu
+        self.owner = {}           # invocação -> jogador dono
+        self.casts = {}           # família da habilidade (id // 10000) -> [(hora, quem usou)]
+        self.pending_summon = {}  # invocação sem dono ainda -> golpes guardados
+        self.summons = set()      # ids que se mostraram invocações (a morte delas não é abate de monstro)
 
     def stop(self):
         self._run = False
@@ -497,6 +505,90 @@ class DpsReader(QThread):
             self._warn_t = now
             self.status.emit(f"aviso: {type(e).__name__}: {e}")
 
+    SUMMON_BEFORE = 5.0      # o dono usa a habilidade até ~5 s antes da invocação aparecer
+    SUMMON_AFTER = 0.6
+
+    def _owner_of(self, summon, skill):
+        """Dono de uma invocação: quem usou uma habilidade da mesma família logo antes dela aparecer."""
+        if summon in self.owner:
+            return self.owner[summon]
+        t_sp = self.spawned.get(summon)
+        if t_sp is None or not skill_class(skill):
+            return None
+        best = None
+        for t, who in self.casts.get(skill // 10000, ()):
+            if t_sp - self.SUMMON_BEFORE <= t <= t_sp + self.SUMMON_AFTER and who not in self.spawned:
+                if best is None or t > best[0]:
+                    best = (t, who)
+        if best:
+            self.owner[summon] = best[1]
+            return best[1]
+        return None
+
+    def _track_entities(self, op, body, now):
+        if op == 0x3641:                                   # NPC / invocação apareceu
+            eid, _ = varint(body, 0)
+            if len(self.spawned) > 20_000:
+                self.spawned = {e: t for e, t in self.spawned.items() if now - t < 600}
+                self.owner = {e: o for e, o in self.owner.items() if e in self.spawned}
+            self.spawned[eid] = now
+            self.owner.pop(eid, None)                      # id reaproveitado: esquece o dono antigo
+            self.summons.discard(eid)
+            self.pending_summon.pop(eid, None)
+            if len(self.pending_summon) > 200:
+                self.pending_summon.clear()
+        elif op == 0x3642:                                 # sumiu
+            eid, _ = varint(body, 0)
+            self.spawned.pop(eid, None)
+            self.owner.pop(eid, None)
+            self.pending_summon.pop(eid, None)
+        elif op == 0x3802:                                 # alguém usou uma habilidade
+            caster, i = varint(body, 0)
+            if caster in self.spawned or len(body) < i + 5:
+                return
+            skill = int.from_bytes(body[i + 1:i + 5], "little")
+            if skill_class(skill):
+                lst = self.casts.setdefault(skill // 10000, [])
+                lst.append((now, caster))
+                if len(lst) > 8:
+                    del lst[:-8]
+
+    def _apply_hit(self, h, now):
+        tgt, atk, skill, dmg = h["tgt"], h["atk"], h["skill"], h["dmg"]
+        c = skill_class(skill)
+        if c:
+            self.cls[atk] = c
+        if tgt == atk:
+            if dmg and dmg > 0:
+                # efeito em si mesmo com valor = cura (ex.: roubo de vida). A habilidade é anotada,
+                # mas só vale como cura em alvos que não são inimigos (senão o dano dela sumiria)
+                self.heal_skills.add(skill)
+                self.fight.add_heal(now, atk, tgt, dmg, skill)
+                self.session.add_heal(now, atk, tgt, dmg, skill)
+            return
+        if not dmg or dmg <= 0:
+            if c and (atk, tgt) not in self.harmed:   # buff/aura de jogador em outro = mesmo grupo
+                self._link(atk, tgt)
+            return
+        if is_known_heal(skill) or (skill in self.heal_skills and tgt not in self.enemies):
+            self._link(atk, tgt)
+            self.fight.add_heal(now, atk, tgt, dmg, skill)
+            self.session.add_heal(now, atk, tgt, dmg, skill)
+            return
+        if len(self.harmed) > 200_000:            # sessão muito longa: não cresce sem limite
+            self.harmed.clear()
+        self.harmed.add((atk, tgt))
+        if self.world is not None:
+            self.world.on_damage(atk, tgt, now)
+        if c:
+            if len(self.enemies) > 100_000:
+                self.enemies.clear()
+            self.enemies.add(tgt)                  # quem leva dano de jogador é inimigo/monstro
+        self._unlink(atk, tgt)
+        mine = bool(c) and self._mine(atk)
+        self.fight.add(now, atk, tgt, dmg, h["crit"], h["multi"], skill, mine)
+        self.session.add(now, atk, tgt, dmg, h["crit"], h["multi"], skill, mine)
+
     def _handle(self, op, body):
         if self.world is not None:
             try:
@@ -504,43 +596,28 @@ class DpsReader(QThread):
             except Exception as e:
                 self._warn(e)
         try:
+            if op in (0x3641, 0x3642, 0x3802):
+                self._track_entities(op, body, time.time())
             if op == 0x3804:
                 h = decode_hit(body)
-                tgt, atk, skill, dmg = h["tgt"], h["atk"], h["skill"], h["dmg"]
-                c = skill_class(skill)
-                if c:
-                    self.cls[atk] = c
                 now = time.time()
-                if tgt == atk:
-                    if dmg and dmg > 0:
-                        # efeito em si mesmo com valor = cura (ex.: roubo de vida). A habilidade é anotada,
-                        # mas só vale como cura em alvos que não são inimigos (senão o dano dela sumiria)
-                        self.heal_skills.add(skill)
-                        self.fight.add_heal(now, atk, tgt, dmg, skill)
-                        self.session.add_heal(now, atk, tgt, dmg, skill)
-                    return
-                if not dmg or dmg <= 0:
-                    if c and (atk, tgt) not in self.harmed:   # buff/aura de jogador em outro = mesmo grupo
-                        self._link(atk, tgt)
-                    return
-                if is_known_heal(skill) or (skill in self.heal_skills and tgt not in self.enemies):
-                    self._link(atk, tgt)
-                    self.fight.add_heal(now, atk, tgt, dmg, skill)
-                    self.session.add_heal(now, atk, tgt, dmg, skill)
-                    return
-                if len(self.harmed) > 200_000:            # sessão muito longa: não cresce sem limite
-                    self.harmed.clear()
-                self.harmed.add((atk, tgt))
-                if self.world is not None:
-                    self.world.on_damage(atk, tgt, now)
-                if c:
-                    if len(self.enemies) > 100_000:
-                        self.enemies.clear()
-                    self.enemies.add(tgt)                  # quem leva dano de jogador é inimigo/monstro
-                self._unlink(atk, tgt)
-                mine = bool(c) and self._mine(atk)
-                self.fight.add(now, atk, tgt, dmg, h["crit"], h["multi"], skill, mine)
-                self.session.add(now, atk, tgt, dmg, h["crit"], h["multi"], skill, mine)
+                summon = h["atk"]
+                if summon in self.spawned and skill_class(h["skill"]):
+                    if len(self.summons) > 5000:
+                        self.summons.clear()
+                    self.summons.add(summon)
+                    owner = self._owner_of(summon, h["skill"])
+                    if owner is None:
+                        # ainda não deu para saber de quem é: guarda um pouco e entrega quando descobrir
+                        lst = self.pending_summon.setdefault(summon, [])
+                        if len(lst) < 60:
+                            lst.append((h, now))
+                        return
+                    for hb, tb in self.pending_summon.pop(summon, ()):
+                        hb["atk"] = owner
+                        self._apply_hit(hb, tb)
+                    h["atk"] = owner
+                self._apply_hit(h, now)
             elif op == 0x364A:
                 # mensagem que o servidor só manda sobre o seu próprio personagem
                 self.auto_self, _ = varint(body, 0)

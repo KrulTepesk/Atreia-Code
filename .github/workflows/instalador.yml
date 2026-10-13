@@ -92,7 +92,6 @@ jobs:
           if (-not (Test-Path "$dir\MetaOverlay.exe")) { throw "2a instalacao falhou" }
           if (Test-Path "$dir\_internal\arquivo_velho.dll") { throw "sobrou arquivo da versao anterior" }
           Get-Process MetaOverlay -ErrorAction SilentlyContinue | Stop-Process -Force
-          Copy-Item saida\MetaOverlay-Setup.exe saida\AtreiaCode-Setup.exe
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: MetaOverlay-Setup
@@ -105,7 +104,6 @@ jobs:
           make_latest: "true"
           files: |
             saida/MetaOverlay-Setup.exe
-            saida/AtreiaCode-Setup.exe
           body: |
             **Como instalar:** baixe o `MetaOverlay-Setup.exe` abaixo, abra e siga as telas.
             Não precisa de Python nem de nada além do instalador.

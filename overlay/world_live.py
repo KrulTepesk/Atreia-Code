@@ -225,6 +225,9 @@ class WorldTracker:
     def _is_player(self, eid):
         return eid in self.r.cls or eid in self.r.names or eid == self.r.find_self()
 
+    def _is_summon(self, eid):
+        return eid in getattr(self.r, "summons", ())
+
     # ------------------------------------------------------------ PvP
     def on_damage(self, atk, tgt, now=None):
         """Chamado pelo leitor a cada golpe com dano (não cura)."""
@@ -313,6 +316,10 @@ class WorldTracker:
         self.done.add(eid)
         if len(self.done) > 5000:
             self.done.clear()
+        if self._is_summon(eid):              # invocação de jogador sumindo (ventania, espírito...)
+            self.pos.pop(eid, None)
+            self.maxhp.pop(eid, None)
+            return
         p = self.pos.get(eid)
         sname = (self.r.self_name or "").lower()
         if not p and killer and (killer == self.r.find_self() or (sname and kname.lower() == sname)):
