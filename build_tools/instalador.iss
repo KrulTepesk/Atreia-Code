@@ -35,6 +35,9 @@ SetupIconFile=..\overlay\icon.ico
 UninstallDisplayIcon={app}\{#AppExe}
 ; o programa aberto (inclusive como administrador) é fechado pelo sinal "fechar" em PrepareToInstall /
 ; InitializeUninstall; o AppMutex não é usado porque ele só mostrava "feche o programa" e travava a instalação
+; só um instalador por vez: o arquivo é grande e o Windows demora alguns segundos para abrir (verifica
+; o arquivo antes); quem clica de novo achando que não abriu não fica com duas janelas de instalação
+SetupMutex=MetaOverlaySetupMutex,Global\MetaOverlaySetupMutex
 CloseApplications=force
 RestartApplications=no
 Compression=lzma2/max

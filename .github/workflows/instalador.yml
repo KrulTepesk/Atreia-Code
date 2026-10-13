@@ -81,6 +81,20 @@ jobs:
           if ($env:NPCAP_SHA256) { $args += "/DNpcapSha256=$env:NPCAP_SHA256" }   # vazio: fica o hash fixo do .iss
           & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" @args build_tools\instalador.iss
           if ($LASTEXITCODE -ne 0) { throw "ISCC falhou ($LASTEXITCODE)" }
+      - name: Testar clique duplo no instalador (só pode abrir uma janela)
+        shell: pwsh
+        run: |
+          Start-Process saida\MetaOverlay-Setup.exe
+          Start-Sleep -Milliseconds 400
+          Start-Process saida\MetaOverlay-Setup.exe
+          Start-Sleep -Seconds 15
+          $all = @(Get-Process | Where-Object { $_.ProcessName -like "MetaOverlay-Setup*" })
+          foreach ($p in $all) { echo "::notice title=Setup aberto::$($p.ProcessName) | $($p.Path) | janela: '$($p.MainWindowTitle)'" }
+          $wiz = @($all | Where-Object { $_.MainWindowTitle -like "*Meta Overlay*" })
+          echo "::notice title=Teste::janelas do assistente de instalação = $($wiz.Count)"
+          $all | Stop-Process -Force -ErrorAction SilentlyContinue
+          Start-Sleep -Seconds 2
+          if ($wiz.Count -gt 1) { throw "o instalador abriu $($wiz.Count) janelas" }
       - name: Testar atualizacao (instala 2x e confere que nao sobra arquivo velho)
         shell: pwsh
         run: |
