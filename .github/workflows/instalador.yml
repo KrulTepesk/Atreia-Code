@@ -90,11 +90,11 @@ jobs:
           Start-Sleep -Seconds 15
           $all = @(Get-Process | Where-Object { $_.ProcessName -like "MetaOverlay-Setup*" })
           foreach ($p in $all) { echo "::notice title=Setup aberto::$($p.ProcessName) | $($p.Path) | janela: '$($p.MainWindowTitle)'" }
-          $wiz = @($all | Where-Object { $_.MainWindowTitle -like "*Meta Overlay*" })
-          echo "::notice title=Teste::janelas do assistente de instalação = $($wiz.Count)"
+          $win = @($all | Where-Object { $_.MainWindowTitle -ne "" })
+          echo "::notice title=Teste::janelas do instalador abertas = $($win.Count)"
           $all | Stop-Process -Force -ErrorAction SilentlyContinue
           Start-Sleep -Seconds 2
-          if ($wiz.Count -gt 1) { throw "o instalador abriu $($wiz.Count) janelas" }
+          if ($win.Count -ne 1) { throw "o instalador abriu $($win.Count) janelas (esperado: 1)" }
       - name: Testar atualizacao (instala 2x e confere que nao sobra arquivo velho)
         shell: pwsh
         run: |

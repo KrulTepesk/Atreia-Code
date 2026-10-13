@@ -35,9 +35,7 @@ SetupIconFile=..\overlay\icon.ico
 UninstallDisplayIcon={app}\{#AppExe}
 ; o programa aberto (inclusive como administrador) é fechado pelo sinal "fechar" em PrepareToInstall /
 ; InitializeUninstall; o AppMutex não é usado porque ele só mostrava "feche o programa" e travava a instalação
-; só um instalador por vez: o arquivo é grande e o Windows demora alguns segundos para abrir (verifica
-; o arquivo antes); quem clica de novo achando que não abriu não fica com duas janelas de instalação
-SetupMutex=MetaOverlaySetupMutex,Global\MetaOverlaySetupMutex
+; só um instalador por vez: ver InitializeSetup (o segundo clique fecha sozinho, sem aviso)
 CloseApplications=force
 RestartApplications=no
 Compression=lzma2/max
@@ -153,6 +151,20 @@ begin
     DeleteFile(OldDir + '\{#AppExe}');
     RemoveDir(OldDir);   { só some se ficou vazia }
   end;
+end;
+
+{ O arquivo é grande e o Windows demora alguns segundos para abrir (ele verifica o arquivo antes);
+  quem clica de novo achando que não abriu ficava com duas janelas de instalação. Agora a segunda
+  fecha sozinha e a primeira continua. }
+function InitializeSetup(): Boolean;
+begin
+  if CheckForMutexes('MetaOverlaySetupRunning') then
+  begin
+    Result := False;
+    Exit;
+  end;
+  CreateMutex('MetaOverlaySetupRunning');
+  Result := True;
 end;
 
 function InitializeUninstall(): Boolean;
