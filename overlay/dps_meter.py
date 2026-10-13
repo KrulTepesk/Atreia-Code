@@ -149,6 +149,62 @@ def draw_class_icon(p, code, r):
     p.restore()
 
 
+# ---------------------------------------------------------------- visual "HUD" (só o DPS Meter)
+HUD_BG = QColor(9, 11, 14, 236)
+HUD_LINE = QColor(255, 255, 255, 22)
+HUD_TEXT = QColor("#f2f4f7")
+HUD_MUTED = QColor("#7f8792")
+HUD_GOLD = QColor("#e2b04a")
+HUD_LIVE = QColor("#4ade80")
+CUT = 10
+
+
+def hud_path(r, cut=CUT):
+    """Painel com dois cantos cortados (em cima à esquerda, embaixo à direita)."""
+    path = QPainterPath()
+    path.moveTo(r.left() + cut, r.top())
+    path.lineTo(r.right(), r.top())
+    path.lineTo(r.right(), r.bottom() - cut)
+    path.lineTo(r.right() - cut, r.bottom())
+    path.lineTo(r.left(), r.bottom())
+    path.lineTo(r.left(), r.top() + cut)
+    path.closeSubpath()
+    return path
+
+
+def draw_hud_panel(p, rect):
+    from PySide6.QtGui import QLinearGradient
+    r = QRectF(rect).adjusted(0.5, 0.5, -0.5, -0.5)
+    p.setPen(QPen(HUD_LINE, 1))
+    p.setBrush(HUD_BG)
+    p.drawPath(hud_path(r))
+    # a única linha "futurista": ouro no topo, apagando para a direita
+    g = QLinearGradient(r.left() + CUT, 0, r.left() + r.width() * 0.7, 0)
+    c0 = QColor(HUD_GOLD)
+    c1 = QColor(HUD_GOLD)
+    c1.setAlpha(0)
+    g.setColorAt(0, c0)
+    g.setColorAt(1, c1)
+    p.setPen(QPen(QBrush(g), 1.6))
+    p.drawLine(QPointF(r.left() + CUT, r.top() + 0.8), QPointF(r.right() - 1, r.top() + 0.8))
+    p.setPen(QPen(HUD_GOLD, 1.6))
+    p.drawLine(QPointF(r.left() + 0.8, r.top() + CUT), QPointF(r.left() + CUT, r.top() + 0.8))
+
+
+def num_font(pt, weight=QFont.DemiBold):
+    from theme import display_font
+    f = display_font(pt, weight)
+    f.setStyleStrategy(QFont.PreferAntialias)
+    return f
+
+
+def label_font(pt=7.5):
+    f = QFont("Segoe UI", 1)
+    f.setPointSizeF(pt)
+    f.setLetterSpacing(QFont.PercentageSpacing, 104)
+    return f
+
+
 class DpsMeter(OverlayWindow):
     W = 420
     ROW = 26
@@ -178,11 +234,11 @@ class DpsMeter(OverlayWindow):
         self.update()
 
     def reset_rect(self):
-        return QRectF(self.W - 70, 9, 22, 18)
+        return QRectF(self.W - 40, 8, 26, 20)
 
     def view_rects(self):
         """Seletor Luta | Sessão no cabeçalho."""
-        x = 150
+        x = 74
         return {"fight": QRectF(x, 8, 46, 20), "session": QRectF(x + 48, 8, 58, 20)}
 
     def mousePressEvent(self, e):
@@ -243,47 +299,53 @@ class DpsMeter(OverlayWindow):
         self.update()
 
     def _resize(self):
-        self.setFixedHeight(64 + max(1, len(self.rows)) * self.ROW + 30)
+        self.setFixedHeight(56 + max(1, len(self.rows)) * self.ROW + 28)
 
     def paintEvent(self, e):
-        super().paintEvent(e)
         p = QPainter(self)
         p.setRenderHint(QPainter.Antialiasing)
-        pad = 12
-        # cabeçalho
-        from theme import display_font, draw_mark
-        draw_mark(p, QPointF(pad + 3, 17), "#d9a441")
-        p.setPen(QColor("#f2ede3"))
-        p.setFont(display_font(11))
-        p.drawText(pad + 14, 22, T("Medidor de dano"))
-        # seletor luta / sessão
+        p.setRenderHint(QPainter.TextAntialiasing)
+        draw_hud_panel(p, self.rect())
+        pad = 14
+        # ---- cabeçalho: título, Luta | Sessão, relógio, zerar
+        p.setPen(HUD_TEXT)
+        p.setFont(num_font(13))
+        p.drawText(QRectF(pad + 2, 6, 60, 24), Qt.AlignLeft | Qt.AlignVCenter, "DPS")
         for v, r in self.view_rects().items():
             on = v == self.view
-            p.setPen(Qt.NoPen)
-            p.setBrush(QColor(217, 164, 65, 230) if on else QColor(255, 255, 255, 22))
-            p.drawRoundedRect(r, 4, 4)
-            p.setPen(QColor("#1b1204") if on else QColor("#c7bda8"))
-            p.setFont(QFont("Segoe UI", 8, QFont.DemiBold if on else QFont.Normal))
+            p.setPen(HUD_TEXT if on else HUD_MUTED)
+            p.setFont(label_font(8.5 if on else 8.2))
             p.drawText(r, Qt.AlignCenter, T("Luta") if v == "fight" else T("Sessão"))
-        m, s = divmod(int(self.elapsed), 60)
-        p.setPen(QColor("#c7bda8"))
-        p.setFont(QFont("Segoe UI", 9))
-        p.drawText(QRectF(0, 8, self.W - pad, 18), Qt.AlignRight, f"{m:02d}:{s:02d}")
-        # botão zerar
+            if on:
+                p.setPen(Qt.NoPen)
+                p.setBrush(HUD_GOLD)
+                p.drawRoundedRect(QRectF(r.center().x() - 10, r.bottom() - 1, 20, 2), 1, 1)
         rr = self.reset_rect()
-        p.setPen(Qt.NoPen)
-        p.setBrush(QColor(255, 255, 255, 60 if self._hover_reset else 28))
-        p.drawRect(rr)
-        p.setPen(QColor("white"))
+        p.setPen(QPen(QColor(255, 255, 255, 70 if self._hover_reset else 30), 1))
+        p.setBrush(QColor(255, 255, 255, 26 if self._hover_reset else 0))
+        p.drawRoundedRect(rr, 3, 3)
+        p.setPen(HUD_TEXT if self._hover_reset else HUD_MUTED)
         p.setFont(QFont("Segoe UI Symbol", 9, QFont.Bold))
         p.drawText(rr, Qt.AlignCenter, "↺")
-        p.setFont(QFont("Segoe UI", 10, QFont.DemiBold))
-        p.drawText(pad, 44, self.target)
-        p.setPen(QColor("#9b9282"))
-        p.setFont(QFont("Segoe UI", 8))
-        x = self.W - pad - 8
-        for txt, w in (("%", 44), (T("Total"), 58), ("DPS", 52), (T("Duplo"), 40), (T("Crít."), 40)):
-            p.drawText(QRectF(x - w, 30, w, 18), Qt.AlignRight | Qt.AlignVCenter, txt)
+        m, sec = divmod(int(self.elapsed), 60)
+        p.setPen(HUD_TEXT)
+        p.setFont(num_font(12, QFont.Medium))
+        p.drawText(QRectF(0, 7, rr.left() - 8, 22), Qt.AlignRight | Qt.AlignVCenter, f"{m:02d}:{sec:02d}")
+        # ---- estado (ponto verde enquanto está em luta) + nomes das colunas
+        live = self.target == T("Em luta")
+        p.setPen(Qt.NoPen)
+        p.setBrush(HUD_LIVE if live else QColor(255, 255, 255, 50))
+        p.drawEllipse(QPointF(pad + 4, 43), 3, 3)
+        p.setPen(HUD_TEXT if live else HUD_MUTED)
+        p.setFont(label_font(8))
+        state_w = self.W - pad - 6 - 234 - (pad + 12) - 8          # até onde começam as colunas
+        p.drawText(QRectF(pad + 12, 35, state_w, 16), Qt.AlignLeft | Qt.AlignVCenter,
+                   p.fontMetrics().elidedText(self.target, Qt.ElideRight, state_w))
+        p.setPen(HUD_MUTED)
+        p.setFont(label_font(7.5))
+        x = self.W - pad - 6
+        for txt, w in (("%", 42), (T("Total"), 56), ("DPS", 58), (T("Duplo"), 40), (T("Crít."), 38)):
+            p.drawText(QRectF(x - w, 35, w, 16), Qt.AlignRight | Qt.AlignVCenter, txt)
             x -= w
 
         total = sum(r[2] for r in self.rows) or 1
@@ -291,46 +353,63 @@ class DpsMeter(OverlayWindow):
         dur = max(1, self.elapsed)
         y = 56
         f_name = QFont("Segoe UI", 9, QFont.DemiBold)
-        f_num = QFont("Segoe UI", 9)
+        if not self.rows:
+            p.setPen(HUD_MUTED)
+            p.setFont(QFont("Segoe UI", 9))
+            p.drawText(QRectF(pad + 4, y, self.W - 2 * pad, self.ROW - 4), Qt.AlignLeft | Qt.AlignVCenter,
+                       T("Bata em algo para começar"))
+            y += self.ROW
         for i, row in enumerate(self.rows):
             name, cls, dmg, me = row[:4]
             crit, multi = (row[4], row[5]) if len(row) > 5 else (None, None)
             r = QRectF(pad, y, self.W - 2 * pad, self.ROW - 4)
-            path = QPainterPath()
-            path.addRect(r)
-            p.fillPath(path, QColor(255, 255, 255, 18))
-            bar = QRectF(r.x(), r.y(), r.width() * dmg / top, r.height())
-            bp = QPainterPath()
-            bp.addRect(bar)
             c = QColor(CLASSES.get(cls, ("", NO_CLASS))[1])
-            c.setAlpha(120 if not me else 185)
-            p.fillPath(bp, c)
+            # trilho + preenchimento suave na cor da classe + linha fina embaixo
+            p.fillRect(r, QColor(255, 255, 255, 9))
+            frac = max(0.0, min(1.0, dmg / top))
+            fill = QRectF(r.x(), r.y(), r.width() * frac, r.height())
+            from PySide6.QtGui import QLinearGradient
+            g = QLinearGradient(fill.left(), 0, fill.right(), 0)
+            a0, a1 = (QColor(c), QColor(c))
+            a0.setAlpha(110 if me else 70)
+            a1.setAlpha(45 if me else 22)
+            g.setColorAt(0, a0)
+            g.setColorAt(1, a1)
+            p.fillRect(fill, QBrush(g))
+            line = QColor(c)
+            line.setAlpha(255 if me else 200)
+            p.fillRect(QRectF(r.x(), r.bottom() - 2, r.width() * frac, 2), line)
             if me:
-                p.setPen(QPen(QColor(255, 255, 255, 200), 1.2))
-                p.setBrush(Qt.NoBrush)
-                p.drawPath(path)
-            ic = QRectF(r.x() + 3, r.y() + 1, r.height() - 2, r.height() - 2)
+                p.fillRect(QRectF(r.x() - 4, r.y(), 2, r.height()), HUD_GOLD)
+            ic = QRectF(r.x() + 4, r.y() + 2, r.height() - 4, r.height() - 4)
             draw_class_icon(p, cls, ic)
-            p.setPen(QColor("white"))
-            p.setFont(f_name)
-            dps = row[6] if len(row) > 6 and row[6] else dmg / dur      # cada um pelo próprio tempo lutando
-            cols = [(f"{dmg / total * 100:.1f}%", 44), (fmt(dmg), 58), (fmt(dps), 52)]
+            dps = row[6] if len(row) > 6 and row[6] else dmg / dur
+            cols = [(f"{dmg / total * 100:.1f}%", 42, num_font(9.5, QFont.Medium), HUD_MUTED),
+                    (fmt(dmg), 56, num_font(10, QFont.Medium), QColor(255, 255, 255, 200)),
+                    (fmt(dps), 58, num_font(11.5), HUD_TEXT)]
             if crit is not None:
-                cols += [(f"{multi * 100:.0f}%", 40), (f"{crit * 100:.0f}%", 40)]
-            name_w = int(r.width() - ic.width() - 14 - sum(w for _t, w in cols))
-            p.drawText(r.adjusted(ic.width() + 9, 0, 0, 0), Qt.AlignVCenter | Qt.AlignLeft,
-                       p.fontMetrics().elidedText(name, Qt.ElideRight, max(20, name_w)))  # nome longo não invade
-            p.setFont(f_num)
-            x = r.right() - 8
-            for k, (txt, w) in enumerate(cols):
-                p.setPen(QColor("white") if k < 3 else QColor(255, 255, 255, 190))
-                p.drawText(QRectF(x - w, r.y(), w, r.height()), Qt.AlignVCenter | Qt.AlignRight, txt)
+                cols += [(f"{multi * 100:.0f}%", 40, num_font(9.5, QFont.Medium), HUD_MUTED),
+                         (f"{crit * 100:.0f}%", 38, num_font(9.5, QFont.Medium), HUD_MUTED)]
+            p.setPen(HUD_TEXT)
+            p.setFont(f_name)
+            name_w = int(r.width() - ic.width() - 16 - sum(c_[1] for c_ in cols))
+            p.drawText(r.adjusted(ic.width() + 11, 0, 0, -1), Qt.AlignVCenter | Qt.AlignLeft,
+                       p.fontMetrics().elidedText(name, Qt.ElideRight, max(20, name_w)))
+            x = r.right() - 6
+            for txt, w, font, col in cols:
+                p.setPen(col)
+                p.setFont(font)
+                p.drawText(QRectF(x - w, r.y(), w, r.height() - 1), Qt.AlignVCenter | Qt.AlignRight, txt)
                 x -= w
             y += self.ROW
-        p.setPen(QColor("#9b9282"))
-        p.setFont(QFont("Segoe UI", 8))
-        p.drawText(QRectF(pad, y + 2, self.W - 2 * pad, 18), Qt.AlignLeft | Qt.AlignVCenter,
-                   f"{T('Total')}: {fmt(total)}  ·  {fmt(total / dur)}/s" + (f"   ·   {self.footer}" if self.footer else ""))
+        # ---- rodapé
+        p.setPen(QPen(HUD_LINE, 1))
+        p.drawLine(QPointF(pad, y + 1), QPointF(self.W - pad - CUT, y + 1))
+        p.setPen(HUD_MUTED)
+        p.setFont(label_font(7.5))
+        shown = sum(r[2] for r in self.rows)
+        p.drawText(QRectF(pad, y + 4, self.W - 2 * pad, 18), Qt.AlignLeft | Qt.AlignVCenter,
+                   f"{T('Total')} {fmt(shown)}   ·   {fmt(shown / dur)}/s" + (f"   ·   {self.footer}" if self.footer else ""))
         p.end()
 
 
@@ -365,33 +444,31 @@ class SkillPanel(OverlayWindow):
         self.update()
 
     def _resize(self):
-        self.setFixedHeight(48 + max(1, len(self.rows)) * self.ROW + 30)
+        self.setFixedHeight(46 + max(1, len(self.rows)) * self.ROW + 28)
 
     def paintEvent(self, e):
-        super().paintEvent(e)
-        from theme import display_font, draw_mark
         import skills_db
         p = QPainter(self)
         p.setRenderHint(QPainter.Antialiasing)
         p.setRenderHint(QPainter.SmoothPixmapTransform)
-        pad = 12
+        draw_hud_panel(p, self.rect())
+        pad = 14
+        tx = pad + 2
         if self.cls in CLASSES:
-            draw_class_icon(p, self.cls, QRectF(pad - 2, 7, 20, 20))
-            tx = pad + 22
-        else:
-            draw_mark(p, QPointF(pad + 3, 17), "#d9a441")
-            tx = pad + 14
-        p.setPen(QColor("#f2ede3"))
-        p.setFont(display_font(11))
-        p.drawText(tx, 22, T("Habilidades") + (f" · {self.who}" if self.who else ""))
-        p.setPen(QColor("#9b9282"))
-        p.setFont(QFont("Segoe UI", 8))
-        x = self.W - pad - 8
-        for txt, w in (("%", 44), (T("Valor"), 64), (T("Crít."), 40), (T("Golpes"), 46)):
-            p.drawText(QRectF(x - w, 26, w, 16), Qt.AlignRight | Qt.AlignVCenter, txt)
+            draw_class_icon(p, self.cls, QRectF(pad, 8, 18, 18))
+            tx = pad + 24
+        p.setPen(HUD_TEXT)
+        p.setFont(num_font(12))
+        p.drawText(QRectF(tx, 6, self.W - tx - pad, 22), Qt.AlignLeft | Qt.AlignVCenter,
+                   T("Habilidades") + (f"  ·  {self.who}" if self.who else ""))
+        p.setPen(HUD_MUTED)
+        p.setFont(label_font(7.5))
+        x = self.W - pad - 6
+        for txt, w in (("%", 42), (T("Valor"), 62), (T("Crít."), 40), (T("Golpes"), 46)):
+            p.drawText(QRectF(x - w, 28, w, 16), Qt.AlignRight | Qt.AlignVCenter, txt)
             x -= w
         if not self.rows:
-            p.setPen(QColor("#9b9282"))
+            p.setPen(HUD_MUTED)
             p.setFont(QFont("Segoe UI", 9))
             p.drawText(QRectF(pad, 46, self.W - 2 * pad, self.ROW), Qt.AlignVCenter | Qt.AlignLeft,
                        T("Nenhuma habilidade ainda."))
@@ -404,7 +481,6 @@ class SkillPanel(OverlayWindow):
         ccol = QColor(CLASSES.get(self.cls, ("", NO_CLASS))[1])
         y = 46
         f_name = QFont("Segoe UI", 9, QFont.DemiBold)
-        f_num = QFont("Segoe UI", 9)
         for r in self.rows:
             if r["dmg"]:
                 val, tot, col, kind = r["dmg"], tot_d, QColor(ccol), "dmg"
@@ -412,46 +488,52 @@ class SkillPanel(OverlayWindow):
                 val, tot, col, kind = r["heal"], tot_h, QColor("#5ee39a"), "heal"
             else:
                 val, tot, col, kind = r.get("shield", 0), tot_s, QColor("#e0b04f"), "shield"
-            rr = QRectF(pad, y, self.W - 2 * pad, self.ROW - 3)
-            p.fillRect(rr, QColor(255, 255, 255, 14))
-            col.setAlpha(90)
-            p.fillRect(QRectF(rr.x(), rr.y(), rr.width() * val / top, rr.height()), col)
-            ic = QRectF(rr.x() + 2, rr.y() + 1, rr.height() - 2, rr.height() - 2)
+            rr = QRectF(pad, y, self.W - 2 * pad, self.ROW - 4)
+            p.fillRect(rr, QColor(255, 255, 255, 9))
+            frac = max(0.0, min(1.0, val / top))
+            soft = QColor(col)
+            soft.setAlpha(42)
+            p.fillRect(QRectF(rr.x(), rr.y(), rr.width() * frac, rr.height()), soft)
+            line = QColor(col)
+            line.setAlpha(210)
+            p.fillRect(QRectF(rr.x(), rr.bottom() - 2, rr.width() * frac, 2), line)
+            ic = QRectF(rr.x() + 3, rr.y() + 2, rr.height() - 5, rr.height() - 5)
             pm = skills_db.icon(r.get("icon"), int(ic.width()))
             if pm:
                 p.drawPixmap(ic.toRect(), pm)
             else:   # sem ícone baixado: quadradinho na cor da classe com as iniciais
                 p.fillRect(ic, QColor(CLASSES.get(r.get("cls"), ("", NO_CLASS))[1]).darker(220))
-                p.setPen(QColor("white"))
+                p.setPen(HUD_TEXT)
                 p.setFont(QFont("Segoe UI", 7, QFont.Bold))
                 ini = "".join(w[0] for w in (r.get("name") or "?").split()[:2]).upper()
                 p.drawText(ic, Qt.AlignCenter, ini)
-            p.setPen(QColor("white"))
+            p.setPen(HUD_TEXT)
             p.setFont(f_name)
             name = r.get("name") or f"#{r['skill']}"
-            p.drawText(rr.adjusted(ic.width() + 8, 0, -200, 0), Qt.AlignVCenter | Qt.AlignLeft,
-                       p.fontMetrics().elidedText(name, Qt.ElideRight, int(rr.width() - ic.width() - 208)))
-            p.setFont(f_num)
+            p.drawText(rr.adjusted(ic.width() + 10, 0, -200, -1), Qt.AlignVCenter | Qt.AlignLeft,
+                       p.fontMetrics().elidedText(name, Qt.ElideRight, int(rr.width() - ic.width() - 210)))
             hits = r["hits"] if kind == "dmg" else r.get("heals", 0)
             crit = f"{r['crit'] / r['hits'] * 100:.0f}%" if kind == "dmg" and r["hits"] else "—"
             sign = "+" if kind == "heal" else ""
-            cols = [(f"{val / tot * 100:.1f}%", 44), (sign + fmt(val), 64), (crit, 40), (str(hits), 46)]
-            x = rr.right() - 8
-            for k, (txt, w) in enumerate(cols):
-                if k == 1 and kind == "heal":
-                    p.setPen(QColor("#8ff0b8"))
-                elif k == 1 and kind == "shield":
-                    p.setPen(QColor("#f4d58c"))
-                else:
-                    p.setPen(QColor("white") if k < 2 else QColor(255, 255, 255, 190))
-                p.drawText(QRectF(x - w, rr.y(), w, rr.height()), Qt.AlignVCenter | Qt.AlignRight, txt)
+            vcol = QColor("#8ff0b8") if kind == "heal" else QColor("#f4d58c") if kind == "shield" else HUD_TEXT
+            cols = [(f"{val / tot * 100:.1f}%", 42, num_font(9.5, QFont.Medium), HUD_MUTED),
+                    (sign + fmt(val), 62, num_font(11), vcol),
+                    (crit, 40, num_font(9.5, QFont.Medium), HUD_MUTED),
+                    (str(hits), 46, num_font(9.5, QFont.Medium), HUD_MUTED)]
+            x = rr.right() - 6
+            for txt, w, font, c in cols:
+                p.setPen(c)
+                p.setFont(font)
+                p.drawText(QRectF(x - w, rr.y(), w, rr.height() - 1), Qt.AlignVCenter | Qt.AlignRight, txt)
                 x -= w
             y += self.ROW
         dmg = sum(r["dmg"] for r in self.rows)
         heal = sum(r["heal"] for r in self.rows)
         shield = sum(r.get("shield", 0) for r in self.rows)
-        p.setPen(QColor("#9b9282"))
-        p.setFont(QFont("Segoe UI", 8))
-        txt = f"{T('Dano')}: {fmt(dmg)}   ·   {T('Cura')}: {fmt(heal)}   ·   {T('Escudo')}: {fmt(shield) if shield else '—'}"
-        p.drawText(QRectF(pad, y + 2, self.W - 2 * pad, 18), Qt.AlignLeft | Qt.AlignVCenter, txt)
+        p.setPen(QPen(HUD_LINE, 1))
+        p.drawLine(QPointF(pad, y + 1), QPointF(self.W - pad - CUT, y + 1))
+        p.setPen(HUD_MUTED)
+        p.setFont(label_font(7.5))
+        txt = f"{T('Dano')} {fmt(dmg)}   ·   {T('Cura')} {fmt(heal)}   ·   {T('Escudo')} {fmt(shield) if shield else '—'}"
+        p.drawText(QRectF(pad, y + 4, self.W - 2 * pad, 18), Qt.AlignLeft | Qt.AlignVCenter, txt)
         p.end()

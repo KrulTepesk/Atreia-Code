@@ -288,6 +288,7 @@ class Fight:
         self.heal = {}        # quem curou -> total
         self.act = {}         # jogador -> [último golpe, segundos lutando] (DPS de cada um pelo próprio tempo)
         self.skills = {}      # (jogador, habilidade) -> [dano, golpes, críticos, cura, curas]
+        self.first = {}       # jogador -> primeiro golpe nesta luta
 
     def _touch(self, t):
         if self.last is not None:
@@ -304,6 +305,7 @@ class Fight:
     def add(self, t, atk, tgt, dmg, crit=False, multi=False, skill=None, mine=True):
         if mine or self.start is None:
             self._touch(t)            # só você e o seu grupo mantêm a luta aberta
+        self.first.setdefault(atk, t)
         a = self.act.setdefault(atk, [t, 0.0])
         gap = t - a[0]
         if 0 < gap <= FIGHT_TIMEOUT:
@@ -329,15 +331,27 @@ class Fight:
             s[3] += val
             s[4] += 1
 
-    def elapsed(self):
+    def _end(self, now):
+        """Até quando a luta conta: agora (se ainda está acontecendo) ou o último golpe (se já acabou)."""
+        if self.last is None:
+            return None
+        now = time.time() if now is None else now
+        return now if now - self.last <= FIGHT_TIMEOUT else self.last
+
+    def elapsed(self, now=None):
+        """Tempo de luta. Enquanto a luta continua, conta até agora: quem parar de bater vai caindo."""
         if self.start is None:
             return 0
-        return max(1.0, self.active)
+        end = self._end(now)
+        return max(1.0, self.active + max(0.0, end - self.last))
 
-    def player_time(self, a):
-        """Tempo que esse jogador passou batendo (para o DPS dele)."""
-        v = self.act.get(a)
-        return max(1.0, v[1]) if v else max(1.0, self.elapsed())
+    def player_time(self, a, now=None):
+        """Tempo para o DPS desse jogador.
+        Luta: do primeiro golpe dele até agora (ou até o fim da luta) — parou de bater, o DPS cai.
+        Sessão: o tempo de luta da sessão (o mesmo para todos)."""
+        if not self.resets or a not in self.first:
+            return self.elapsed(now)
+        return max(1.0, self._end(now) - self.first[a])
 
     def players(self, known, mine=frozenset()):
         """Separa os dois lados (quem bate em quem). Seu lado = o seu e de quem você/seus aliados curam;
@@ -408,6 +422,7 @@ class DpsReader(QThread):
         self.casts = {}           # família da habilidade (id // 10000) -> [(hora, quem usou)]
         self.pending_summon = {}  # invocação sem dono ainda -> golpes guardados
         self.summons = set()      # ids que se mostraram invocações (a morte delas não é abate de monstro)
+        self.first_seen = {}      # invocação que não vimos aparecer -> primeira vez que bateu
 
     def stop(self):
         self._run = False
@@ -460,8 +475,10 @@ class DpsReader(QThread):
                 self._warn(e)
             try:
                 f = self.current()
-                key = (f.start, f.last, len(f.pair), self.find_self(), self.mode, self.view)
                 active = f.last is not None and time.time() - f.last < FIGHT_TIMEOUT
+                # durante a luta atualiza sempre (o DPS de quem parou vai caindo; o relógio anda)
+                key = (f.start, f.last, len(f.pair), self.find_self(), self.mode, self.view,
+                       int(time.time() * 2) if active else 0)
                 if key != getattr(self, "_last_key", None) or active != getattr(self, "_last_active", None):
                     self._last_key, self._last_active = key, active
                     self.updated.emit(self.snapshot())
@@ -507,17 +524,29 @@ class DpsReader(QThread):
 
     SUMMON_BEFORE = 5.0      # o dono usa a habilidade até ~5 s antes da invocação aparecer
     SUMMON_AFTER = 0.6
+    SUMMON_LATE = 60.0       # invocação que já existia (não vimos aparecer): procura o dono até 60 s antes
+    PLAYER_ID_MAX = 16384    # nas capturas: jogadores sempre abaixo disso, criaturas/invocações sempre acima
 
-    def _owner_of(self, summon, skill):
+    def _is_summon(self, eid):
+        """Não é jogador: apareceu como criatura (0x3641) ou tem id de criatura e nunca veio como jogador."""
+        return (eid in self.summons or eid in self.spawned or
+                (eid >= self.PLAYER_ID_MAX and eid not in self.names))
+
+    def _owner_of(self, summon, skill, now):
         """Dono de uma invocação: quem usou uma habilidade da mesma família logo antes dela aparecer."""
         if summon in self.owner:
             return self.owner[summon]
-        t_sp = self.spawned.get(summon)
-        if t_sp is None or not skill_class(skill):
+        if not skill_class(skill):
             return None
+        t_sp = self.spawned.get(summon)
+        if t_sp is not None:
+            lo, hi = t_sp - self.SUMMON_BEFORE, t_sp + self.SUMMON_AFTER
+        else:
+            t0 = self.first_seen.setdefault(summon, now)
+            lo, hi = t0 - self.SUMMON_LATE, now
         best = None
         for t, who in self.casts.get(skill // 10000, ()):
-            if t_sp - self.SUMMON_BEFORE <= t <= t_sp + self.SUMMON_AFTER and who not in self.spawned:
+            if lo <= t <= hi and not self._is_summon(who):
                 if best is None or t > best[0]:
                     best = (t, who)
         if best:
@@ -528,23 +557,21 @@ class DpsReader(QThread):
     def _track_entities(self, op, body, now):
         if op == 0x3641:                                   # NPC / invocação apareceu
             eid, _ = varint(body, 0)
-            if len(self.spawned) > 20_000:
+            if len(self.spawned) > 20_000:                 # sessão longa: esquece o que apareceu faz tempo
                 self.spawned = {e: t for e, t in self.spawned.items() if now - t < 600}
-                self.owner = {e: o for e, o in self.owner.items() if e in self.spawned}
+            if len(self.owner) > 5000:
+                self.owner.clear()
+                self.first_seen.clear()
             self.spawned[eid] = now
             self.owner.pop(eid, None)                      # id reaproveitado: esquece o dono antigo
-            self.summons.discard(eid)
+            self.first_seen.pop(eid, None)
+            self.summons.discard(eid)                      # pode ser um monstro novo com o mesmo id
             self.pending_summon.pop(eid, None)
             if len(self.pending_summon) > 200:
                 self.pending_summon.clear()
-        elif op == 0x3642:                                 # sumiu
-            eid, _ = varint(body, 0)
-            self.spawned.pop(eid, None)
-            self.owner.pop(eid, None)
-            self.pending_summon.pop(eid, None)
         elif op == 0x3802:                                 # alguém usou uma habilidade
             caster, i = varint(body, 0)
-            if caster in self.spawned or len(body) < i + 5:
+            if self._is_summon(caster) or len(body) < i + 5:
                 return
             skill = int.from_bytes(body[i + 1:i + 5], "little")
             if skill_class(skill):
@@ -602,11 +629,11 @@ class DpsReader(QThread):
                 h = decode_hit(body)
                 now = time.time()
                 summon = h["atk"]
-                if summon in self.spawned and skill_class(h["skill"]):
+                if skill_class(h["skill"]) and self._is_summon(summon):
                     if len(self.summons) > 5000:
                         self.summons.clear()
                     self.summons.add(summon)
-                    owner = self._owner_of(summon, h["skill"])
+                    owner = self._owner_of(summon, h["skill"], now)
                     if owner is None:
                         # ainda não deu para saber de quem é: guarda um pouco e entrega quando descobrir
                         lst = self.pending_summon.setdefault(summon, [])
@@ -681,6 +708,7 @@ class DpsReader(QThread):
         return self.session if self.view == "session" else self.fight
 
     def _snapshot(self):
+        now = time.time()
         f = self.current()
         me = self.find_self()
         mine = self.group(me)
@@ -701,10 +729,10 @@ class DpsReader(QThread):
         rows = []
         for a, (d, h, c, mu) in top:
             rows.append({"id": a, "name": self.names.get(a, ""), "cls": self.cls.get(a), "dmg": d, "hits": h,
-                         "dps": d / f.player_time(a),
+                         "dps": d / f.player_time(a, now),
                          "crit": c / h if h else 0, "multi": mu / h if h else 0,
                          "heal": f.heal.get(a, 0), "me": a == me})
-        return {"elapsed": f.elapsed(), "rows": rows, "skills": self.skill_rows([r["id"] for r in rows]),
+        return {"elapsed": f.elapsed(now), "rows": rows, "skills": self.skill_rows([r["id"] for r in rows]),
                 "found_me": me is not None, "my_heal": f.heal.get(me, 0) if me is not None else 0,
                 "active": f.last is not None and time.time() - f.last < FIGHT_TIMEOUT}
 
