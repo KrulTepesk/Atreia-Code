@@ -86,6 +86,32 @@ def is_known_heal(skill):
     return skill in HEAL_SKILLS or skill // 10000 * 10000 in HEAL_BASES
 
 
+def decode_tick(b):
+    """0x3805 = "tick" de efeito contínuo -> (tipo, alvo, quem lançou, habilidade, valor) ou None.
+
+    alvo | tipo | quem lançou | varint | efeito u32 (= habilidade * 100 + nível) | X | Y | ...
+    tipo 0x0a = dano ao longo do tempo (veneno, marca, parede de fogo...): valor = X
+    tipo 0x0b = cura ao longo do tempo (regeneração, recuperação...): X = quanto falta, valor = Y
+    Conferido contra o HP do alvo nas capturas. Esses ticks não aparecem como golpe (0x3804).
+    """
+    try:
+        tgt, i = varint(b, 0)
+        kind = b[i]
+        if kind not in (0x0A, 0x0B):
+            return None
+        caster, j = varint(b, i + 1)
+        _a, j = varint(b, j)
+        eff = struct.unpack_from("<I", b, j)[0]
+        x, j = varint(b, j + 4)
+        y, j = varint(b, j)
+        val = x if kind == 0x0A else y
+        if not 0 < val < 10_000_000:
+            return None
+        return kind, tgt, caster, eff // 100, val
+    except (IndexError, struct.error):
+        return None
+
+
 def decode_names(op, b):
     """Retorna (id, nome) se a mensagem traz o nome de um jogador."""
     try:
@@ -597,7 +623,11 @@ class DpsReader(QThread):
             if c and (atk, tgt) not in self.harmed:   # buff/aura de jogador em outro = mesmo grupo
                 self._link(atk, tgt)
             return
-        if is_known_heal(skill) or (skill in self.heal_skills and tgt not in self.enemies):
+        ally = (tgt in self.links.get(atk, ()) and tgt not in self.enemies and
+                (tgt < self.PLAYER_ID_MAX or tgt in self.names))
+        if ally and c:
+            self.heal_skills.add(skill)              # valor positivo num aliado do grupo = cura
+        if is_known_heal(skill) or ally or (skill in self.heal_skills and tgt not in self.enemies):
             self._link(atk, tgt)
             self.fight.add_heal(now, atk, tgt, dmg, skill)
             self.session.add_heal(now, atk, tgt, dmg, skill)
@@ -615,6 +645,34 @@ class DpsReader(QThread):
         mine = bool(c) and self._mine(atk)
         self.fight.add(now, atk, tgt, dmg, h["crit"], h["multi"], skill, mine)
         self.session.add(now, atk, tgt, dmg, h["crit"], h["multi"], skill, mine)
+
+    def _handle_tick(self, body, now):
+        """Dano/cura ao longo do tempo (0x3805): entra no medidor como golpe/cura da habilidade."""
+        t = decode_tick(body)
+        if not t:
+            return
+        kind, tgt, caster, skill, val = t
+        if not skill_class(skill):
+            return                                   # monstro, item, poção...
+        if self._is_summon(caster):
+            caster = self._owner_of(caster, skill, now)
+            if caster is None:
+                return
+        if kind == 0x0A:
+            # o mesmo tipo também vem em buffs no grupo (Protection Circle, Recuperation...): só conta como
+            # dano em monstro, ou em jogador que quem lançou já atacou (PvP)
+            npc = tgt >= self.PLAYER_ID_MAX and tgt not in self.names
+            if tgt == caster or (not npc and (caster, tgt) not in self.harmed):
+                return
+            self._apply_hit({"tgt": tgt, "atk": caster, "skill": skill, "dmg": val,
+                             "crit": False, "multi": False}, now)
+        else:
+            self.cls.setdefault(caster, skill_class(skill))
+            if tgt != caster and tgt not in self.enemies:
+                self._link(caster, tgt)
+            self.heal_skills.add(skill)
+            self.fight.add_heal(now, caster, tgt, val, skill)
+            self.session.add_heal(now, caster, tgt, val, skill)
 
     def _handle(self, op, body):
         if self.world is not None:
@@ -645,6 +703,8 @@ class DpsReader(QThread):
                         self._apply_hit(hb, tb)
                     h["atk"] = owner
                 self._apply_hit(h, now)
+            elif op == 0x3805:
+                self._handle_tick(body, time.time())
             elif op == 0x364A:
                 # mensagem que o servidor só manda sobre o seu próprio personagem
                 self.auto_self, _ = varint(body, 0)
