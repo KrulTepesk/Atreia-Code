@@ -141,6 +141,42 @@ def decode_names(op, b):
     return None
 
 
+def _name_at(b, k):
+    """Nome com tamanho na frente (b[k] = tamanho) ou None."""
+    if k >= len(b):
+        return None
+    n = b[k]
+    s = b[k + 1:k + 1 + n]
+    if 2 <= n <= 16 and len(s) == n and s.isascii() and s.isalnum():
+        return s.decode()
+    return None
+
+
+def decode_owner_name(b):
+    """0x3641 (algo apareceu): id | 2 bytes | 01 + nome do dono (invocações: espírito, servo...) ou 00."""
+    try:
+        eid, i = varint(b, 0)
+        if b[i + 2] == 1:
+            name = _name_at(b, i + 3)
+            if name:
+                return eid, name
+    except IndexError:
+        pass
+    return None
+
+
+def decode_self_name(b):
+    """0x3633 (dados do seu personagem ao entrar no mapa): seu id | 5f | 4 bytes | nome."""
+    try:
+        eid, i = varint(b, 0)
+        name = _name_at(b, i + 5)
+        if name:
+            return eid, name
+    except IndexError:
+        pass
+    return None
+
+
 def tcp_payload(ip, tcp):
     """Só os dados de verdade do segmento. Pacotes pequenos (ACK puro) chegam com o "enchimento" do
     Ethernet (bytes zero até 60 bytes) e o scapy junta esse enchimento ao payload; antes ele entrava no
@@ -412,7 +448,8 @@ class Fight:
         Sessão: o tempo de luta da sessão (o mesmo para todos)."""
         if not self.resets or a not in self.first:
             return self.elapsed(now)
-        return max(1.0, self._end(now) - self.first[a])
+        end = max(self._end(now), self.act.get(a, (0,))[0])   # golpe depois do último toque da luta não dá tempo negativo
+        return max(1.0, end - self.first[a])
 
 
 class DpsReader(QThread):
@@ -452,6 +489,9 @@ class DpsReader(QThread):
         # o mesmo personagem ganha outro id ao trocar de mapa, morrer e reviver, teleportar... (nas capturas o
         # seu foi 15220, 12836, 3284 no mesmo dia). Sem juntar, o id antigo ficava como um jogador a mais.
         self.by_name = {}         # nome -> id atual (0x3645)
+        self.my_targets = {}      # alvo -> última vez que você/seu grupo bateu nele
+        self.owner_name = {}      # invocação -> nome do dono (vem na 0x3641: dono certo, sem adivinhar)
+        self.my_name = ""         # o jogo não manda o seu nome como manda o dos outros: vem da 0x3633 / do abate
         self.active_t = {}        # id -> última vez que bateu/curou (dois vivos com o mesmo nome não se juntam)
 
     def stop(self):
@@ -568,6 +608,16 @@ class DpsReader(QThread):
         """Dono de uma invocação: quem usou uma habilidade da mesma família logo antes dela aparecer."""
         if summon in self.owner:
             return self.owner[summon]
+        name = self.owner_name.get(summon)
+        if name:
+            pid = self.by_name.get(name)
+            if pid is None:
+                mine = {n.lower() for n in (self.my_name, self.self_name) if n}
+                if name.lower() in mine:
+                    pid = self.find_self()
+            if pid is not None:
+                self.owner[summon] = pid
+                return pid
         if not skill_class(skill):
             return None
         t_sp = self.spawned.get(summon)
@@ -583,6 +633,10 @@ class DpsReader(QThread):
                     best = (t, who)
         if best:
             self.owner[summon] = best[1]
+            # invocação com nome de dono que surgiu logo depois de VOCÊ usar a habilidade: esse é o seu nome
+            if (name and not self.my_name and best[1] == self.find_self() and t_sp is not None
+                    and name not in self.by_name):
+                self.my_name = name
             return best[1]
         return None
 
@@ -601,6 +655,12 @@ class DpsReader(QThread):
             self.pending_summon.pop(eid, None)
             if len(self.pending_summon) > 200:
                 self.pending_summon.clear()
+            self.owner_name.pop(eid, None)
+            on = decode_owner_name(body)
+            if on:
+                if len(self.owner_name) > 5000:
+                    self.owner_name.clear()
+                self.owner_name[eid] = on[1]
         elif op == 0x3802:                                 # alguém usou uma habilidade
             caster, i = varint(body, 0)
             if self._is_summon(caster) or len(body) < i + 5:
@@ -662,6 +722,15 @@ class DpsReader(QThread):
             self.enemies.add(tgt)                  # quem leva dano de jogador é inimigo/monstro
         self._unlink(atk, tgt)
         mine = bool(c) and self._mine(atk)
+        if mine:
+            self.my_targets[tgt] = now
+            if len(self.my_targets) > 5000:
+                self.my_targets = {k: v for k, v in self.my_targets.items() if now - v < 60}
+        elif c and now - self.my_targets.get(tgt, -1e9) < 10:
+            # quem bate no mesmo monstro que você/seu grupo também mantém a luta aberta (antes só os golpes
+            # "seus" contavam: com o grupo ainda não reconhecido, um Clérigo que quase só cura ficava com o
+            # relógio parado e o DPS de todos igual ao total)
+            mine = True
         tick = h.get("tick", False)
         self.fight.add(now, atk, tgt, dmg, h["crit"], h["multi"], skill, mine, tick)
         self.session.add(now, atk, tgt, dmg, h["crit"], h["multi"], skill, mine, tick)
@@ -747,12 +816,19 @@ class DpsReader(QThread):
                 eid, i = varint(body, 0)
                 if i < len(body) and body[i] in (1, 3) and eid < self.PLAYER_ID_MAX:
                     self._set_self(eid)
+            elif op == 0x3633:
+                r = decode_self_name(body)       # só vem sobre o seu personagem
+                if r and self.find_self() in (None, r[0]):
+                    self.my_name = r[1]
+                    self.names[r[0]] = r[1]
             elif op in (0x3645, 0x8D04):
                 r = decode_names(op, body)
                 if r:
                     pid, name = r
                     if op == 0x8D04 and self.self_name and name.lower() == self.self_name.lower():
                         self.self_id = pid
+                    if op == 0x8D04 and pid == self.find_self():
+                        self.my_name = name           # o servidor disse o nome de quem matou: é você
                     if op == 0x3645:
                         old = self.by_name.get(name)
                         # mesmo nome com id novo = o mesmo jogador voltou (a não ser que o antigo ainda esteja
@@ -840,10 +916,16 @@ class DpsReader(QThread):
             return True                     # "todos por perto": a luta de qualquer jogador conta
         if atk == me:
             return True
+        return atk in self._grp_now()
+
+    def _grp_now(self):
+        me = self.find_self()
+        if me is None:
+            return set()
         now = time.time()
         if now - getattr(self, "_grp_t", 0) > 1.0:
             self._grp, self._grp_t = self.group(me), now
-        return atk in self._grp
+        return self._grp
 
     def current(self):
         return self.session if self.view == "session" else self.fight
@@ -875,7 +957,8 @@ class DpsReader(QThread):
             top = order[:7] + [(me, st[me])]       # você sempre aparece
         rows = []
         for a, (d, h, c, mu, dh) in top:
-            rows.append({"id": a, "name": self.names.get(a, ""), "cls": self.cls.get(a), "dmg": d, "hits": h,
+            name = self.names.get(a, "") or ((self.my_name or self.self_name) if a == me else "")
+            rows.append({"id": a, "name": name, "cls": self.cls.get(a), "dmg": d, "hits": h,
                          "dps": d / f.player_time(a, now),
                          "crit": c / dh if dh else 0, "multi": mu / dh if dh else 0,
                          "heal": f.heal.get(a, 0), "me": a == me})

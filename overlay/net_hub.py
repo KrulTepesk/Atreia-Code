@@ -76,14 +76,16 @@ class NetHub(QObject):
     def _on_updated(self, snap):
         # aprende o nome do seu personagem sozinho (ajuda a reconhecer os seus abates nas próximas vezes)
         d = cfg.setdefault("dps", {})
-        if not d.get("char_name"):
-            for row in snap.get("rows", []):
-                if row.get("me") and row.get("name"):
+        mine = self.reader.my_name if self.reader else ""
+        for row in snap.get("rows", []):
+            if row.get("me") and row.get("name"):
+                # salva o nome (fica certo já na próxima vez); troca se o jogo disse outro (outro personagem)
+                if not d.get("char_name") or (mine and row["name"] == mine and d["char_name"] != mine):
                     d["char_name"] = row["name"]
                     save()
                     if self.reader:
                         self.reader.self_name = row["name"]
-                    break
+                break
         self.updated.emit(snap)
 
     def _on_status(self, msg):
