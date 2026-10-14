@@ -49,6 +49,10 @@ class NetHub(QObject):
             from dps_live import DpsReader
             r = DpsReader(game_server_hosts())
             r.self_name = cfg.get("dps", {}).get("char_name", "")
+            ros = cfg.get("dps", {}).get("roster") or {}
+            import time as _t
+            if isinstance(ros, dict) and _t.time() - ros.get("t", 0) < 3 * 3600 and isinstance(ros.get("m"), dict):
+                r.roster = dict(ros["m"])           # última lista do grupo (programa reaberto no meio da masmorra)
             r.mode = cfg.get("dps", {}).get("mode", "party")
             r.view = cfg.get("dps", {}).get("view", "fight")
             r.enable_world()
@@ -77,6 +81,10 @@ class NetHub(QObject):
         # aprende o nome do seu personagem sozinho (ajuda a reconhecer os seus abates nas próximas vezes)
         d = cfg.setdefault("dps", {})
         mine = self.reader.my_name if self.reader else ""
+        if self.reader and self.reader.roster and (d.get("roster") or {}).get("m") != self.reader.roster:
+            import time as _t
+            d["roster"] = {"t": _t.time(), "m": dict(self.reader.roster)}
+            save()
         for row in snap.get("rows", []):
             if row.get("me") and row.get("name"):
                 # salva o nome (fica certo já na próxima vez); troca se o jogo disse outro (outro personagem)

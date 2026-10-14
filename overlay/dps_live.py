@@ -177,6 +177,32 @@ def decode_self_name(b):
     return None
 
 
+# número da classe/especialização que vem depois do nome (0x3645, lista do grupo): 5-8 Gladiador, 9-12 Templário...
+JOB_CLASS = {1: "gl", 2: "te", 3: "ra", 4: "as", 5: "el", 6: "so", 7: "cl", 8: "ch"}
+
+
+def job_class(job):
+    return JOB_CLASS.get((job - 1) // 4) if 5 <= job <= 36 else None
+
+
+def decode_roster(b):
+    """0x9702 = lista do seu grupo: ... | tamanho + nome | u32 classe/especialização | ... -> {nome: classe}."""
+    out = {}
+    k = 0
+    while k < len(b) - 6:
+        name = _name_at(b, k)
+        if name:
+            j = k + 1 + len(name)
+            if j + 4 <= len(b):
+                c = job_class(struct.unpack_from("<I", b, j)[0])
+                if c:
+                    out[name] = c
+                    k = j + 4
+                    continue
+        k += 1
+    return out if len(out) >= 2 else {}
+
+
 def tcp_payload(ip, tcp):
     """Só os dados de verdade do segmento. Pacotes pequenos (ACK puro) chegam com o "enchimento" do
     Ethernet (bytes zero até 60 bytes) e o scapy junta esse enchimento ao payload; antes ele entrava no
@@ -492,6 +518,10 @@ class DpsReader(QThread):
         self.my_targets = {}      # alvo -> última vez que você/seu grupo bateu nele
         self.owner_name = {}      # invocação -> nome do dono (vem na 0x3641: dono certo, sem adivinhar)
         self.my_name = ""         # o jogo não manda o seu nome como manda o dos outros: vem da 0x3633 / do abate
+        # lista do grupo (0x9702: nome + classe). O nome dos outros só vem quando eles aparecem (0x3645); se o
+        # medidor ligou com todo mundo já perto (ex.: programa reaberto no meio da masmorra), sobrava só a
+        # classe. Com a lista, quem do grupo tem classe única ganha o nome. O painel guarda a última lista.
+        self.roster = {}
         self.active_t = {}        # id -> última vez que bateu/curou (dois vivos com o mesmo nome não se juntam)
 
     def stop(self):
@@ -816,6 +846,13 @@ class DpsReader(QThread):
                 eid, i = varint(body, 0)
                 if i < len(body) and body[i] in (1, 3) and eid < self.PLAYER_ID_MAX:
                     self._set_self(eid)
+            elif op == 0x9702:
+                ros = decode_roster(body)
+                if ros:
+                    # junta (quem saiu do grupo continua com nome na "última luta"); classe repetida = sem chute
+                    self.roster = {**self.roster, **ros}
+                    if len(self.roster) > 40:
+                        self.roster = dict(ros)
             elif op == 0x3633:
                 r = decode_self_name(body)       # só vem sobre o seu personagem
                 if r and self.find_self() in (None, r[0]):
@@ -956,8 +993,10 @@ class DpsReader(QThread):
         if me in st and all(a != me for a, _ in top):
             top = order[:7] + [(me, st[me])]       # você sempre aparece
         rows = []
+        guess = self._roster_names([a for a, _ in top], me)
         for a, (d, h, c, mu, dh) in top:
-            name = self.names.get(a, "") or ((self.my_name or self.self_name) if a == me else "")
+            name = (self.names.get(a, "") or ((self.my_name or self.self_name) if a == me else "")
+                    or guess.get(a, ""))
             rows.append({"id": a, "name": name, "cls": self.cls.get(a), "dmg": d, "hits": h,
                          "dps": d / f.player_time(a, now),
                          "crit": c / dh if dh else 0, "multi": mu / dh if dh else 0,
@@ -965,6 +1004,25 @@ class DpsReader(QThread):
         return {"elapsed": f.elapsed(now), "rows": rows, "skills": self.skill_rows([r["id"] for r in rows]),
                 "found_me": me is not None, "my_heal": f.heal.get(me, 0) if me is not None else 0,
                 "active": f.last is not None and time.time() - f.last < FIGHT_TIMEOUT}
+
+    def _roster_names(self, ids, me):
+        """Nome pela lista do grupo para quem ainda não tem: só quando a classe é única (sem chute)."""
+        if not self.roster:
+            return {}
+        known = {n.lower() for n in self.names.values()} | {n.lower() for n in (self.my_name, self.self_name) if n}
+        free = {}
+        for name, c in self.roster.items():
+            if name.lower() not in known:
+                free.setdefault(c, []).append(name)
+        need = {}
+        for a in ids:
+            if a != me and not self.names.get(a) and self.cls.get(a):
+                need.setdefault(self.cls[a], []).append(a)
+        out = {}
+        for c, ents in need.items():
+            if len(ents) == 1 and len(free.get(c, ())) == 1:
+                out[ents[0]] = free[c][0]
+        return out
 
     def skill_rows(self, ids):
         """Por jogador: habilidades que deram dano ou curaram, já com nome/ícone, juntando os níveis."""
