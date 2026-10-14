@@ -47,7 +47,10 @@ def decode_hit(b):
     i += 2
     if flags & 0x02:
         i += 3
-    i += 4 + 4 + 2                   # marca, nº do golpe, tipo
+    i += 4 + 4                       # marca, nº do golpe
+    # campo seguinte é um varint (2 bytes na maioria; 3 quando passa de 16383). Antes era lido como 2 bytes
+    # fixos: para quem tinha esse valor alto (ex.: 16748) o dano saía como 1 e o golpe real se perdia.
+    _tp, i = varint(b, i)
     dmg = None
     if flags & 0x04:
         dmg, i = varint(b, i)
@@ -410,41 +413,6 @@ class Fight:
         if not self.resets or a not in self.first:
             return self.elapsed(now)
         return max(1.0, self._end(now) - self.first[a])
-
-    def players(self, known, mine=frozenset()):
-        """Separa os dois lados (quem bate em quem). Seu lado = o seu e de quem você/seus aliados curam;
-        sem pista, os nomes conhecidos ou o lado com mais dano causado. Serve para PvE e PvP."""
-        adj, dealt = {}, {}
-        for (a, t), v in self.pair.items():
-            adj.setdefault(a, set()).add(t)
-            adj.setdefault(t, set()).add(a)
-            dealt[a] = dealt.get(a, 0) + v[0]
-        side, comps = {}, []
-        for start in adj:
-            if start in side:
-                continue
-            side[start] = 0
-            comp, stack = [start], [start]
-            while stack:
-                x = stack.pop()
-                for y in adj[x]:
-                    if y not in side:
-                        side[y] = 1 - side[x]
-                        comp.append(y)
-                        stack.append(y)
-            comps.append(comp)
-        out = set()
-        for comp in comps:
-            score = [0, 0]
-            for x in comp:
-                if x in mine:
-                    score[side[x]] += 10 ** 15
-                elif x in known:
-                    score[side[x]] += 10 ** 9
-                score[side[x]] += dealt.get(x, 0)
-            good = 0 if score[0] >= score[1] else 1
-            out |= {x for x in comp if side[x] == good and x in dealt}
-        return out
 
 
 class DpsReader(QThread):
@@ -888,7 +856,13 @@ class DpsReader(QThread):
         if self.mode == "party":
             players = mine      # sem saber quem é você ainda, não mostra ninguém (antes mostrava todos)
         else:
-            players = f.players(self.names, mine) & set(self.cls)   # só quem usa habilidade de classe
+            # todo jogador (usa habilidade de classe) que causou dano, menos quem bateu em você/seu grupo
+            # (inimigo de PvP). Antes os lados eram adivinhados pelo "quem bate em quem" e um monstro batendo
+            # num espírito/invocação bastava para jogar um aliado (ex.: o Elementalista) para o lado dos monstros.
+            cls = self.cls
+            dealt = {a for (a, _t), v in f.pair.items() if v[0] > 0 and a in cls}
+            enemy = {a for (a, t) in f.pair if t in mine and a not in mine}
+            players = (dealt - enemy) | (dealt & mine)
         st = {}
         for (a, _t), v in f.pair.items():
             if a in players:
