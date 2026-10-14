@@ -523,6 +523,8 @@ class DpsReader(QThread):
         # classe. Com a lista, quem do grupo tem classe única ganha o nome. O painel guarda a última lista.
         self.roster = {}
         self.self_seen = {}       # seu id -> último sinal de que é você
+        self.link_w = {}          # (a, b) -> quantas vezes buffaram/curaram um ao outro
+        self.roster_live = {}     # quem esteve na lista do grupo nesta sessão (a salva de antes só dá nomes)
         self.active_t = {}        # id -> última vez que bateu/curou (dois vivos com o mesmo nome não se juntam)
 
     def stop(self):
@@ -864,6 +866,8 @@ class DpsReader(QThread):
                     self.roster = {**self.roster, **ros}
                     if len(self.roster) > 40:
                         self.roster = dict(ros)
+                    # todos que estiveram no grupo nesta sessão (quem saiu continua na "última luta")
+                    self.roster_live = {**self.roster_live, **ros}
             elif op == 0x3633:
                 r = decode_self_name(body)       # só vem sobre o seu personagem
                 if r and self.find_self() in (None, r[0]):
@@ -915,8 +919,9 @@ class DpsReader(QThread):
             self.cls.setdefault(new, self.cls.pop(old))
         for y in self.links.pop(old, set()):
             self.links.get(y, set()).discard(old)
+            w = self.link_w.pop((old, y) if old < y else (y, old), 1)
             if y != new:
-                self._link(new, y)
+                self._link(new, y, w)
         if old in self.names:
             self.names.setdefault(new, self.names.pop(old))
         for k, v in list(self.owner.items()):
@@ -932,26 +937,54 @@ class DpsReader(QThread):
             self.self_id = new
         self._grp_t = 0                       # recalcula o grupo na próxima leitura
 
-    def _link(self, a, b):
+    def _link(self, a, b, n=1):
         self.links.setdefault(a, set()).add(b)
         self.links.setdefault(b, set()).add(a)
+        k = (a, b) if a < b else (b, a)
+        self.link_w[k] = self.link_w.get(k, 0) + n          # quantas vezes um buffou/curou o outro
+        if len(self.link_w) > 200_000:
+            self.link_w = {k: v for k, v in self.link_w.items() if v > 2}
 
     def _unlink(self, a, b):
         self.links.get(a, set()).discard(b)
         self.links.get(b, set()).discard(a)
+        self.link_w.pop((a, b) if a < b else (b, a), None)
+
+    def _w(self, a, b):
+        return self.link_w.get((a, b) if a < b else (b, a), 0)
 
     def group(self, me):
-        """Você + quem troca buff/cura com você (e com eles), ao longo da sessão."""
+        """Você + quem troca buff/cura com você (e com eles), ao longo da sessão.
+
+        Só valem ligações fortes: no chefe de campo, um buff/cura solto num estranho (1 a 5 vezes) ligava ele
+        ao grupo, e dele a outros: o "seu grupo" chegou a 29 pessoas. O grupo de verdade troca centenas
+        (cura/buff de grupo o tempo todo). Forte = pelo menos 20% da sua ligação mais forte (mínimo 3).
+        Se a lista do grupo (0x9702) chegou nesta sessão, ela manda."""
         if me is None:
             return set()
+        mine = [self._w(me, y) for y in self.links.get(me, ()) if y in self.cls]
+        need = max(3, 0.2 * max(mine)) if mine else 3
         seen, stack = {me}, [me]
         while stack:
-            for y in self.links.get(stack.pop(), ()):
+            x = stack.pop()
+            for y in self.links.get(x, ()):
                 # só passa por jogadores: um debuff sem dano num monstro ligava você ao monstro e o monstro
                 # a qualquer estranho que batesse nele, e o estranho piscava no medidor até o 1º dano
-                if y not in seen and y in self.cls:
+                if y not in seen and y in self.cls and self._w(x, y) >= need:
                     seen.add(y)
                     stack.append(y)
+        if self.roster_live:
+            names = {n.lower() for n in self.roster_live}
+            free = {}
+            for n, c in self.roster_live.items():
+                if not any((self.names.get(x) or "").lower() == n.lower() for x in seen):
+                    free[c] = free.get(c, 0) + 1
+            keep = {me}
+            for x in seen:
+                nm = (self.names.get(x) or "").lower()
+                if nm in names or (not nm and free.get(self.cls.get(x), 0) > 0):
+                    keep.add(x)
+            seen = keep
         return seen
 
     def find_self(self):
