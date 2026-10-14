@@ -522,6 +522,7 @@ class DpsReader(QThread):
         # medidor ligou com todo mundo já perto (ex.: programa reaberto no meio da masmorra), sobrava só a
         # classe. Com a lista, quem do grupo tem classe única ganha o nome. O painel guarda a última lista.
         self.roster = {}
+        self.self_seen = {}       # seu id -> último sinal de que é você
         self.active_t = {}        # id -> última vez que bateu/curou (dois vivos com o mesmo nome não se juntam)
 
     def stop(self):
@@ -656,11 +657,21 @@ class DpsReader(QThread):
         else:
             t0 = self.first_seen.setdefault(summon, now)
             lo, hi = t0 - self.SUMMON_LATE, now
-        best = None
+        me = self.find_self()
+        mine = {n.lower() for n in (self.my_name, self.self_name) if n}
+        cands = {}
         for t, who in self.casts.get(skill // 10000, ()):
             if lo <= t <= hi and not self._is_summon(who):
-                if best is None or t > best[0]:
-                    best = (t, who)
+                if name:
+                    # a invocação diz de quem é: não pode ser de outro nome conhecido, nem sua se o nome não é o seu
+                    known = self.names.get(who)
+                    if (known and known != name) or (who == me and mine and name.lower() not in mine):
+                        continue
+                cands[who] = max(t, cands.get(who, t))
+        # Mais de um jogador usou essa família de habilidade naquela hora (chefe de campo, vários Clérigos...):
+        # não dá para saber de quem é. Antes ia para o mais recente — muitas vezes você, que usa a mesma
+        # habilidade sem parar — e o dano das invocações dos outros entrava no seu.
+        best = (cands[next(iter(cands))], next(iter(cands))) if len(cands) == 1 else None
         if best:
             self.owner[summon] = best[1]
             # invocação com nome de dono que surgiu logo depois de VOCÊ usar a habilidade: esse é o seu nome
@@ -845,7 +856,7 @@ class DpsReader(QThread):
                 # sem mostrar nada; conferido em todas: esse formato só aparece para você.
                 eid, i = varint(body, 0)
                 if i < len(body) and body[i] in (1, 3) and eid < self.PLAYER_ID_MAX:
-                    self._set_self(eid)
+                    self._set_self(eid, strong=False)
             elif op == 0x9702:
                 ros = decode_roster(body)
                 if ros:
@@ -881,10 +892,18 @@ class DpsReader(QThread):
         except Exception:
             pass
 
-    def _set_self(self, new):
-        if self.auto_self is not None and new != self.auto_self:
-            self.rename(self.auto_self, new)          # você voltou com outro id: continua sendo você
+    def _set_self(self, new, strong=True):
+        """strong = 0x364a (só sobre você). A vida/mana (0x8d00) só troca o seu id se o atual ficou 10 s sem
+        sinal: com muita gente por perto (chefe de campo, aliança) um aviso de outro jogador nesse formato
+        não pode juntar o dano dele no seu."""
+        now = time.time()
+        cur = self.auto_self
+        if cur is not None and new != cur:
+            if not strong and now - self.self_seen.get(cur, 0) < 10:
+                return
+            self.rename(cur, new)                     # você voltou com outro id: continua sendo você
         self.auto_self = new
+        self.self_seen[new] = now
 
     def rename(self, old, new):
         """O jogador 'old' agora é 'new': junta luta, sessão, grupo e classe no id novo."""
