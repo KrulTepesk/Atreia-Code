@@ -3,14 +3,15 @@
 Não fica nada fixo na tela: um aviso aparece X minutos antes (padrão 5 e 1),
 toca o som e some sozinho depois de alguns segundos.
 """
+import math
 import os
 import shutil
 from datetime import datetime, timedelta
 
 from PySide6.QtCore import QPoint, Qt, QTimer
-from PySide6.QtGui import QColor, QFont, QPixmap
-from PySide6.QtWidgets import QHBoxLayout, QLabel, QVBoxLayout
+from PySide6.QtGui import QPainter, QPixmap
 
+import alert_style
 import sounds_player
 from base_window import OverlayWindow
 from i18n import T
@@ -21,6 +22,8 @@ SHOW_SECONDS = 10
 
 
 class ShugoWidget(OverlayWindow):
+    W = 360
+
     def __init__(self):
         super().__init__("shugo", QPoint(40, 120))
         c = cfg["shugo"]
@@ -28,28 +31,14 @@ class ShugoWidget(OverlayWindow):
         c.setdefault("icon", DEFAULT_ICON)
         self._fired = set()
         self._hide_at = None
-
-        lay = QHBoxLayout(self)
-        lay.setContentsMargins(12, 10, 16, 10)
-        lay.setSpacing(12)
-        self.icon = QLabel()
-        self.icon.setFixedSize(56, 56)
-        lay.addWidget(self.icon)
-        col = QVBoxLayout()
-        col.setSpacing(0)
-        self.title = QLabel(T("FESTIVAL SHUGO"))
-        self.title.setFont(QFont("Segoe UI", 9, QFont.Bold))
-        self.title.setStyleSheet("color:#f5c542; letter-spacing:1px;")
-        self.msg = QLabel("")
-        self.msg.setFont(QFont("Segoe UI", 15, QFont.Bold))
-        self.msg.setStyleSheet("color:white;")
-        self.sub = QLabel("")
-        self.sub.setFont(QFont("Segoe UI", 9))
-        self.sub.setStyleSheet("color:#b3aa98;")
-        for w in (self.title, self.msg, self.sub):
-            col.addWidget(w)
-        lay.addLayout(col)
-        self.setFixedSize(330, 82)
+        self._shown_at = None
+        self.title = T("Festival Shugo")
+        self.msg = ""
+        self.sub = ""
+        self.target = None          # hora do festival (contagem ao vivo)
+        self.urgent = False
+        self.pix = None
+        self.setFixedSize(self.W, 84)
         self.load_icon()
 
         self.timer = QTimer(self)
@@ -61,7 +50,8 @@ class ShugoWidget(OverlayWindow):
         pm = QPixmap(resolve(cfg["shugo"].get("icon") or DEFAULT_ICON))
         if pm.isNull():
             pm = QPixmap(resolve(DEFAULT_ICON))
-        self.icon.setPixmap(pm.scaled(56, 56, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+        self.pix = pm.scaled(96, 96, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+        self.update()
 
     def set_icon_file(self, path):
         os.makedirs(APP_DIR, exist_ok=True)
@@ -107,35 +97,61 @@ class ShugoWidget(OverlayWindow):
         if self._hide_at and datetime.now() >= self._hide_at:
             self._hide_at = None
             self.hide()
+            self.timer.setInterval(500)
         if self.isVisible():
-            on = int(datetime.now().timestamp() * 2) % 2 == 0
-            self._accent = QColor("#f5c542") if on else QColor(245, 197, 66, 90)
             self.update()
 
     def alert(self, minutes=5, nxt=None, play_sound=True):
         nxt = nxt or (self.server_now() + timedelta(hours=1)).replace(minute=0, second=0, microsecond=0)
+        self.target = nxt
+        self.urgent = minutes <= 1
         if minutes <= 1:
-            self.msg.setText(T("Começa em 1 minuto!"))
-            self.sub.setText(T("Lobby aberto — entre agora"))
+            self.msg = T("Começa em 1 minuto!")
+            self.sub = T("Lobby aberto — entre agora")
         else:
-            self.msg.setText(T("Começa em {n} minutos").format(n=minutes))
-            self.sub.setText(T("Lobby abre 3 min antes") if minutes > 3 else T("Lobby aberto — entre agora"))
+            self.msg = T("Começa em {n} minutos").format(n=minutes)
+            self.sub = T("Lobby abre 3 min antes") if minutes > 3 else T("Lobby aberto — entre agora")
         if play_sound:
             c = cfg["shugo"]
             sounds_player.play(c.get("sound"), c.get("volume", 80))
         self.show_for(cfg["shugo"].get("show_seconds", 6))
 
     def show_for(self, seconds):
-        self._hide_at = datetime.now() + timedelta(seconds=seconds)
+        self._shown_at = datetime.now()
+        self._hide_at = self._shown_at + timedelta(seconds=seconds)
+        self.setFixedHeight(alert_style.alert_height(self.W, self.sub))
+        was = self.isVisible()
         self.show()
         self.raise_()
+        if not was:
+            alert_style.fade_in(self, cfg["shugo"].get("opacity", 0.85))
+        self.timer.setInterval(100)            # contagem e o halo andando lisos enquanto aparece
+        self.update()
 
     def preview_position(self):
         """Mostra o aviso por 15 s para arrastar até o lugar desejado (com os overlays destravados)."""
-        self.msg.setText(T("Arraste para posicionar"))
-        self.sub.setText(T("Some sozinho em 15 s"))
+        self.target = None
+        self.urgent = False
+        self.msg = T("Arraste para posicionar")
+        self.sub = T("Some sozinho em 15 s")
         self.show_for(15)
 
     def mouseDoubleClickEvent(self, e):
         self._hide_at = None
         self.hide()
+        self.timer.setInterval(500)
+
+    def paintEvent(self, e):
+        p = QPainter(self)
+        p.setRenderHint(QPainter.Antialiasing)
+        p.setRenderHint(QPainter.TextAntialiasing)
+        now = datetime.now()
+        life = None
+        if self._hide_at and self._shown_at:
+            total = (self._hide_at - self._shown_at).total_seconds() or 1
+            life = (self._hide_at - now).total_seconds() / total
+        left = (self.target - self.server_now()).total_seconds() if self.target else None
+        pulse = (0.5 + 0.5 * math.sin(now.timestamp() * 5)) if self.urgent else 0.0
+        alert_style.draw_alert(p, self.width(), self.height(), "shugo", self.title, self.msg, self.sub,
+                               left=left, life=life, locked=self._locked, pixmap=self.pix, pulse=pulse)
+        p.end()

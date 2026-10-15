@@ -123,7 +123,8 @@ class FieldBossManager(QObject):
         region = N(region_of(b["world"], coords))
         msg = T("Renasce em {n} minutos").format(n=PRE_MIN) if phase == "pre" else T("Renasceu agora!")
         when = time.strftime("%H:%M", time.localtime(t))
-        self.s.toast.push("boss", N(b["name"]), msg, T("{t} no seu relógio").format(t=when) + f" · {world} · {region}")
+        self.s.toast.push("boss", N(b["name"]), msg, T("{t} no seu relógio").format(t=when) + f" · {world} · {region}",
+                          at=t)
         ec = cfg.get("events", {})
         sounds_player.play(ec.get("sound", "sounds/shugo.wav"), ec.get("volume", 80))
         if fb_cfg()["map"] and (phase == "pre" or test):

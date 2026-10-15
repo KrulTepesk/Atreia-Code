@@ -46,7 +46,7 @@ ES = {
     '▶ Testar': '▶ Probar',
     'Volume': 'Volumen',
     'Testar': 'Probar',
-    'FESTIVAL SHUGO': 'FESTIVAL SHUGO',
+    'Festival Shugo': 'Festival Shugo',
     'Começa em 1 minuto!': '¡Empieza en 1 minuto!',
     'Lobby aberto — entre agora': 'Lobby abierto — entra ahora',
     'Lobby abre 3 min antes': 'El lobby abre 3 min antes',

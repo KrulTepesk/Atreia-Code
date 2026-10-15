@@ -30,7 +30,7 @@ EN = {
     "Testar aviso de 5 min": "Test 5-min alert", "Testar aviso de 1 min": "Test 1-min alert",
     "Posicionar aviso": "Position alert", "Escolher som...": "Choose sound...", "Padrão": "Default",
     "▶ Testar": "▶ Test", "Volume": "Volume", "Testar": "Test",
-    "FESTIVAL SHUGO": "SHUGO FESTIVAL", "Começa em 1 minuto!": "Starts in 1 minute!",
+    "Festival Shugo": "Shugo Festival", "Começa em 1 minuto!": "Starts in 1 minute!",
     "Lobby aberto — entre agora": "Lobby open — join now", "Lobby abre 3 min antes": "Lobby opens 3 min before",
     "Começa em {n} minutos": "Starts in {n} minutes", "Arraste para posicionar": "Drag to position",
     "Some sozinho em 15 s": "Disappears in 15 s", " min antes": " min before", "desligado": "off",

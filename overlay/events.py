@@ -5,6 +5,7 @@ convertidos automaticamente para o relógio do PC. Cada evento pode avisar 5 min
 na hora e, opcionalmente, abrir um mini-mapa com o local 5 min antes.
 """
 import json
+import math
 import os
 from datetime import datetime, timedelta, timezone
 
@@ -18,6 +19,7 @@ from PySide6.QtGui import QColor, QFont, QFontMetrics, QPainter, QPainterPath, Q
 from PySide6.QtWidgets import (QCheckBox, QComboBox, QFormLayout, QGridLayout, QGroupBox, QHBoxLayout,
                                QLabel, QPushButton, QSpinBox, QVBoxLayout, QWidget)
 
+import alert_style
 import sounds_player
 from base_window import OverlayWindow
 from i18n import T
@@ -94,21 +96,23 @@ def occurrences(ev, region_id, data, start, hours=200):
 
 # ====================================================================== avisos (fila)
 class EventToast(OverlayWindow):
-    SHOW_SECONDS = 10
+    W = 360
 
     def __init__(self):
         cfg.setdefault("event_toast", {"pos": None, "opacity": 0.95})
         super().__init__("event_toast", QPoint(40, 300))
-        self.setFixedSize(340, 82)
+        self.setFixedSize(self.W, 84)
         self.queue = []
         self.cur = None
         self._hide_at = None
+        self._shown_at = None
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.tick)
         self.timer.start(400)
 
-    def push(self, kind, title, msg, sub):
-        self.queue.append((kind, title, msg, sub))
+    def push(self, kind, title, msg, sub, at=None):
+        """at = hora do evento (timestamp): mostra a contagem regressiva ao vivo enquanto não chega."""
+        self.queue.append((kind, title, msg, sub, at))
         if self.cur is None:
             self.next()
 
@@ -116,70 +120,58 @@ class EventToast(OverlayWindow):
         if not self.queue:
             self.cur = None
             self.hide()
+            self.timer.setInterval(400)
             return
         self.cur = self.queue.pop(0)
-        self._hide_at = datetime.now() + timedelta(seconds=ev_cfg().get("toast_seconds", 6))
+        self._shown_at = datetime.now()
+        self._hide_at = self._shown_at + timedelta(seconds=ev_cfg().get("toast_seconds", 6))
+        self.setFixedHeight(alert_style.alert_height(self.W, self.cur[3]))
+        was = self.isVisible()
         self.show()
         self.raise_()
+        if not was:
+            alert_style.fade_in(self, cfg["event_toast"].get("opacity", 0.95))
+        self.timer.setInterval(100)
         self.update()
 
     def tick(self):
-        if self.cur and datetime.now() >= self._hide_at:
+        if self.cur and self._hide_at and datetime.now() >= self._hide_at:
             self.next()
         elif self.cur:
-            on = int(datetime.now().timestamp() * 2) % 2 == 0
-            col = QColor(COLORS.get(self.cur[0], "#f5c542"))
-            if not on:
-                col.setAlpha(90)
-            self._accent = col
             self.update()
 
     def mouseDoubleClickEvent(self, e):
         self.next()
 
     def paintEvent(self, e):
-        super().paintEvent(e)
         if not self.cur:
             return
-        kind, title, msg, sub = self.cur
+        kind, title, msg, sub, at = self.cur
         p = QPainter(self)
         p.setRenderHint(QPainter.Antialiasing)
-        c = QColor(COLORS.get(kind, "#f5c542"))
-        import theme
-        # losango grande na cor do tipo de evento, com o símbolo desenhado dentro
-        ctr = QPointF(42, 41)
-        bg = QColor(c)
-        bg.setAlpha(45)
-        p.setPen(QPen(c, 1.2))
-        p.setBrush(bg)
-        p.drawRoundedRect(QRectF(ctr.x() - 25, ctr.y() - 25, 50, 50), 12, 12)
+        p.setRenderHint(QPainter.TextAntialiasing)
+        now = datetime.now()
+        life = None
+        if self._hide_at and self._shown_at:
+            total = (self._hide_at - self._shown_at).total_seconds() or 1
+            life = (self._hide_at - now).total_seconds() / total
+        left = (at - now.timestamp()) if at else None
+        pix = None
+        glyph = {"rift": "rifts", "event": "shield", "boss": "pvp"}.get(kind, "shugo")
         if kind == "boss":
             import icons
-            pm = icons.world_boss(40)
-            if not pm.isNull():
-                p.drawPixmap(QRectF(22, 21, 40, 40), pm, QRectF(pm.rect()))
-            else:
-                theme.draw_glyph(p, "pvp", QRectF(29, 28, 26, 26), c.lighter(130))
-        else:
-            glyph = {"rift": "rifts", "event": "shield"}.get(kind, "shugo")
-            theme.draw_glyph(p, glyph, QRectF(29, 28, 26, 26), c.lighter(130))
-        p.setPen(c)
-        p.setFont(theme.display_font(10.5))
-        p.drawText(QRectF(82, 10, 250, 18), Qt.AlignLeft | Qt.AlignVCenter, title)
-        p.setPen(QColor("white"))
-        p.setFont(QFont("Segoe UI", 14, QFont.Bold))
-        p.drawText(QRectF(82, 28, 250, 26), Qt.AlignLeft | Qt.AlignVCenter, msg)
-        p.setPen(QColor("#c7bda8"))
-        f = QFont("Segoe UI", 8)
-        p.setFont(f)
-        p.drawText(QRectF(82, 54, 250, 18), Qt.AlignLeft | Qt.AlignVCenter,
-                   QFontMetrics(f).elidedText(sub, Qt.ElideRight, 248))
+            pix = icons.world_boss(48)
+        urgent = left is not None and left <= 0             # já começou / nasceu agora: o emblema pulsa
+        pulse = (0.5 + 0.5 * math.sin(now.timestamp() * 5)) if urgent else 0.0
+        alert_style.draw_alert(p, self.width(), self.height(), kind, title, msg, sub, left=left, life=life,
+                               locked=self._locked, pixmap=pix, glyph=glyph, pulse=pulse)
         p.end()
 
 
 # ====================================================================== mini-mapa do local
 class LocationPopup(OverlayWindow):
     W, H = 380, 300
+    HEAD = 64
 
     def __init__(self):
         cfg.setdefault("event_map", {"pos": None, "opacity": 0.97})
@@ -190,6 +182,7 @@ class LocationPopup(OverlayWindow):
         self.sub = ""
         self.kind = "boss"
         self._hide_at = None
+        self._shown_at = None
         self.timer = QTimer(self)
         self.timer.timeout.connect(self._tick)
         self.timer.start(500)
@@ -201,39 +194,57 @@ class LocationPopup(OverlayWindow):
         if kind == "boss":
             import icons
             marker = icons.world_boss(34)
-        self.pix = render_minimap(world, coords, self.W - 4, self.H - 66, marker,
+        self.pix = render_minimap(world, coords, self.W - 16, self.H - self.HEAD - 14, marker,
                                   min_span=70000 if len(points) == 1 else 30000)
         self.kind, self.title, self.sub = kind, title, sub
-        self._hide_at = datetime.now() + timedelta(seconds=seconds)
+        self._shown_at = datetime.now()
+        self._hide_at = self._shown_at + timedelta(seconds=seconds)
+        was = self.isVisible()
         self.show()
         self.raise_()
+        if not was:
+            alert_style.fade_in(self, cfg["event_map"].get("opacity", 0.97))
         self.update()
 
     def _tick(self):
         if self._hide_at and datetime.now() >= self._hide_at:
             self._hide_at = None
             self.hide()
+        elif self._hide_at:
+            self.update()
 
     def mouseDoubleClickEvent(self, e):
         self._hide_at = None
         self.hide()
 
     def paintEvent(self, e):
-        super().paintEvent(e)
         p = QPainter(self)
         p.setRenderHint(QPainter.Antialiasing)
-        c = QColor(COLORS.get(self.kind, "#f5c542"))
-        p.setPen(c)
-        p.setFont(QFont("Segoe UI", 10, QFont.Bold))
-        p.drawText(QRectF(14, 8, self.W - 28, 22), Qt.AlignLeft | Qt.AlignVCenter, self.title)
-        p.setPen(QColor("#c7bda8"))
-        p.setFont(QFont("Segoe UI", 8))
-        p.drawText(QRectF(14, 30, self.W - 28, 30), Qt.AlignLeft | Qt.TextWordWrap, self.sub)
+        p.setRenderHint(QPainter.TextAntialiasing)
+        color = alert_style.kind_color(self.kind)
+        life = None
+        if self._hide_at and self._shown_at:
+            total = (self._hide_at - self._shown_at).total_seconds() or 1
+            life = (self._hide_at - datetime.now()).total_seconds() / total
+        alert_style.draw_panel(p, QRectF(0, 0, self.W, self.H), color, self._locked, life)
+        tf = alert_style.display(11.5)
+        p.setFont(tf)
+        p.setPen(color)
+        p.drawText(QRectF(16, 10, self.W - 32, 22), Qt.AlignLeft | Qt.AlignVCenter,
+                   QFontMetrics(tf).elidedText(self.title, Qt.ElideRight, self.W - 32))
+        alert_style.draw_wrapped(p, QRectF(16, 32, self.W - 32, 28), self.sub, alert_style.ui(8.5),
+                                 alert_style.MUTED)
         if self.pix:
+            r = QRectF(8, self.HEAD, self.W - 16, self.H - self.HEAD - 14)
             clip = QPainterPath()
-            clip.addRoundedRect(QRectF(2, 64, self.W - 4, self.H - 66), 8, 8)
+            clip.addRoundedRect(r, 6, 6)
+            p.save()
             p.setClipPath(clip)
-            p.drawPixmap(2, 64, self.pix)
+            p.drawPixmap(r.topLeft(), self.pix)
+            p.restore()
+            p.setPen(QPen(QColor(255, 255, 255, 30), 1))
+            p.setBrush(Qt.NoBrush)
+            p.drawRoundedRect(r.adjusted(0.5, 0.5, -0.5, -0.5), 6, 6)
         p.end()
 
 
@@ -283,7 +294,7 @@ class EventScheduler:
         else:
             msg = T({"rift": "Abriu agora!", "boss": "Nasceu agora!"}.get(ev["kind"], "Começou agora!"))
         sub = T("{t} no seu relógio").format(t=f"{local:%H:%M}") + (f" · {T(ev['note'])}" if ev["note"] else "")
-        self.toast.push(ev["kind"], T(ev["name"]), msg, sub)
+        self.toast.push(ev["kind"], T(ev["name"]), msg, sub, at=t.timestamp())
         c = ev_cfg()
         sounds_player.play(c["sound"], c["volume"])
         if phase == "pre" and it.get("map"):
